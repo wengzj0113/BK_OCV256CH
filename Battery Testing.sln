@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.1.32421.90
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{F184B08F-C81C-45F6-A57F-5ABD9991F28F}") = "MP-60A-RV-256", "MP-60A-RV-256.vbproj", "{C9033C44-C48E-4DE7-B676-9303F3E8C9A4}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x86 = Debug|x86
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{C9033C44-C48E-4DE7-B676-9303F3E8C9A4}.Debug|x86.ActiveCfg = Debug|x86
+		{C9033C44-C48E-4DE7-B676-9303F3E8C9A4}.Debug|x86.Build.0 = Debug|x86
+		{C9033C44-C48E-4DE7-B676-9303F3E8C9A4}.Release|x86.ActiveCfg = Release|x86
+		{C9033C44-C48E-4DE7-B676-9303F3E8C9A4}.Release|x86.Build.0 = Release|x86
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {C282148E-F695-4AB1-A461-C435778C09DC}
+	EndGlobalSection
+EndGlobal

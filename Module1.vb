@@ -1,0 +1,2768 @@
+Imports System.IO.Ports
+Imports System.Threading.Thread
+Imports System.Data.SqlClient
+Imports System.Net.Sockets
+Imports System.Net
+Imports System.Threading
+Imports System.Text
+Imports MpFByteArrDLL
+Imports Ivi.Visa.Interop
+Imports Modbus.Device
+Imports Telerik.SvgIcons
+
+Module Module1
+    '===========全局变量==================
+    Public Initsetting As Initset
+    Public frmMDI As MDIForm
+    Public Com_SCM As SerialPort
+    Public Tcp_Scm As SocketCtrolCmd
+    Public Com_3561 As SerialPort
+    Public Com_scaner As SerialPort
+    Public Com_IOCard As SerialPort
+    Public Const MAX_CHANNEL = 256
+    Public CommunicationCounts As Integer
+    Public FirstCom As Boolean
+    Public blnOnLine As Boolean   '设备是否联机正常
+    Public RecieveData(MAX_CHANNEL - 1) As Bat_info
+    Public Const intRow As Int16 = 16
+    Public Const intCol As Int16 = 16
+    Public myConnection As New SqlConnection '定义一个SQL链接
+    Public g_objLv As Dictionary(Of String, String)
+    Public g_objCN As Dictionary(Of String, String)
+    Public Data As DataCh() '每一个电池得信息
+    Public IsRec As Boolean
+    Public ReFlag_34461 As Short = -1
+    Public IsSending As Boolean = False
+    Public recDataof34461 As Double
+    Public ReturnValue34461 As String '接收仪表返回的读数值
+    Dim ResourcePort As New Ivi.Visa.Interop.ResourceManager
+    Dim visaSession As Ivi.Visa.Interop.FormattedIO488 = Nothing
+    Public bytes_IODI As Byte() = {&H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0}
+    Public bytes_IODO As Byte() = {&H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0}
+    Public CalibrateR As Single = 0 '初始化内阻测试机校准值为0
+    Public dataOfTemPeraturesAndIO As Byte()
+    '定时发送命令16H，发送数据为send111，接收反馈上行数据为rec111
+    Public send111 As String
+    Public rec111 As String
+    Public isRuning As Boolean
+    Public isAskOcvNum As Boolean
+    Public alarmStatus As Boolean = False
+    Public retestArray As Int16() = New Int16(255) {}  '复测点位数组
+    Public testArray As Int16() = New Int16(255) {}    '测试点位数组
+    '保存校准值的数组和文件如下
+    Public calibrateValueArray(MAX_CHANNEL) As Double
+    Public currentOCVNum As Integer
+    '公共 sql 语句
+    Public pubConnectionString As String
+    '有效电池个数
+    Public avalibleCount As Integer
+    Public trayCodeSet As String
+    Public processNumSet As String
+    Public operatorName As String
+    '智能电表
+    Public master As IModbusSerialMaster
+    Public eMMconnected As Boolean
+    Public totalEnergyOfEmm As Long
+
+    'Public Probelifespan As Integer '探针的可使用次数 初始值30000
+    'Public ProbeUsedCount As Integer '探针已经使用的次数 初始值 0
+    'Public PsdOfAdmin As String '系统管理员密码
+    'Public PsdOfOper As String '操作员密码
+    'Public PsdOfGuest As String '游客密码
+
+    '共享 MES HttpClient 池:7 个 Upload 类复用,避免句柄累积 (R2-12)
+    Public MesHttpClient As New System.Net.Http.HttpClient()
+
+
+
+    '-------------------数据结构----------------------
+    Public Structure Initset
+        Dim ScanerPort As Integer
+        Dim ScanerRate As Integer
+        '中位机IP地址  weng 20220802 添加
+        Dim SCMIpAdd As String
+        Dim SCM_port As Integer  '中位机网络端口
+
+        'IO控制卡参数  weng 20230514修改
+        Dim IOPort As Integer
+        Dim IORate As Integer
+
+        '智能电表参数  weng 20240718修改
+        Dim EmmPort As Integer
+        Dim EmmRate As Integer
+
+        '数字万用表IP地址参数  weng 20230518修改
+        Dim IpAddOf34461 As String
+
+        '日置内阻仪
+        Dim ComRateMode As String
+        Dim Recom As Integer
+        Dim ReRate As Integer
+        '内阻范围
+        Dim upResistance As Single
+        Dim downResistance As Single
+        '电压范围
+        Dim upVoltage As Single
+        Dim downVoltage As Single
+        '数据库管理
+        Dim chkDatabase As Boolean
+        Dim strDatabase As String
+        '数据库保存地址
+        Dim sPath As String
+        '自动上传
+        Dim autoUpdate As Boolean
+        '电压校准值
+        Dim sngV_B As Single
+        '内阻校准值
+        Dim sngR_B As Single
+        '条码长度设定
+        Dim txtCodeLenth As Integer
+
+        Dim strUserID As String '数据库用户名
+        Dim strpwd As String '数据库用户密码
+
+        Dim delayTime As String '通道切换时间
+
+        Dim Probelifespan As Integer '探针的可使用次数 初始值30000
+        Dim ProbeUsedCount As Integer '探针已经使用的次数 初始值 0
+        '用户管理
+        Dim PsdOfAdmin As String '系统管理员密码
+        Dim PsdOfOper As String '操作员密码
+        Dim PsdOfGuest As String '游客密码
+        'MES管理
+        Dim MesApiAddress As String 'MES API 地址
+        Dim EquipPC_ID As String 'MES 设备电脑 ID (R2-09)
+        Dim EquipPC_Password As String 'MES 设备电脑密码 (R2-09,不再源码硬编码)
+        '当前操作员
+        Dim curOperator As String '当前操作员
+        '校准模块阻值
+        Dim cailibrateModelValue As Single
+        '超温报警值
+        Dim overTemperateValue As Integer
+        '工作站选择
+        Dim stationSelect As Integer
+        '中位机串口参数
+        Dim SCMComPort As Integer
+        Dim SCMComRate As Integer
+
+    End Structure
+    Public Structure Bat_struct
+        Dim Left As Single
+        Dim Top As Single
+        Dim width As Single
+        Dim Hight As Single
+    End Structure
+    Public Structure Bat_info
+        Dim BatCode As String '电池编码
+        Dim Voltage As Single
+        Dim Resistance As Single
+        Dim TestTime As Date
+        Dim Result As String '测试结果
+    End Structure
+    ' 定义测试数据的结构
+    Public Structure TestDataInfo
+        Dim SmCode As String
+        Dim Result As String
+        Dim ChNum As Integer
+        Dim IR1 As Single
+        Dim OCV1 As Single
+        Dim Time1 As Date
+        Dim IR2 As Single
+        Dim OCV2 As Single
+        Dim Time2 As Date
+        Dim TA1 As String
+        Dim TA2 As String
+        Dim TA3 As String
+        Dim TA4 As String
+    End Structure
+    Public Function IsNG(ByVal Voltage As Single, ByVal Resistance As Single) As Short
+        IsNG = 0
+        If Voltage * 1000 > Initsetting.upVoltage Or Voltage * 1000 < Initsetting.downVoltage Then
+            IsNG = 1
+            'frmTest.VolNgTxt = "电压超出合格范围。"
+        End If
+        If Resistance > Initsetting.upResistance Or Resistance < Initsetting.downResistance Then
+            IsNG = 2
+            'frmTest.ResNgTxt = "内阻超出合格范围。"
+        End If
+    End Function
+    ''' <summary>
+    ''' 控制气缸 参数 OPType=1,压紧亮灯 OPType=2,松开灭灯,切换边电压的继电器松开Y5=0
+    ''' </summary>
+    ''' <param name="OPType"></param>
+    ''' <returns></returns>
+    Public Function IOCardSetOperation(ByVal OPType As Integer) As String
+        Dim reflag_Io As Short
+        Dim RecvStr As String
+        Dim bytes1 As Byte() = {&H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0}
+        Dim bytes As Byte() = {&H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0}
+        Dim bytesClose As Byte() = {&H48, &H3A, &H1, &H57, &H0, &H1, &H0, &H1, &H0, &H0, &H0, &H0, &HDC, &H45, &H44}
+        Dim bytesOpen As Byte() = {&H48, &H3A, &H1, &H57, &H1, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &HDB, &H45, &H44}
+
+        If OPType = 1 Then
+            bytes = bytesClose
+        Else
+            bytes = bytesOpen
+        End If
+
+        RecvStr = ""
+        '再次检查端口是否正常
+        reflag_Io = CheckCom_IOCard()
+        If reflag_Io = -1 Then
+            MsgBox("IO卡通信失败！！"， vbOKOnly)
+            IOCardSetOperation = ""
+            Exit Function
+        End If
+        Dim len As Integer
+
+        len = bytes.Length()
+        Try
+            Com_IOCard.Write(bytes, 0, len)
+        Catch ex As Exception
+            IOCardSetOperation = ""
+            Exit Function
+        End Try
+
+        Dim receivedData As New List(Of Byte)()
+        Sleep(300)
+        While Com_IOCard.BytesToRead > 0
+            Dim data As Integer = Com_IOCard.ReadByte()
+            receivedData.Add(CByte(data))
+        End While
+        Dim k As Integer
+        k = 0
+        For Each Obj In receivedData
+            RecvStr += Obj.ToString & ","
+            bytes1(k) = Obj
+            k += 1
+        Next Obj
+        'If bytes1(4) <> channel Or bytes1(5) <> WorkStatus Then
+        '    IOCardSetOperation = ""
+        '    MsgBox("IO卡操作不正常，停止测试"， vbOKOnly)
+        'End If
+
+        IOCardSetOperation = RecvStr
+
+    End Function
+    ''' <summary>
+    ''' 设定4个继电器的闭合或打开，
+    ''' </summary>
+    ''' <param name="OPType"></param>
+    ''' <returns></returns>
+    Public Function IOCardSetAcirOrOcv(ByVal OPType As String) As String
+        Dim reflag_Io As Short
+        Dim RecvStr As String
+        Dim bytes1 As Byte() = {&H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0}
+        Dim bytes As Byte() = {&H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0}
+        Dim bytesACIR As Byte() = {&H48, &H3A, &H1, &H57, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &HDA, &H45, &H44}
+        Dim bytesOCV As Byte() = {&H48, &H3A, &H1, &H57, &H1, &H1, &H1, &H1, &H0, &H0, &H0, &H0, &HDE, &H45, &H44}
+
+        If OPType = "ACIR" Then
+            bytes = bytesACIR
+        ElseIf OPType = "OCV" Then
+            bytes = bytesOCV
+        End If
+
+        RecvStr = ""
+        '再次检查端口是否正常
+        reflag_Io = CheckCom_IOCard()
+        If reflag_Io = -1 Then
+            MsgBox("IO卡通信失败！！"， vbOKOnly)
+            IOCardSetAcirOrOcv = ""
+            Exit Function
+        End If
+
+        Dim len As Integer
+        len = bytes.Length()
+        Try
+            frmMDI.Com_IOCard.Write(bytes, 0, len)
+        Catch ex As Exception
+            IOCardSetAcirOrOcv = ""
+            Exit Function
+        End Try
+
+        Dim receivedData As New List(Of Byte)()
+        Sleep(300)
+        While frmMDI.Com_IOCard.BytesToRead > 0
+            Dim data As Integer = frmMDI.Com_IOCard.ReadByte()
+            receivedData.Add(CByte(data))
+        End While
+        Dim k As Integer
+        k = 0
+        For Each Obj In receivedData
+            RecvStr += Obj.ToString & ","
+            bytes1(k) = Obj
+            k += 1
+        Next Obj
+        IOCardSetAcirOrOcv = RecvStr
+    End Function
+    ''' <summary>
+    ''' 闭合或总控某个继电器，channel决定位置
+    ''' </summary>
+    ''' <param name="channel"></param>
+    ''' <returns></returns>
+    Public Function IOCardSetCh(ByVal channel As Byte, ByVal WorkStatus As Byte) As String
+        Dim reflag_Io As Short
+        Dim RecvStr As String
+        Dim bytes1 As Byte() = {&H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0}
+        Dim bytes As Byte() = {&H48, &H3A, &H1, &H70, &H0, &H0, &H0, &H0, &H45, &H44}
+        bytes(4) = channel
+        bytes(5) = WorkStatus
+
+        RecvStr = ""
+        '再次检查端口是否正常
+        reflag_Io = CheckCom_IOCard()
+        If reflag_Io = -1 Then
+            MsgBox("IO卡通信失败！！"， vbOKOnly)
+            IOCardSetCh = ""
+            Exit Function
+        End If
+        Dim len As Integer
+
+        len = bytes.Length()
+        Try
+            Com_IOCard.Write(bytes, 0, len)
+        Catch ex As Exception
+            IOCardSetCh = ""
+            Exit Function
+        End Try
+
+        Dim receivedData As New List(Of Byte)()
+        Sleep(300)
+        While Com_IOCard.BytesToRead > 0
+            Dim data As Integer = Com_IOCard.ReadByte()
+            receivedData.Add(CByte(data))
+        End While
+        Dim k As Integer
+        k = 0
+        For Each Obj In receivedData
+            RecvStr += Obj.ToString & ","
+            bytes1(k) = Obj
+            k += 1
+        Next Obj
+        If bytes1(4) <> channel Or bytes1(5) <> WorkStatus Then
+            IOCardSetCh = ""
+            MsgBox("IO卡操作不正常，停止测试"， vbOKOnly)
+        End If
+
+        IOCardSetCh = RecvStr
+
+    End Function
+
+    ''' <summary>
+    ''' 读取IO卡的开关量输出状态（DO）和输入量（DI），参数为2（DO）,参数为1（DI）
+    ''' </summary>
+    ''' <param name="dataType"></param>
+    ''' <returns></returns>
+    Public Function IOCard_ReadDoDi（dataType As String） As String
+
+        Dim reflag_Io As Short
+        Dim RecvStr As String
+        Dim bytes As Byte() = {&H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0}
+        Dim bytes_Rec As Byte() = {&H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0}
+        If (dataType = "2") Then
+            bytes = {&H48, &H3A, &H1, &H53, &HAA, &HAA, &HAA, &HAA, &HAA, &HAA, &HAA, &HAA, &H26, &H45, &H44}
+        End If
+        If (dataType = "1") Then
+            bytes = {&H48, &H3A, &H1, &H52, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &HD5, &H45, &H44}
+        End If
+
+        RecvStr = ""
+        '再次检查端口是否正常
+        reflag_Io = CheckCom_IOCard()
+        If reflag_Io = -1 Then
+            MsgBox("IO卡通信失败！！"， vbOKOnly)
+            IOCard_ReadDoDi = ""
+            Exit Function
+        End If
+        Dim len As Integer
+
+        len = bytes.Length()
+        Try
+            Com_IOCard.Write(bytes, 0, len)
+        Catch ex As Exception
+            IOCard_ReadDoDi = ""
+            Exit Function
+        End Try
+
+        Dim receivedData As New List(Of Byte)()
+        Sleep(300)
+        While Com_IOCard.BytesToRead > 0
+            Dim data As Integer = Com_IOCard.ReadByte()
+            receivedData.Add(CByte(data))
+        End While
+        ' bytes_Rec =receivedData
+        Dim k = 0
+        For Each Obj In receivedData
+            RecvStr += Obj.ToString & ","
+            bytes_Rec(k) = Obj
+            k += 1
+        Next Obj
+        If dataType = "1" Then
+            bytes_IODI = bytes_Rec
+        Else
+            bytes_IODO = bytes_Rec
+        End If
+
+        IOCard_ReadDoDi = RecvStr
+        'Com_IOCard.Close()
+    End Function
+    Public Function IOCard_ReadDi() As String
+        'Dim RecvStr As String
+        Dim bytes As Byte()
+
+        bytes = {&H48, &H3A, &H1, &H52, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &HD5, &H45, &H44}
+
+        Dim len As Integer
+        len = bytes.Length()
+        If Com_IOCard.IsOpen Then
+            MDIForm.Com_IOCard.Close()
+        End If
+
+        Com_IOCard.Open()
+        Try
+            MDIForm.Com_IOCard.Write(bytes, 0, len)
+        Catch ex As Exception
+            IOCard_ReadDi = ""
+            Exit Function
+        End Try
+
+        Dim receivedData As New List(Of Byte)()
+        Sleep(300)
+        While MDIForm.Com_IOCard.BytesToRead > 0
+            Dim data As Integer = MDIForm.Com_IOCard.ReadByte()
+            receivedData.Add(CByte(data))
+        End While
+
+        If receivedData.Item(6) = 0 Then
+            IOCardSetOperation(2)
+        End If
+
+        IOCard_ReadDi = ""
+        MDIForm.Com_IOCard.Close()
+    End Function
+
+    '***************************************************************
+    Public Function Communication(ByVal Buffer() As Byte, ByVal intCount As Int16) As Short
+        '通讯失败返回-1;托盘未放好-2 ；接收数据错误-3;托盘闭合1；托盘开启2communicatio
+        Dim sendBuf() As Byte
+        Dim ReBuf() As Byte = New Byte() {}
+        Dim REPEATECOUNT As Short
+        Dim Response As Boolean
+        Dim DataCount As Short
+        Dim Repeat As Short
+        Dim ReOrder As String = ""
+        Dim temp_long As Integer
+        Dim I As Int16
+        sendBuf = Buffer
+        Response = False
+        REPEATECOUNT = 20
+        Repeat = 0
+Loop_Begin:
+        'send data
+        Try
+            frmMDI.Com_SCM.Write(Buffer, 0, intCount)
+        Catch ex As Exception
+            Communication = -1
+            Exit Function
+        End Try
+        Sleep(1000)
+
+        'the length of return data 
+        Do
+            DataCount = frmMDI.Com_SCM.BytesToRead
+            If DataCount >= 6 Then
+                ReDim ReBuf(DataCount - 1)
+                frmMDI.Com_SCM.Read(ReBuf, 0, DataCount)
+                For I = 0 To 5
+                    My.Forms.frmDebug.txtRecieve_SCM.Text = My.Forms.frmDebug.txtRecieve_SCM.Text & ReBuf(I) & "  "
+                Next
+                ReOrder = ReBuf(2)
+                Response = True
+                Exit Do
+            End If
+            temp_long = temp_long + 1
+            If temp_long > CommunicationCounts Then Exit Do
+        Loop
+
+        'if then length of return data<6,repeat  REPEATECOUNT
+        If Response = False Then
+            If Repeat < REPEATECOUNT Then '---------如果连续通讯REPEATECOUNT次都失败，则认为通讯失败
+                Repeat = Repeat + 1
+                ReDim ReBuf(frmMDI.Com_SCM.BytesToRead - 1)
+                frmMDI.Com_SCM.Read(ReBuf, 0, frmMDI.Com_SCM.BytesToRead)
+                GoTo Loop_Begin
+            End If
+            Communication = -1
+            Exit Function
+        End If
+        If Response = True Then
+            If ReOrder = 2 Then
+                If ReBuf(4) = 0 Then
+                    'The Tray isn't ready
+                    Communication = -2
+                ElseIf ReBuf(4) = Buffer(4) Then
+                    Communication = 0
+                Else
+                    Communication = -3
+                End If
+            ElseIf ReOrder = 253 Or ReOrder = 254 Then
+                'Error
+                Repeat = Repeat + 1
+                If Repeat > 5 Then
+                    Communication = -3
+                    Exit Function
+                End If
+                Sleep(50)
+                GoTo Loop_Begin
+            ElseIf ReOrder = 3 Then
+                'control Tray close
+                Communication = 0
+            ElseIf ReOrder = 4 Then
+                'control Tray open
+                Communication = 0
+            ElseIf ReOrder = 5 Then
+                'return the state of tray
+                If ReBuf(4) = 0 Then
+                    Communication = 1
+                ElseIf ReBuf(4) = 1 Then
+                    Communication = 2
+                Else
+                    Communication = -3
+                End If
+            Else
+                Communication = -1
+            End If
+        Else
+            Communication = -1
+        End If
+    End Function
+    Public Function ConnectFor3561() As Integer
+        '---------返回值：-1    未联机；0   正常----------------
+        Dim RecvStr As String
+        Dim intCounter As Integer
+        Dim Start As Single
+        Dim Timer As Single
+        intCounter = 3
+        RecvStr = ""
+        Do
+            CheckCom_3561()
+            Try
+                Com_3561.DiscardInBuffer()
+                Com_3561.DiscardOutBuffer()
+                Com_3561.Write("*RST" & vbLf)  '仪器复位初始化 20220823 weng
+                Com_3561.Write("*IDN?" & vbLf)
+            Catch ex As Exception
+                ConnectFor3561 = -1
+                Exit Function
+            End Try
+            Start = Timer
+            Do While Timer <= Start + 0.1 '这是什么意思
+                Timer = Now.TimeOfDay.Hours * 3600 + Now.TimeOfDay.Minutes * 60 + Now.TimeOfDay.Seconds
+                RecvStr = RecvStr + Com_3561.ReadExisting
+                If RecvStr Like "HIOKI,*" Then
+                    intCounter = 1
+                End If
+                System.Windows.Forms.Application.DoEvents()
+            Loop
+            intCounter = intCounter - 1
+        Loop Until (intCounter = 0)
+        If RecvStr Like "HIOKI,*" Then
+            ' MsgBox("内阻仪通信成功！", vbOKOnly)
+            '初始化内阻仪
+            InitRes()
+            ConnectFor3561 = 0
+        Else
+            MsgBox("内阻仪通信失败！", vbOKOnly)
+            ConnectFor3561 = -1
+        End If
+    End Function
+    Public Sub InitRes()
+
+        'Dim intCounter As Integer
+        Dim RecvStr As String
+
+        Dim Timer As Single
+        'Static TempUpperR As Single
+        'Static TempDownerR As Single
+        'Static TempUpperV As Single
+        'Static TempDownerV As Single
+        Static blnInitRun As Boolean
+        Dim Start
+        System.Windows.Forms.Application.DoEvents()
+        If Not blnInitRun Then
+            RecvStr = ""
+            With Com_3561
+                .DiscardInBuffer()
+                .DiscardOutBuffer()
+                Select Case Initsetting.ComRateMode
+                    Case "低速"
+                        .Write("SAMPle:RATE SLOW" & vbCrLf)
+                    Case "中速"
+                        .Write("SAMPle:RATE MED" & vbCrLf)
+                    Case "高速"
+                        .Write("SAMPle:RATE FAST" & vbCrLf)
+                    Case "超快"
+                        .Write("SAMPle:RATE EXF" & vbCrLf)
+                End Select
+
+            End With
+
+
+            Com_3561.Write(":RES:RANG 300E-3" & vbLf)
+            Threading.Thread.Sleep(50)
+
+            RecvStr = ""
+            Com_3561.DiscardInBuffer()
+            Com_3561.DiscardOutBuffer()
+            Com_3561.Write(":MEMory:State On" & vbLf)
+            Start = Timer
+            Do While Timer < Start + 0.1
+                Timer = Now.TimeOfDay.Hours * 3600 + Now.TimeOfDay.Minutes * 60 + Now.TimeOfDay.Seconds
+                RecvStr = RecvStr + Com_3561.ReadExisting
+                System.Windows.Forms.Application.DoEvents()
+            Loop
+            blnInitRun = True
+        End If
+    End Sub
+
+    Public Sub main()
+        'R2-17 修复登录后程序终止:登录窗用 ShowDialog (模态,关闭不影响消息循环),
+        '登录成功后再 Application.Run 主窗 MDIForm,由主窗关闭决定程序退出
+        Dim login As New FrmLoginNew()
+        If login.ShowDialog() = DialogResult.OK Then
+            Dim mainWindow As New MDIForm()
+            mainWindow.operTypeNum = login.OperTypeNum
+            MainwindowsShowAsync(mainWindow)
+            Application.Run(mainWindow)
+        End If
+    End Sub
+
+    Public Function MainwindowsShow(ByVal frmMDI1 As MDIForm) As Short
+        'R2-17 兼容层:立即显示主窗并返回 True,设备检查已改在后台进行
+        frmMDI = frmMDI1
+        blnOnLine = True
+        Call ReadInitFile()
+        If frmMDI1 IsNot Nothing AndAlso Not frmMDI1.IsDisposed Then
+            frmMDI1.Show()
+        End If
+        MainwindowsShowAsync(frmMDI1)
+        Return blnOnLine
+    End Function
+
+    'R2-17 异步设备检查入口:UI 立即显示,4 项串口/网络检查在后台 Task.Run 中执行,
+    '结果通过 BeginInvoke 回到主线程更新状态栏,失败汇总后弹单个 MessageBox
+    Public Sub MainwindowsShowAsync(ByVal frmMDI1 As MDIForm)
+        If frmMDI1 Is Nothing Then Return
+        frmMDI = frmMDI1
+
+        'R2-17:必须先读 Initset.set 填充 Initsetting,否则 OcvDataService 连接串为空导致数据库连不上
+        Call ReadInitFile()
+
+        '主线程先把 UI 显示出来,设备检查放到后台
+        frmMDI.status_com.Text = "中位机: 检测中..."
+        frmMDI.status_34461.Text = "万用表: 检测中..."
+        frmMDI.status_3561.Text = "内阻仪: 检测中..."
+        frmMDI.StatusMes.Text = "MES: 检测中..."
+
+        Dim reflag_SCM As Short = 0
+        Dim reflag_34461 As Short = 0
+        Dim reflag_3561 As Short = 0
+        Dim reflag_MES As Short = 0
+        Dim obj_frmInit As frmInit = Nothing
+
+        System.Threading.ThreadPool.QueueUserWorkItem(Sub()
+            Try
+                reflag_SCM = CheckCom_SCM()
+                reflag_34461 = CheckCom_34461()
+                reflag_3561 = CheckCom_3561()
+                reflag_MES = CheckTcp_MES()
+            Catch ex As Exception
+                System.Diagnostics.Debug.WriteLine("MainwindowsShowAsync 后台异常: " & ex.Message)
+            End Try
+
+            Try
+                frmMDI1.BeginInvoke(New Action(Sub()
+                    ApplyCheckResultsToUi(frmMDI1, reflag_SCM, reflag_34461, reflag_3561, reflag_MES)
+                End Sub))
+            Catch ex As Exception
+                System.Diagnostics.Debug.WriteLine("BeginInvoke 失败: " & ex.Message)
+            End Try
+        End Sub)
+    End Sub
+
+    'R2-17 后台回调:在主线程统一更新状态栏,失败时汇总弹一个 MessageBox
+    Private Sub ApplyCheckResultsToUi(ByVal frmMDI1 As MDIForm,
+                                     ByVal reflag_SCM As Short,
+                                     ByVal reflag_34461 As Short,
+                                     ByVal reflag_3561 As Short,
+                                     ByVal reflag_MES As Short)
+        If frmMDI1 Is Nothing OrElse frmMDI1.IsDisposed Then Return
+
+        '1、中位机
+        If reflag_SCM = -1 Then
+            frmMDI1.status_com.Text = "单片机端口不可用!" & Space(2)
+            blnOnLine = False
+        Else
+            frmMDI1.status_com.Text = "单片机端口正常!" & Space(2)
+        End If
+
+        '3、万用表
+        If reflag_34461 = -1 Then
+            frmMDI1.status_34461.Text = "数字万用表端口异常！"
+            blnOnLine = False
+        Else
+            frmMDI1.status_34461.Text = "数字万用表端口正常!" & Space(2)
+            If ConnectFor34461() = -1 Then
+                blnOnLine = False
+                frmMDI1.status_34461.Text = "数字万用表通讯失败！"
+            Else
+                frmMDI1.status_34461.Text = "数字万用表通讯成功！"
+            End If
+        End If
+
+        '5、内阻仪
+        If reflag_3561 = -1 Then
+            frmMDI1.status_3561.Text = "内阻仪端口异常！"
+            blnOnLine = False
+        Else
+            frmMDI1.status_3561.Text = "内阻仪端口正常!" & Space(2)
+            If ConnectFor3561() = -1 Then
+                blnOnLine = False
+                frmMDI1.status_3561.Text = "内阻仪通讯失败！"
+            Else
+                frmMDI1.status_3561.Text = "内阻仪通讯成功！"
+            End If
+        End If
+
+        '6、MES
+        If reflag_MES = -1 Then
+            frmMDI1.StatusMes.Text = "MES连接异常！"
+            blnOnLine = False
+        Else
+            frmMDI1.StatusMes.Text = "MES连接正常!" & Space(2)
+        End If
+
+        '汇总失败项,弹一个 MessageBox
+        Dim failed As New List(Of String)()
+        If reflag_SCM = -1 Then failed.Add("中位机(SCM)")
+        If reflag_34461 = -1 Then failed.Add("数字万用表(34461)")
+        If reflag_3561 = -1 Then failed.Add("内阻仪(3561)")
+        If reflag_MES = -1 Then failed.Add("MES")
+
+        If failed.Count > 0 Then
+            Dim msg As String = "以下设备连接失败,请检查硬件连接或进入初始设置重新配置:" & vbCrLf & vbCrLf &
+                                String.Join(vbCrLf, failed.ConvertAll(Function(s) "  • " & s).ToArray())
+            MessageBox.Show(frmMDI1, msg, "设备连接检查", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+        End If
+    End Sub
+    Private Function ConnectTCP1(ByVal mSocket As Socket, ByVal ipe As IPEndPoint) As String
+        Try
+            Dim connResult As IAsyncResult = mSocket.BeginConnect(ipe, Nothing, Nothing)
+            connResult.AsyncWaitHandle.WaitOne(800, True)
+            If (Not connResult.IsCompleted) Then
+                mSocket.Close()
+                Throw New Exception(ipe.ToString() & "无法连接")
+            End If
+            Return ""
+
+        Catch ex As Exception
+            Return ex.Message
+        End Try
+        'Dim clientSocket As New Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp)
+        'Dim myIP As IPAddress = IPAddress.Parse(Initsetting.SCMIpAdd)
+        'Dim myIPPort As IPAddress = IPAddress.Parse(Initsetting.SCM_port)
+        'clientSocket.Connect(myIP, myIPPort)
+
+        '' Check if the socket is connected
+        'If clientSocket.Connected Then
+        '    Console.WriteLine("Connected to the server")
+        '    ' Do further operations if the connection is normal
+        'Else
+        '    Console.WriteLine("Unable to connect to the server")
+        'End If
+
+    End Function
+    Public Sub ParseBuffer1(ByVal port As Integer, ByVal buffer As FByteArrBuild, ByRef PointPos As Integer)
+
+    End Sub
+    ''' <summary>
+    ''' 检查 MES API 是否可达
+    ''' </summary>
+    ''' <returns>1 = 可达，-1 = 不可达</returns>
+    Public Function CheckTcp_MES() As Short
+        Dim mesHost As String = "127.0.0.1"
+        Try
+            Using ping As New System.Net.NetworkInformation.Ping()
+                Dim reply As System.Net.NetworkInformation.PingReply = ping.Send(mesHost, 1000)
+                If reply.Status = System.Net.NetworkInformation.IPStatus.Success Then
+                    CheckTcp_MES = 1
+                Else
+                    CheckTcp_MES = -1
+                End If
+            End Using
+        Catch
+            CheckTcp_MES = -1
+        End Try
+        Return CheckTcp_MES
+    End Function
+    Public Function CheckTcp_SCM() As Short
+        '**************************
+        '检查单片机TcpIp是否可用
+        Dim result As Short
+
+        Tcp_Scm = frmDebug.mSock '单片机
+        With frmDebug
+            Try
+                If .mSock IsNot Nothing Then
+                    .mSock.Close()
+                End If
+            Catch ex As Exception
+
+            End Try
+
+
+            Dim mClientTCP = New TcpClient()
+            Dim sock = mClientTCP.Client
+            ''Dim frmInitial As New Form
+            ''frmInitial = frmInit
+            'Dim scmip As String = Initsetting.SCMIpAdd
+            Dim myIP As IPAddress = IPAddress.Parse(Initsetting.SCMIpAdd)
+            Dim ipe As IPEndPoint = New IPEndPoint(myIP, Initsetting.SCM_port)
+            'Initsetting.SCMIpAdd
+            Dim msg As String
+
+            Try
+                msg = ConnectTCP1(sock, ipe)
+                If msg = "" Then
+                    .mSock = New SocketCtrolCmd(sock, AddressOf ParseBuffer1, Initsetting.SCM_port, ipe)
+                    ' MsgBox("单片机通信成功！", vbOKOnly)
+                    CheckTcp_SCM = 1
+                    result = 1
+                Else
+                    MsgBox("单片机通信失败！", vbOKOnly)
+                    'MessageBox.Show(msg)
+                    CheckTcp_SCM = -1
+                    result = -1
+                End If
+            Catch ex As Exception
+                result = -1
+                CheckTcp_SCM = -1
+                Return result
+            End Try
+            '成功路径：返回 CheckTcp_SCM = 1，已经在 If 分支内设置
+            Return CheckTcp_SCM
+        End With
+    End Function
+    Public Function CheckCom_SCM() As Short
+        Try
+            Com_SCM = frmMDI.Com_SCM
+            With frmMDI.Com_SCM
+                If .IsOpen Then
+                    .Close()
+                End If
+                .PortName = "COM" & (Initsetting.SCMComPort + 1).ToString()
+                .BaudRate = If(Initsetting.SCMComRate > 0, Initsetting.SCMComRate, 115200)
+                .Parity = Parity.None
+                .DataBits = 8
+                .StopBits = StopBits.One
+                .ReadTimeout = 1000
+                .WriteTimeout = 1000
+                .Open()
+            End With
+            Return 1
+        Catch ex As Exception
+            'R2-17:启动期不再用 MsgBox 阻塞 (异常消息写到日志,UI 通过 frmMDI.status_* 显示)
+            System.Diagnostics.Debug.WriteLine("CheckCom_SCM failed: " & ex.Message)
+            Return -1
+        End Try
+    End Function
+    'Public Function CheckCom_SCM() As Short
+    '    '**************************
+    '    '检查单片机端口是否可用
+    '    Com_SCM = frmMDI.Com_SCM '单片机
+    '    With frmMDI.Com_SCM
+    '        If .IsOpen Then
+    '            .Close()
+    '        End If
+    '        If Initsetting.ComRateMode > 0 Then
+    '            .BaudRate = Initsetting.ComRateMode
+    '        Else
+    '            .BaudRate = 9600
+    '        End If
+    '        .PortName = "Com" & (Initsetting.SCM_com + 1).ToString
+    '        .DataBits = 8
+    '        .StopBits = 1
+    '        .Parity = Parity.None
+    '        .ReadBufferSize = 100
+    '        Try
+    '            If Not .IsOpen Then
+    '                .Open()
+    '            End If
+    '        Catch e As Exception
+    '            MsgBox(e.Message, vbOK)
+    '            CheckCom_SCM = -1
+    '            Exit Function
+    '        End Try
+    '    End With
+    '    CheckCom_SCM = 1
+    '    Return CheckCom_SCM
+    'End Function
+    Dim socketsent As Socket
+    Public Function CheckCom_scaner() As Short
+        '**************************
+        '检查内阻仪端口是否可用
+        Com_scaner = frmMDI.Com_scaner  '日置内阻仪
+        With frmMDI.Com_scaner
+            If .IsOpen Then
+                .Close()
+            End If
+            .PortName = "Com" & (Initsetting.ScanerPort + 1).ToString
+            If Initsetting.ScanerRate > 0 Then
+                .BaudRate = Initsetting.ScanerRate
+            Else
+                .BaudRate = 9600
+            End If
+            .DataBits = 8
+            .StopBits = 1
+            .Parity = Parity.None
+            .ReadBufferSize = 100
+            .NewLine = vbCrLf
+            Try
+                If Not .IsOpen Then
+                    .Open()
+                End If
+            Catch e As Exception
+                MsgBox(e.Message, vbOKOnly)
+                CheckCom_scaner = -1
+                Exit Function
+            End Try
+        End With
+        CheckCom_scaner = 1
+    End Function
+
+    '链接com3561
+    Public Function CheckCom_3561() As Short
+        '**************************
+        '检查内阻仪端口是否可用
+        Com_3561 = frmMDI.Com_3561  '日置内阻仪
+        Dim count As Integer
+
+        With frmMDI.Com_3561
+            If .IsOpen Then
+                .Close()
+            End If
+            .PortName = "Com" & (Initsetting.Recom + 1).ToString
+            If Initsetting.ReRate > 0 Then
+                .BaudRate = Initsetting.ReRate
+            Else
+                .BaudRate = 9600
+            End If
+            .DataBits = 8
+            .StopBits = 1
+            .Parity = Parity.None
+            .ReadBufferSize = 100
+            .NewLine = vbCrLf
+            count = 0
+            Do While count < 3
+                Sleep(100)
+                Try
+                    If Not .IsOpen Then
+                        .Open()
+                    End If
+                    CheckCom_3561 = 1
+                    Exit Function
+                Catch e As Exception
+                    CheckCom_3561 = -1
+                    If count = 2 Then
+                        MsgBox(e.Message, vbOKOnly)
+                        Exit Function
+                    End If
+                End Try
+                count = count + 1
+            Loop
+
+        End With
+        CheckCom_3561 = 1
+    End Function
+    Public Sub SaveInitFile()
+        '保存初始化文件------------------------
+        Dim FS As New System.IO.FileStream(Application.StartupPath & "\Initset.set", IO.FileMode.Create)
+        Dim BW As New System.IO.BinaryWriter(FS)
+        '通讯参数
+        BW.Write(Initsetting.ScanerPort)
+        BW.Write(Initsetting.ScanerRate)
+
+        BW.Write(Initsetting.SCMIpAdd)
+        BW.Write(Initsetting.SCM_port)
+
+        BW.Write(Initsetting.IOPort)
+        BW.Write(Initsetting.IORate)
+
+        BW.Write(Initsetting.ComRateMode)
+        BW.Write(Initsetting.IpAddOf34461)
+
+        BW.Write(Initsetting.Recom)
+        BW.Write(Initsetting.ReRate)
+
+        'BW.Write(Initsetting.IpAddOf34461)
+
+        '电压内阻上下限
+        BW.Write(Initsetting.upResistance)
+        BW.Write(Initsetting.downResistance)
+        BW.Write(Initsetting.upVoltage)
+        BW.Write(Initsetting.downVoltage)
+        '数据库
+        BW.Write(Initsetting.chkDatabase)
+        BW.Write(Initsetting.strDatabase)
+        '文件路径
+        BW.Write(Initsetting.sPath)
+        '电压B值；内阻B值
+        BW.Write(Initsetting.sngV_B)
+        BW.Write(Initsetting.sngR_B)
+        BW.Write(Initsetting.txtCodeLenth)
+        'DataBase UserID and Password
+        BW.Write(Initsetting.strUserID)
+        BW.Write(Initsetting.strpwd)
+        BW.Write(Initsetting.delayTime)
+        '探针数据
+        BW.Write(Initsetting.Probelifespan)
+        BW.Write(Initsetting.ProbeUsedCount)
+        '用户管理
+        BW.Write(Initsetting.PsdOfAdmin)
+        BW.Write(Initsetting.PsdOfOper)
+        BW.Write(Initsetting.PsdOfGuest)
+        'MES api 地址
+        BW.Write(Initsetting.MesApiAddress)
+        '校准模块阻值
+        BW.Write(Initsetting.cailibrateModelValue)
+        '超温报警
+        BW.Write(Initsetting.overTemperateValue)
+        '智能电表
+        BW.Write(Initsetting.EmmPort)
+        BW.Write(Initsetting.EmmRate)
+        '工作站选择
+        BW.Write(Initsetting.stationSelect)
+        '中位机串口参数
+        BW.Write(Initsetting.SCMComPort)
+        BW.Write(Initsetting.SCMComRate)
+
+        'close
+        BW.Close()
+        FS.Close()
+    End Sub
+    Public Sub ReadInitFile()
+        '读初始化文件---------------
+        'If Not System.IO.File.Exists(Application.StartupPath & "\Initset.set") Then
+        '    System.IO.File.Create(Application.StartupPath & "\Initset.set")
+        'End If
+        Dim FS As New System.IO.FileStream(Application.StartupPath & "\Initset.set", IO.FileMode.OpenOrCreate)
+        Dim BR As New System.IO.BinaryReader(FS)
+        If FS.Length <= 0 Then
+            GoTo exit_sub
+        End If
+        '通讯参数
+        Initsetting.ScanerPort = BR.ReadInt32()
+        Initsetting.ScanerRate = BR.ReadInt32()
+
+        Initsetting.SCMIpAdd = BR.ReadString
+        Initsetting.SCM_port = BR.ReadInt32()
+
+        Initsetting.IOPort = BR.ReadInt32()
+        Initsetting.IORate = BR.ReadInt32()
+
+        Initsetting.ComRateMode = BR.ReadString
+        Initsetting.IpAddOf34461 = BR.ReadString
+
+        Initsetting.Recom = BR.ReadInt32()
+        Initsetting.ReRate = BR.ReadInt32()
+
+        '电压内阻合格范围
+        Initsetting.upResistance = BR.ReadSingle
+        Initsetting.downResistance = BR.ReadSingle
+        Initsetting.upVoltage = BR.ReadSingle
+        Initsetting.downVoltage = BR.ReadSingle
+        '数据库
+        Initsetting.chkDatabase = BR.ReadBoolean
+        Initsetting.strDatabase = BR.ReadString
+        '文件路径
+        Initsetting.sPath = BR.ReadString
+        '电压内阻B值
+        Initsetting.sngV_B = BR.ReadSingle
+        Initsetting.sngR_B = BR.ReadSingle
+        '条码长度
+        Initsetting.txtCodeLenth = BR.ReadInt32
+        'DataBase userID and Password
+        Initsetting.strUserID = BR.ReadString
+        Initsetting.strpwd = BR.ReadString
+        Initsetting.delayTime = BR.ReadString
+        '探针使用数据
+        Initsetting.Probelifespan = BR.ReadInt32()
+        Initsetting.ProbeUsedCount = BR.ReadInt32()
+        If Initsetting.ProbeUsedCount < 0 Or Initsetting.ProbeUsedCount > Initsetting.Probelifespan Then
+            Initsetting.ProbeUsedCount = 0
+        End If
+        '用户管理
+        Initsetting.PsdOfAdmin = BR.ReadString()
+        Initsetting.PsdOfOper = BR.ReadString()
+        Initsetting.PsdOfGuest = BR.ReadString()
+        'MES api 地址
+        Initsetting.MesApiAddress = BR.ReadString()
+        '校准模块阻值
+        Initsetting.cailibrateModelValue = BR.ReadSingle
+        '超温报警
+        Initsetting.overTemperateValue = BR.ReadInt32()
+        '智能电表
+        Initsetting.EmmPort = BR.ReadInt32()
+        Initsetting.EmmRate = BR.ReadInt32()
+        '工作站选择
+        Initsetting.stationSelect = BR.ReadInt32()
+        '中位机串口参数，兼容旧 Initset.set
+        If FS.Position < FS.Length Then
+            Initsetting.SCMComPort = BR.ReadInt32()
+        Else
+            Initsetting.SCMComPort = 0
+        End If
+        If FS.Position < FS.Length Then
+            Initsetting.SCMComRate = BR.ReadInt32()
+        Else
+            Initsetting.SCMComRate = 115200
+        End If
+exit_sub:
+        BR.Close()
+        FS.Close()
+    End Sub
+
+    Public Function ConnetTcp_SCM() As Short
+        Try
+            socketsent = New Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp)
+            Dim ip As IPAddress = IPAddress.Parse(Initsetting.SCMIpAdd)
+            Dim piont As IPEndPoint = New IPEndPoint(ip, Convert.ToInt32(Initsetting.SCM_port))
+            socketsent.Connect(piont)
+            ConnetTcp_SCM = 1
+        Catch ex As Exception
+            MessageBox.Show(ex.Message)
+        End Try
+
+        Try
+            Dim th As Thread = New Thread(AddressOf ReceivefromScaner)
+            th.IsBackground = True
+            th.Start()
+
+        Catch ex As Exception
+            MessageBox.Show(ex.Message)
+        End Try
+        ConnetTcp_SCM = 1
+    End Function
+
+    'Sub readEmm()
+    '    ' 配置串口参数
+    '    Dim serialPort As New SerialPort("COM1")
+    '    serialPort.BaudRate = 9600
+    '    serialPort.Parity = Parity.None
+    '    serialPort.DataBits = 8
+    '    serialPort.StopBits = StopBits.One
+    '    serialPort.Open()
+
+    '    ' 创建Modbus RTU主站
+    '    Dim master As IModbusSerialMaster = ModbusSerialMaster.CreateRtu(serialPort)
+
+    '    ' 读取寄存器地址3204的值
+    '    Dim startAddress As UShort = &HC83 ' 地址转换为十六进制表示
+    '    Dim numRegisters As UShort = 2 ' 64位整数需要读取2个寄存器
+    '    Dim slaveId As Byte = 1 ' 设定从站地址为1
+
+    '    Try
+    '        Dim registers As UShort() = master.ReadHoldingRegisters(slaveId, startAddress, numRegisters)
+    '        ' 合并两个16位寄存器为一个64位整数
+    '        Dim totalEnergy As Long = (CLng(registers(0)) << 16) + registers(1)
+
+    '        ' 输出读取的值
+    '        Console.WriteLine("Total Energy: " & totalEnergy.ToString() & " Wh")
+    '    Catch ex As Exception
+    '        Console.WriteLine("读取寄存器时出错: " & ex.Message)
+    '    Finally
+    '        serialPort.Close()
+    '    End Try
+    'End Sub
+    Private Sub ReceivefromScaner()
+        Dim availibleCodecount As Integer = 0
+
+        Try
+
+            While True
+                Dim buffer As Byte() = New Byte(5119) {}
+                Dim r As Integer = socketsent.Receive(buffer)
+
+                If r = 0 Then
+                    Exit While
+                End If
+
+                Dim s As String = Encoding.UTF8.GetString(buffer, 0, r)
+                'Dim result As Boolean = CodeAnalysis(s)
+            End While
+
+        Catch ex As Exception
+            ' 跨线程访问 UI:转 UI 线程,避免 InvalidOperationException 与界面无响应 (M25)
+            If frmMDI IsNot Nothing AndAlso Not frmMDI.IsDisposed Then
+                If frmMDI.InvokeRequired Then
+                    frmMDI.Invoke(New Action(Of String)(Sub(msg) MessageBox.Show(msg)), ex.Message)
+                Else
+                    MessageBox.Show(ex.Message)
+                End If
+            End If
+        End Try
+    End Sub
+    'Public Sub TestSpeed()
+    '    'Screen.MousePointer = 11
+    '    'fMainForm.sbStatusBar.Panels(1).Text = ResString(2) '"正在检测微机速度..."
+    '    CommunicationCounts = 0
+    '    Dim LastSecond, NowSecond As Integer
+    '    LastSecond = Second(Now)
+    '    Do
+    '        NowSecond = Second(Now)
+    '        If NowSecond <> LastSecond Then Exit Do
+    '    Loop
+    '    LastSecond = Second(Now)
+    '    Do
+    '        CommunicationCounts = CommunicationCounts + 1
+    '        NowSecond = Second(Now)
+    '        If NowSecond <> LastSecond Then Exit Do
+    '    Loop
+    '    CommunicationCounts = CLng(CommunicationCounts) / 50
+    '    If CommunicationCounts < 5000 Then CommunicationCounts = 5000
+    '    'Screen.MousePointer = 1
+    'End Sub
+    Public Function ConnectForSCM() As Short
+        Dim SendBuf(5) As Byte  '发送缓存
+        Dim Response As Boolean '响应
+        Dim Repeate As Integer
+        Dim ReBuffer() As Byte = New Byte() {}  '接收缓存
+        Dim Temp_long As Integer
+        Dim DataCount As Short  '数据长度
+        Dim I As Int16
+        Const RepeateCount = 20  '重复次数
+        Response = False
+        Temp_long = 0
+        SendBuf(0) = 170 ' "AA"
+        SendBuf(1) = 85  ' "55"
+        SendBuf(2) = 1
+        SendBuf(3) = 0
+        SendBuf(4) = 0
+        SendBuf(5) = SendBuf(2) Or SendBuf(3) Or SendBuf(4)
+        For I = 0 To 5
+            My.Forms.frmDebug.txtSend.Text = My.Forms.frmDebug.txtSend.Text & SendBuf(I) & "   "
+        Next
+Loop_begin:
+        Try
+            frmMDI.Com_SCM.Write(SendBuf, 0, 6)
+        Catch ex As Exception
+            ConnectForSCM = -1
+            Exit Function
+        End Try
+        Sleep(50)
+        Do
+            DataCount = frmMDI.Com_SCM.BytesToRead
+            If DataCount >= 32 Then
+                Try
+                    ReDim ReBuffer(DataCount - 1)
+                    frmMDI.Com_SCM.Read(ReBuffer, 0, DataCount)
+                    For I = 0 To 32
+                        My.Forms.frmDebug.txtRecieve_SCM.Text = My.Forms.frmDebug.txtRecieve_SCM.Text & ReBuffer(I) & "　"
+                    Next
+                    Response = True
+                    Exit Do
+                Catch e As Exception
+                    GoTo Loop_No
+                End Try
+            End If
+Loop_No:
+            Temp_long = Temp_long + 1
+            If Temp_long > 200 Then Exit Do
+        Loop
+        If Response = True Then
+            If ReBuffer(1) = 85 Then
+                ConnectForSCM = 0
+                Exit Function
+            Else
+                ConnectForSCM = -1
+            End If
+        Else
+            If Repeate < RepeateCount Then
+                Repeate = Repeate + 1
+                GoTo Loop_begin
+            Else
+                ConnectForSCM = -1
+            End If
+        End If
+    End Function
+
+    ''' <summary>
+    ''' 读取3561、3562的测试数据。内部触发FETCH
+    ''' </summary>
+    ''' <param name="Voltage"></param>
+    ''' <param name="Resistance"></param>
+    ''' <returns></returns>
+    Public Function Trans_ReadData_3562(ByRef Voltage, ByRef Resistance) As Integer
+
+        'Dim intCounter As Integer
+        Dim RecvStr As String
+        Dim strDataArr() As String
+        Dim Timer As Single
+
+        Sleep(100)
+
+        RecvStr = ""
+        Com_3561.DiscardInBuffer()
+        Com_3561.DiscardOutBuffer()
+        Com_3561.Write(":FETC?" & vbLf)
+
+        Do While Right(RecvStr, 1) <> Chr(10)
+            Timer = Now.TimeOfDay.Hours * 3600 + Now.TimeOfDay.Minutes * 60 + Now.TimeOfDay.Seconds
+            RecvStr = RecvStr + Com_3561.ReadExisting
+            System.Windows.Forms.Application.DoEvents()
+            'System.Windows.Forms.Application.DoEvents()
+        Loop
+
+        If RecvStr <> "" Then
+            strDataArr = Split(RecvStr, ",")
+            Try
+                Resistance = CSng(CDbl(strDataArr(0))) * 1000
+                Voltage = CSng(CDbl(strDataArr(1)))
+            Catch er As Exception
+            End Try
+            FirstCom = True
+            Trans_ReadData_3562 = 0
+        Else
+            Trans_ReadData_3562 = -1
+        End If
+    End Function
+
+    Public Function Trans_ReadCachedData_3562(expectedCount As Integer,
+                                             ByRef voltages As List(Of Single),
+                                             ByRef resistances As List(Of Single)) As Integer
+        Dim recvStr As String = ""
+        voltages = New List(Of Single)()
+        resistances = New List(Of Single)()
+
+        If expectedCount <= 0 Then
+            SerialMiddleMachineClient.LogMessage("3562 cache read skipped: expectedCount <= 0")
+            Return -1
+        End If
+
+        Try
+            SerialMiddleMachineClient.LogMessage("3562 cache read start, expectedCount=" & expectedCount.ToString())
+            Com_3561.DiscardInBuffer()
+            Com_3561.DiscardOutBuffer()
+            Com_3561.WriteTimeout = 3000
+            Com_3561.Write("MEMory:DATA?" & vbCrLf)
+
+            Dim startTime As DateTime = DateTime.Now
+            Do
+                Dim chunk As String = Com_3561.ReadExisting()
+                If chunk <> "" Then
+                    recvStr &= chunk
+                    startTime = DateTime.Now
+                End If
+                System.Windows.Forms.Application.DoEvents()
+            Loop While Not HasEnough3562CacheData(recvStr, expectedCount) AndAlso
+                       Not recvStr.ToUpperInvariant().Contains("END") AndAlso
+                       DateTime.Now.Subtract(startTime).TotalSeconds < 10
+
+            Dim values As List(Of Double) = ExtractNumericValues(recvStr)
+            SerialMiddleMachineClient.LogMessage("3562 cache read rawLength=" & recvStr.Length.ToString() & ", numericCount=" & values.Count.ToString())
+            If values.Count < expectedCount * 2 Then
+                SerialMiddleMachineClient.LogMessage("3562 cache read failed: numeric count is less than expected.")
+                Return -1
+            End If
+
+            For i As Integer = 0 To expectedCount - 1
+                resistances.Add(CSng(values(i * 2) * 1000.0R))
+                voltages.Add(CSng(values(i * 2 + 1)))
+            Next
+
+            SerialMiddleMachineClient.LogMessage("3562 cache read success, resultCount=" & resistances.Count.ToString())
+            Return 0
+        Catch ex As Exception
+            SerialMiddleMachineClient.LogMessage("3562 cache read exception: " & ex.Message)
+            Return -1
+        End Try
+    End Function
+
+    Public Function PrepareCachedData_3562(expectedCount As Integer) As Integer
+        If expectedCount <= 0 Then
+            SerialMiddleMachineClient.LogMessage("3562 prepare skipped: expectedCount <= 0")
+            Return -1
+        End If
+
+        Try
+            SerialMiddleMachineClient.LogMessage("3562 prepare cache, expectedCount=" & expectedCount.ToString())
+            Com_3561.DiscardInBuffer()
+            Com_3561.DiscardOutBuffer()
+            Com_3561.WriteTimeout = 3000
+            Com_3561.Write("TRIG:SOUR EXT" & vbCrLf)
+            Com_3561.Write("INIT:CONT ON" & vbLf)
+            Com_3561.Write("MEMory:CLEA" & vbLf)
+            Com_3561.Write(":MEMory:STAT ON" & vbLf)
+            Return 0
+        Catch ex As Exception
+            SerialMiddleMachineClient.LogMessage("3562 prepare exception: " & ex.Message)
+            Return -1
+        End Try
+    End Function
+
+    Public Sub ClearCachedData_3562()
+        Try
+            Com_3561.DiscardInBuffer()
+            Com_3561.DiscardOutBuffer()
+            Com_3561.Write("MEMory:CLEA" & vbLf)
+        Catch ex As Exception
+            SerialMiddleMachineClient.LogMessage("3562 clear cache exception: " & ex.Message)
+        End Try
+    End Sub
+
+    Private Function HasEnough3562CacheData(text As String, expectedCount As Integer) As Boolean
+        Return ExtractNumericValues(text).Count >= expectedCount * 2
+    End Function
+
+    Private Function ExtractNumericValues(text As String) As List(Of Double)
+        Dim values As New List(Of Double)()
+        If text Is Nothing Then
+            Return values
+        End If
+
+        Dim normalized As String = text.Replace(vbCr, ",").Replace(vbLf, ",").Replace(";", ",").Replace("END", ",").Replace("end", ",")
+        Dim tokens As String() = normalized.Split(","c)
+        For Each token As String In tokens
+            Dim value As Double
+            If Double.TryParse(token.Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, value) Then
+                values.Add(value)
+            End If
+        Next
+
+        Return values
+    End Function
+
+    Public Function PrepareCachedData_34461(expectedCount As Integer) As Integer
+        If expectedCount <= 0 Then
+            SerialMiddleMachineClient.LogMessage("34461 prepare skipped: expectedCount <= 0")
+            Return -1
+        End If
+
+        Try
+            If ReFlag_34461 = -1 Then
+                ReFlag_34461 = ConnectFor34461()
+            End If
+            If ReFlag_34461 <> 0 OrElse visaSession Is Nothing Then
+                SerialMiddleMachineClient.LogMessage("34461 prepare failed: not connected.")
+                Return -1
+            End If
+
+            SerialMiddleMachineClient.LogMessage("34461 prepare cache, expectedCount=" & expectedCount.ToString())
+            Try
+                visaSession.IO.Clear()
+            Catch
+            End Try
+            visaSession.IO.Timeout = Math.Max(10000, expectedCount * 1000)
+            visaSession.WriteString("ABOR")
+            visaSession.WriteString("CONF:VOLT:DC")
+            visaSession.WriteString("TRIG:COUN " & expectedCount.ToString())
+            visaSession.WriteString("TRIG:SOUR EXT")
+            visaSession.WriteString("TRIG:SLOP POS")
+            visaSession.WriteString("OUTP:TRIG:SLOP POS")
+            visaSession.WriteString("READ?")
+            Return 0
+        Catch ex As Exception
+            SerialMiddleMachineClient.LogMessage("34461 prepare exception: " & ex.Message)
+            Return -1
+        End Try
+    End Function
+
+    Public Function Trans_ReadCachedData_34461(expectedCount As Integer,
+                                               ByRef voltages As List(Of Single)) As Integer
+        voltages = New List(Of Single)()
+        If expectedCount <= 0 Then
+            SerialMiddleMachineClient.LogMessage("34461 cache read skipped: expectedCount <= 0")
+            Return -1
+        End If
+
+        Try
+            If ReFlag_34461 <> 0 OrElse visaSession Is Nothing Then
+                SerialMiddleMachineClient.LogMessage("34461 cache read failed: not connected.")
+                Return -1
+            End If
+
+            SerialMiddleMachineClient.LogMessage("34461 cache read start, expectedCount=" & expectedCount.ToString())
+            Dim result As Object() = visaSession.ReadList(IEEEASCIIType.ASCIIType_Any)
+            If result Is Nothing OrElse result.Length < expectedCount Then
+                SerialMiddleMachineClient.LogMessage("34461 cache read failed: actualCount=" & If(result Is Nothing, 0, result.Length).ToString())
+                Return -1
+            End If
+
+            For i As Integer = 0 To expectedCount - 1
+                voltages.Add(CSng(Convert.ToDouble(result(i), System.Globalization.CultureInfo.InvariantCulture)))
+            Next
+
+            SerialMiddleMachineClient.LogMessage("34461 cache read success, resultCount=" & voltages.Count.ToString())
+            Return 0
+        Catch ex As Exception
+            SerialMiddleMachineClient.LogMessage("34461 cache read exception: " & ex.Message)
+            Return -1
+        End Try
+    End Function
+
+    Public Sub ClearCachedData_34461()
+        Try
+            If visaSession IsNot Nothing Then
+                visaSession.WriteString("ABOR")
+                visaSession.IO.Clear()
+            End If
+        Catch ex As Exception
+            SerialMiddleMachineClient.LogMessage("34461 clear cache exception: " & ex.Message)
+        End Try
+    End Sub
+
+    Public Function Trans_ReadData_3561(ByRef Voltage, ByRef Resistance) As Integer
+        Dim intCounter As Integer
+        Dim RecvStr As String
+        Dim strDataArr() As String
+        Dim Timer As Single
+        Static TempUpperR As Single
+        Static TempDownerR As Single
+        Static TempUpperV As Single
+        Static TempDownerV As Single
+        Static blnInitRun As Boolean
+        Dim Start
+        System.Windows.Forms.Application.DoEvents()
+        If Not blnInitRun Then
+            RecvStr = ""
+            Com_3561.DiscardInBuffer()
+            Com_3561.DiscardOutBuffer()
+            Com_3561.Write(":CALC:LIM:STAT ON" & vbLf)
+            Start = Timer
+            Do While Timer < Start + 0.1
+                Timer = Now.TimeOfDay.Hours * 3600 + Now.TimeOfDay.Minutes * 60 + Now.Second
+                RecvStr = RecvStr + Com_3561.ReadExisting
+                System.Windows.Forms.Application.DoEvents()
+            Loop
+            intCounter = 2
+            Do
+                RecvStr = ""
+                Com_3561.DiscardInBuffer()
+                Com_3561.DiscardOutBuffer()
+                '            MyComm.Output = "COMP:VHIGH?" & vbLf
+                Com_3561.Write(":CALC:LIM:VOLT:UPP?" & vbLf)
+                Start = Timer
+                Do While Timer < Start + 0.01
+                    Timer = Now.TimeOfDay.Hours * 3600 + Now.TimeOfDay.Minutes * 60 + Now.Second
+                    RecvStr = RecvStr + Com_3561.ReadExisting
+                    System.Windows.Forms.Application.DoEvents()
+                Loop
+                intCounter = intCounter - 1
+            Loop Until (intCounter = 0)
+            If IsNumeric(RecvStr) Then
+                TempUpperV = CSng(CDbl(RecvStr))
+            Else
+                TempUpperV = 0
+            End If
+            intCounter = 3
+            Do
+                RecvStr = ""
+                Com_3561.DiscardInBuffer()
+                Com_3561.DiscardOutBuffer()
+                '            MyComm.Output = "COMP:VLOW?" & vbLf
+                Com_3561.Write(":CALC:LIM:VOLT:LOW?" & vbLf)
+                Start = Timer
+                Do While Timer < Start + 0.1
+                    Timer = Now.TimeOfDay.Hours * 3600 + Now.TimeOfDay.Minutes * 60 + Now.Second
+                    RecvStr = RecvStr + Com_3561.ReadExisting
+                    System.Windows.Forms.Application.DoEvents()
+                Loop
+
+                intCounter = intCounter - 1
+            Loop Until (intCounter = 0)
+            If IsNumeric(RecvStr) Then
+                TempDownerV = CSng(CDbl(RecvStr))
+            Else
+                TempDownerV = 0
+            End If
+            intCounter = 3
+            Do
+                RecvStr = ""
+                Com_3561.DiscardInBuffer()
+                Com_3561.DiscardOutBuffer()
+                '            MyComm.Output = "COMP:RHIGH?" & vbLf
+                Com_3561.Write(":CALC:LIM:RES:UPP?" & vbLf)
+                Start = Timer
+                Do While Timer < Start + 0.1
+                    Timer = Now.TimeOfDay.Hours * 3600 + Now.TimeOfDay.Minutes * 60 + Now.Second
+                    RecvStr = RecvStr + Com_3561.ReadExisting
+                    System.Windows.Forms.Application.DoEvents()
+                Loop
+                intCounter = intCounter - 1
+            Loop Until (intCounter = 0)
+            If IsNumeric(RecvStr) Then
+                TempUpperR = CSng(CDbl(RecvStr))
+            Else
+                TempUpperR = 0
+            End If
+            intCounter = 3
+            Do
+                RecvStr = ""
+                Com_3561.DiscardInBuffer()
+                Com_3561.DiscardOutBuffer()
+                '            MyComm.Output = "COMP:RLOW?" & vbLf
+                Com_3561.Write(":CALC:LIM:RES:LOW?" & vbLf)
+                Start = Timer
+                Do While Timer < Start + 0.1
+                    Timer = Now.TimeOfDay.Hours * 3600 + Now.TimeOfDay.Minutes * 60 + Now.Second
+                    RecvStr = RecvStr + Com_3561.ReadExisting
+                    System.Windows.Forms.Application.DoEvents()
+                Loop
+                intCounter = intCounter - 1
+            Loop Until (intCounter = 0)
+            If IsNumeric(RecvStr) Then
+                TempDownerR = CSng(CDbl(RecvStr))
+            Else
+                TempDownerR = 0
+            End If
+            intCounter = 2
+            Do
+                RecvStr = ""
+                Com_3561.DiscardInBuffer()
+                Com_3561.DiscardOutBuffer()
+                Com_3561.Write(":CALC:LIM:STAT OFF" & vbLf)
+                Start = Timer
+                Do While Timer < Start + 0.1
+                    Timer = Now.TimeOfDay.Hours * 3600 + Now.TimeOfDay.Minutes * 60 + Now.Second
+                    RecvStr = RecvStr + Com_3561.ReadExisting
+                    System.Windows.Forms.Application.DoEvents()
+                Loop
+                intCounter = intCounter - 1
+            Loop Until (intCounter = 0)
+            intCounter = 2
+            Do
+                RecvStr = ""
+                Com_3561.DiscardInBuffer()
+                Com_3561.DiscardOutBuffer()
+                Com_3561.Write(":SYST:LOC" & vbLf)
+                Start = Timer
+                Do While Timer < Start + 0.1
+                    Timer = Now.TimeOfDay.Hours * 3600 + Now.TimeOfDay.Minutes * 60 + Now.TimeOfDay.Seconds
+                    RecvStr = RecvStr + Com_3561.ReadExisting
+                    System.Windows.Forms.Application.DoEvents()
+                Loop
+
+                intCounter = intCounter - 1
+            Loop Until (intCounter = 0)
+            RecvStr = ""
+            Com_3561.DiscardInBuffer()
+            Com_3561.DiscardOutBuffer()
+            Com_3561.Write(":AUT ON" & vbLf)  '运行这个命令出错
+            Start = Timer
+            Do While Timer < Start + 0.1
+                Timer = Now.TimeOfDay.Hours * 3600 + Now.TimeOfDay.Minutes * 60 + Now.TimeOfDay.Seconds
+                RecvStr = RecvStr + Com_3561.ReadExisting
+                System.Windows.Forms.Application.DoEvents()
+            Loop
+            blnInitRun = True
+        End If
+        intCounter = 2
+
+        Do
+            RecvStr = ""
+            '清空串口缓存
+            Com_3561.DiscardInBuffer()
+            Com_3561.DiscardOutBuffer()
+            Com_3561.WriteTimeout = 3000
+            '发送命令，获取内阻仪存储区的数据
+            Com_3561.Write("MEMory:DATA?" & vbCrLf)
+            '读取内阻仪串口缓存区的数据
+            RecvStr = RecvStr + Com_3561.ReadExisting()
+            System.Windows.Forms.Application.DoEvents()
+
+
+
+            Timer = Now.TimeOfDay.Hours * 3600 + Now.TimeOfDay.Minutes * 60 + Now.Second
+            Start = Timer
+
+            Dim TmpRec As String = ""
+            Do While Left(Right(Trim(RecvStr), 5), 3) <> "END" And Timer < Start + 10
+                Timer = Now.TimeOfDay.Hours * 3600 + Now.TimeOfDay.Minutes * 60 + Now.Second
+                TmpRec = Com_3561.ReadExisting()
+                If TmpRec <> "" Then
+                    RecvStr = RecvStr + TmpRec
+                    Start = Timer
+                Else
+
+                End If
+                If Len(RecvStr) > 100 Then
+                    'mStr.Add(RecvStr)
+                    RecvStr = ""
+                End If
+            Loop
+
+            Com_3561.Write("TRIG:SOUR IMM" & vbLf)
+            Com_3561.Write(":FETC?" & vbLf)
+            Start = Timer
+            'Do While Timer < Start + 0.5
+            Do While Right(RecvStr, 1) <> Chr(10)
+                Timer = Now.TimeOfDay.Hours * 3600 + Now.TimeOfDay.Minutes * 60 + Now.TimeOfDay.Seconds
+                RecvStr = RecvStr + Com_3561.ReadExisting
+                System.Windows.Forms.Application.DoEvents()
+            Loop
+            intCounter = intCounter - 1
+        Loop Until (intCounter = 0)
+        If RecvStr <> "" Then
+            strDataArr = Split(RecvStr, ",")
+            Try
+                Resistance = CSng(CDbl(strDataArr(0))) * 1000
+                Voltage = CSng(CDbl(strDataArr(1)))
+            Catch er As Exception
+            End Try
+            If FirstCom = False Then
+                If TempUpperV <> Initsetting.upVoltage Or
+                   TempDownerV <> Initsetting.downVoltage Or
+                   TempUpperR <> Initsetting.upResistance Or
+                   TempDownerR <> Initsetting.downResistance Then
+                    Initsetting.upVoltage = TempUpperV
+                    Initsetting.downVoltage = TempDownerV
+                    Initsetting.upResistance = TempUpperR
+                    Initsetting.downVoltage = TempDownerR
+                    'intRtn = MsgBox("仪表和电脑设置的上下报警不一样！是否将电脑的上下限报警值设为与仪表一样？", vbExclamation + vbYesNo, "")
+                    'Select Case intRtn
+                    '    Case vbYes
+                    '        Initsetting.upVoltage = TempUpperV
+                    '        Initsetting.downVoltage = TempDownerV
+                    '        Initsetting.upResistance = TempUpperR
+                    '        Initsetting.downVoltage = TempDownerR
+                    '    Case vbNo
+                    '        MsgBox("数据文件将按电脑设置的上下限报警保存测试数据！", vbExclamation)
+                    'End Select
+                End If
+            End If
+            FirstCom = True
+            Trans_ReadData_3561 = 0
+        Else
+            Trans_ReadData_3561 = -1
+        End If
+    End Function
+    Public Sub paintBat(ByVal Pic_bat As PictureBox)
+        Dim G As Graphics
+        Dim obj_bat As Bat_struct
+        Dim intRow As Int16 = 16
+        Dim intCol As Int16 = 16
+        Dim I, J As Int16
+        Dim P1 As Point
+        Dim P2 As Point
+        Dim obj_pen As System.Drawing.Pen
+        Dim Box As Rectangle
+        G = Pic_bat.CreateGraphics
+        G.Clear(Color.LightBlue)
+        obj_bat.Left = Pic_bat.Left
+        obj_bat.Top = Pic_bat.Top
+        obj_bat.Hight = Pic_bat.Size.Height / intRow
+        obj_bat.width = Pic_bat.Size.Width / intCol
+        For I = 0 To intRow - 1
+            For J = 0 To intCol - 1
+                '电池的头部
+                obj_pen = New Pen(Brushes.Gray, obj_bat.width / 4)
+                P1 = New Point(obj_bat.width * J + obj_bat.width / 2.2, obj_bat.Hight * I + 4)
+                P2 = New Point(obj_bat.width * J + obj_bat.width / 2.2, obj_bat.Hight * I + obj_bat.Hight / 10)
+                G.DrawLine(obj_pen, P1, P2)
+                '电池
+                P1 = New Point(obj_bat.width * J, obj_bat.Hight * I + obj_bat.Hight / 10)
+                P2 = New Point(obj_bat.width * J, obj_bat.Hight * I + obj_bat.Hight)
+                obj_pen = New Pen(Brushes.Gray, obj_bat.width * 1.7)
+                G.DrawLine(obj_pen, P1, P2)
+                Box = New Rectangle(P1, New Size(obj_bat.width, obj_bat.Hight))
+                G.DrawRectangle(Pens.White, Box)
+            Next J
+        Next I
+    End Sub
+    ''' <summary>
+    ''' 保存条码到文件\bar.set
+    ''' </summary>
+    Public Sub SaveBarcode()
+        Dim I As Short
+        'barcode 存到临时文件---------------------------------------------------------------------------
+        Dim FS As New System.IO.FileStream(Application.StartupPath & "\bar.set", IO.FileMode.Create)
+        Dim BW As New System.IO.BinaryWriter(FS)
+        For I = 0 To UBound(RecieveData)
+            If Not IsNothing(RecieveData(I).BatCode) Then
+                BW.Write(RecieveData(I).BatCode)
+            End If
+        Next
+        BW.Close()
+        FS.Close()
+    End Sub
+    Public Function GetBarCodeNum(ByRef tempCode As String, ByRef strFix As String) As Double
+        Dim temp_string As String
+        Dim tap_0 As Short
+        Dim tap_1 As Short
+        Dim temp_str As String
+        Dim start_num As Long
+        Dim strlen As Short
+        Dim FixStr As String
+
+        temp_string = tempCode
+        tap_0 = -1
+        tap_1 = -1
+        For i = Len(temp_string) To 1 Step -1
+            temp_str = Mid(temp_string, i, 1)
+            If Asc(temp_str) >= Asc("0") And Asc(temp_str) <= Asc("9") Then
+                If tap_0 = -1 Then
+                    tap_0 = i
+                Else
+                    tap_1 = i
+                End If
+            Else
+                Exit For
+            End If
+        Next i
+        If tap_0 = -1 Then
+            start_num = 1
+            FixStr = temp_string
+            strlen = 1
+        Else
+            If tap_1 = -1 Then tap_1 = tap_0
+            temp_str = Mid(temp_string, tap_1, tap_0 - tap_1 + 1)
+            start_num = CLng(temp_str)
+            FixStr = Mid(temp_string, 1, tap_1 - 1)
+            strlen = tap_0 - tap_1 + 1
+        End If
+        strFix = FixStr
+        GetBarCodeNum = start_num
+    End Function
+    ''' <summary>
+    ''' 读取智能电表的总电量
+    ''' </summary>
+    Public Function ReadEnergeriEMM3200() As Long
+        ' 配置串口参数M
+        Dim portName As String = "Com" & (Initsetting.EmmPort + 1).ToString
+        Dim serialPort As New SerialPort(portName)
+        'Dim totalEnergy As Long
+        serialPort.BaudRate = Initsetting.EmmRate
+        serialPort.Parity = Parity.Even
+        serialPort.DataBits = 8
+        serialPort.StopBits = StopBits.One
+        ' 使用本次调用的局部变量,避免异常路径返回全局 stale totalEnergyOfEmm (R2-03)
+        Dim totalEnergy As Long
+        Dim readOk As Boolean = False
+
+        Try
+            If serialPort.IsOpen = False Then
+                serialPort.Open()
+            End If
+            ' 创建Modbus RTU主站
+            Dim modbusMaster As IModbusSerialMaster = ModbusSerialMaster.CreateRtu(serialPort)
+
+            ' 读取寄存器
+            ' 0x0C83 是总有功电能输入的寄存器地址
+            Dim startAddress As UShort = &HC83
+            Dim numRegisters As UShort = 4 ' 读取64位的值，需要读取四个寄存器
+            Dim slaveId As Byte = 1 ' 根据实际情况设置
+
+            ' 读取寄存器
+            Dim registers() As UShort = modbusMaster.ReadHoldingRegisters(slaveId, startAddress, numRegisters)
+
+            ' 将寄存器值转换为64位整数
+            totalEnergy = CLng(registers(0)) << 48 Or CLng(registers(1)) << 32 Or CLng(registers(2)) << 16 Or registers(3)
+            readOk = True
+        Catch ex As Exception
+            Console.WriteLine("读取寄存器时出错: " & ex.Message)
+            ' 读取失败:不上报陈旧数据,而是返回 -1 让上游识别为异常
+            totalEnergy = -1
+        Finally
+            Try
+                If serialPort.IsOpen Then
+                    serialPort.Close()
+                End If
+            Catch
+            End Try
+        End Try
+
+        ' 仅在成功读取时才更新全局 totalEnergyOfEmm
+        If readOk Then
+            totalEnergyOfEmm = totalEnergy
+        End If
+        Return totalEnergy
+    End Function
+    ''' <summary>
+    ''' 读取条码文件
+    ''' </summary>
+    Public Sub GetBarCodeFile()
+        Dim I As Short
+        Dim FS As New System.IO.FileStream(Application.StartupPath & "\bar.set", IO.FileMode.OpenOrCreate)
+        Dim BR As New System.IO.BinaryReader(FS)
+        If BR.BaseStream.Length <= 0 Then Exit Sub
+        For I = 0 To UBound(RecieveData)
+            RecieveData(I).BatCode = BR.ReadString
+            If BR.BaseStream.Position >= BR.BaseStream.Length Then Exit For
+        Next
+        BR.Close()
+        FS.Close()
+    End Sub
+    Public Sub GetExpression(ByVal strLvName As String)
+        Dim Temp_str As String = ""
+        Dim TempValue As String = ""
+
+        '等级名称保存为g_objLv的key,等级的表达式保存为相应的value
+        g_objLv = New Dictionary(Of String, String)
+        If strLvName = "" Then
+            GoTo exit_sub
+        End If
+
+        'R2-15:从 OCV_DATA.GradeRule 读取,做反向映射输出旧格式表达式
+        '(CW_tblData_Info.Fld_VolA>=3.95 and CW_tblData_Info.Fld_VolA<4.05),
+        '确保 frmInquery 的 Replace 逻辑不用改。
+        g_objLv.Add("LvName", strLvName)
+        Try
+            Using service As New OcvDataService()
+                Dim table As DataTable = service.GetGradeRules(strLvName)
+                For Each row As DataRow In table.Rows
+                    Temp_str = Convert.ToString(row("GradeCode"))
+                    Dim fieldName As String = Convert.ToString(row("FieldName"))
+                    Dim suffix As String = Convert.ToString(row("LegacyColumnSuffix"))
+                    If String.IsNullOrEmpty(suffix) Then suffix = "A"
+                    Dim legacyName As String = MapFieldNameToLegacy(fieldName, suffix)
+                    Dim exprPart As String = ""
+                    If row("LowerLimit") IsNot DBNull.Value Then
+                        exprPart = legacyName & ">=" & Convert.ToString(row("LowerLimit"))
+                    End If
+                    If row("UpperLimit") IsNot DBNull.Value Then
+                        If exprPart <> "" Then exprPart = exprPart & " and "
+                        exprPart = exprPart & legacyName & "<" & Convert.ToString(row("UpperLimit"))
+                    End If
+                    If exprPart = "" Then Continue For
+                    If g_objLv.TryGetValue(Temp_str, TempValue) = True Then
+                        TempValue = TempValue & " and " & exprPart
+                        g_objLv.Item(Temp_str) = TempValue
+                    Else
+                        g_objLv.Add(Temp_str, exprPart)
+                    End If
+                Next
+            End Using
+        Catch ex As Exception
+            'OCV_DATA 不可用时,g_objLv 仅有 LvName 项,不影响旧库兜底路径
+        End Try
+exit_sub:
+
+    End Sub
+
+    ''' <summary>
+    ''' 将新库 GradeRule.FieldName 反向映射为旧表全限定列名,
+    ''' 以保持 frmInquery 的 Replace 逻辑兼容。
+    ''' </summary>
+    Private Function MapFieldNameToLegacy(fieldName As String, suffix As String) As String
+        Select Case fieldName
+            Case "VoltageVolt"
+                Return "CW_tblData_Info.Fld_Vol" & suffix
+            Case "FinalResistanceMilliohm"
+                Return "CW_tblData_Info.Fld_Resi" & suffix
+            Case Else
+                Return "CW_tblData_Info.Fld_" & fieldName & suffix
+        End Select
+    End Function
+
+    Public Sub GetCN()
+        g_objCN = New Dictionary(Of String, String)
+        Try
+            Using service As New OcvDataService()
+                Dim table As DataTable = service.GetGradeSelectableFields()
+                For Each row As DataRow In table.Rows
+                    g_objCN.Add(Convert.ToString(row("FieldName")), Convert.ToString(row("DisplayName")))
+                Next
+            End Using
+        Catch ex As Exception
+            'OCV_DATA 不可用时,g_objCN 为空字典
+        End Try
+    End Sub
+    Function ScanBarCode() As String
+
+        'Dim i As Integer
+        Dim sendData(2) As Byte
+        Dim recvData(0) As Byte
+        Dim ReDataFlag As Integer
+        Dim str As String
+
+        sendData(0) = &H1 'ASCII<SOH>
+        sendData(1) = &H54
+        sendData(2) = &H4 'ASCII<EOT>
+
+        ReDataFlag = CommunicationScan(sendData, recvData)   'CommunicationScan(strData, Temp_Buf, 3, 1, 0)
+
+        If ReDataFlag = 1 Then
+            str = tranStrByBuff(recvData)
+            If str = "NG" Then
+                str = ""
+            End If
+            ScanBarCode = str
+        Else
+            ScanBarCode = ""
+        End If
+
+    End Function
+
+    Private Function CommunicationScan(ByVal sendData As Byte(), ByRef recvData As Byte()) As Integer
+
+        Dim Response As Boolean
+        Dim LastTimer As Date
+        Dim TempCount As Integer
+        Dim rec() As Byte
+        Dim len As Integer
+        Dim emptyCnt As Integer
+
+
+        If Com_scaner.IsOpen = False Then
+            Return -1
+        End If
+
+        Com_scaner.DiscardInBuffer()
+
+        TempCount = 0
+        Response = False
+        Com_scaner.Write(sendData, 0, sendData.Length) ' Last_Buf  '+ SumChk(strData)   '发送数据
+        LastTimer = Now
+
+        len = 0
+        emptyCnt = 0
+        Do
+            Threading.Thread.Sleep(10)
+            If Com_scaner.BytesToRead > 0 Then
+
+                ReDim Preserve rec(Com_scaner.BytesToRead - 1 + len)
+
+                Com_scaner.Read(rec, len, Com_scaner.BytesToRead)
+                len = rec.Length
+
+                'If rec(rec.Length - 2) = &HD And rec(rec.Length - 1) = &HA Then
+                Response = True
+                recvData = rec
+                Exit Do
+                'Else
+                'Response = False
+                'End If
+
+
+            Else
+                If len <> 0 Then
+                    emptyCnt += 1
+                    If emptyCnt > 5 Then
+                        Response = False
+                        Exit Do
+                    End If
+                End If
+
+            End If
+
+            If LastTimer.AddSeconds(5) < Now Then
+                Exit Do
+            End If
+
+        Loop
+
+        If Response = True Then
+            CommunicationScan = 1
+        Else
+            CommunicationScan = 0
+        End If
+    End Function
+    Function tranStrByBuff(ByVal sData() As Byte) As String
+        Dim s As String
+        'sData = "33 39 37 30 31 32 35 2E 2E 41 31 30 30 30 36 37 30 0D "
+        Dim r As String
+        Dim i As Integer
+        Dim U As Integer
+        On Error GoTo Err
+        U = UBound(sData)
+        r = ""
+
+        For i = 0 To UBound(sData)
+            If Val(sData(i)) = 13 Then
+                Exit For
+            End If
+            s = Chr(Val(sData(i)))
+
+            If i = 0 Then
+                r = s
+            Else
+                r = r & s
+            End If
+        Next
+        tranStrByBuff = r
+        Exit Function
+Err:
+        tranStrByBuff = ""
+    End Function
+    Public Sub ClearData()
+        Com_3561.Write(":MEMory:Clear" & vbLf)
+    End Sub
+    ''' <summary>
+    ''' 传送---一批从3561读取的数据 20220825 weng 添加注释
+    ''' </summary>
+    ''' <returns></returns>
+    Friend Function Trans_BatchReadData_3561(ByVal firstCellNum As Integer, ByVal testNum As Integer, ByVal testType As Integer) As String()
+        Dim RecvStr As String '接收字符串变量
+        Dim strDataArr() As String '字符串数据数组
+        Dim Timer As Single '时间值
+        Dim msg As String = ""
+        '如果串口没有打开，退出
+        If Com_3561.IsOpen = False Then
+            Return Nothing
+        End If
+        Dim Start
+        '获取当前的日期
+        'InsObj.TestData.CurData.TestDate = Date.Now
+        '定义字符串集合（链表）mStr
+        Dim mStr As New List(Of String)
+        Dim retestArray1(63) As Int16  '复测点位数组
+        Array.Copy(retestArray, retestArray1, Math.Min(retestArray.Length, retestArray1.Length))
+        RecvStr = ""
+        '清空串口缓存
+        Com_3561.DiscardInBuffer()
+        Com_3561.DiscardOutBuffer()
+        Com_3561.WriteTimeout = 3000
+        '一次性获取内阻仪存储区的数据
+        Com_3561.Write("MEMory:DATA?" & vbLf)
+        'Port.Port.Write(":FETC?" & vbLf)
+        '计算当前的时间，用秒来计算
+        Timer = Now.TimeOfDay.Hours * 3600 + Now.TimeOfDay.Minutes * 60 + Now.Second
+        Start = Timer
+        '定义临时变量接收数据
+        Dim TmpRec As String = ""
+        '启动循环，如果获取数据不是END并且在5秒内
+        Do While Left(Right(Trim(RecvStr), 5), 3) <> "END" And Timer < Start + 5
+            Timer = Now.TimeOfDay.Hours * 3600 + Now.TimeOfDay.Minutes * 60 + Now.Second
+            '通过串口读取缓存数据
+            TmpRec = Com_3561.ReadExisting()
+            If TmpRec <> "" Then
+                RecvStr = RecvStr + TmpRec
+                Start = Timer
+            Else
+            End If
+            '如果长度大于100,字符串集合添加一个元素
+            If Len(RecvStr) > 100 Then
+                mStr.Add(RecvStr)
+                RecvStr = ""
+            End If
+        Loop
+        '跳出循环后，如果RecvStr还有值，继续添加进mStr集合
+        If RecvStr <> "" Then
+            mStr.Add(RecvStr)
+            RecvStr = ""
+        End If
+        '如果mStr有值
+        If mStr.Count > 0 Then
+            RecvStr = ""
+            '把字符串集合拼成字符串，放在RecvStr
+            For mL As Integer = 0 To mStr.Count - 1
+                RecvStr = RecvStr & mStr(mL)
+            Next
+            '拆分字符串，用vbCrLf关键字，放在strDataArr数组
+            strDataArr = Split(RecvStr, vbCrLf)
+            '直接返回字符串数组strDataArr？
+            'Return strDataArr
+            '如果字符串数组为空，返回失败提示
+            If strDataArr Is Nothing Then
+                MsgBox("内阻仪取数失败！")
+                ClearData()
+                Return Nothing
+                '不为空，如果字符串数组的长度==总通道数+2
+            ElseIf strDataArr.Length = (testNum + 2) Then
+                '启动循环，遍历字符串数组0->length-1
+                For i = 0 To strDataArr.Length - 1
+                    Dim tmp As String = strDataArr(i)
+                    '如果取到的值为END，结束循环
+                    If Left(tmp, 3) = "END" Then
+                        Exit For
+                    Else
+                        '继续拆分数组元素，关键字为“，”，拆分三项：arr(0)通道号，arr(1)成电阻值，arr(2)电压值
+                        Dim arr() = tmp.Split(",")
+                        '定义ch ==元素素组数组（0）-1
+                        Dim ch As Integer
+                        If (testType = 1) Then
+                            ch = Val(arr(0) - 1) + （firstCellNum - 1）
+                        End If
+                        If (testType = 0) Then
+                            ch = 0
+                            Dim j As Integer
+                            For j = 0 To retestArray1.Length - 1
+                                If retestArray1(j) = 1 Then
+                                    ch = j
+                                    retestArray1(j) = 0
+                                    Exit For
+                                End If
+                            Next
+                        End If
+                        '如果通道号小于总的通道数，存储通道对应的值
+                        If ch < (testNum + firstCellNum) Then
+                            '如果元素数组长度>=3,才是正确数据
+                            If arr.Length >= 3 Then
+                                RecieveData(ch).Resistance = Val(arr(1)) * 1000 + calibrateValueArray(ch) '+ Val(Initsetting.sngR_B)
+                                If RecieveData(ch).Resistance > 10000 Then
+                                    RecieveData(ch).Resistance = 10000
+                                End If
+                                RecieveData(ch).Voltage = Val(arr(2)) '+ Val(Initsetting.sngV_B)
+                                If RecieveData(ch).Voltage > 10000 Then
+                                    RecieveData(ch).Voltage = 10000
+                                End If
+                            Else
+                                msg = "解析传回的电压、内阻值出错:" & ch & ":" & tmp
+                            End If
+                            '继续完善结构数据的其他元素TestTime，IsTest
+                            RecieveData(ch).TestTime = Now
+                            Dim CHSTRING As String
+                            If ch < 10 Then
+                                CHSTRING = "0" + ch.ToString()
+                            Else
+                                CHSTRING = ch.ToString()
+                            End If
+                            'RecieveData(ch).BatCode = CHSTRING
+                        Else
+                            msg = "传回的内阻索引值超出范围"
+                        End If
+                    End If
+                Next
+                Return Nothing
+            Else
+                msg = "内阻仪取数失败！个数不对： " & strDataArr.Length - (testNum + 2)
+                Return Nothing
+            End If
+        Else
+            msg = "内阻仪取数失败！没有接收到任何数据"
+            Return Nothing
+        End If
+    End Function
+    '向34461发送指令
+    Public Function WriteLine(ByVal p As String) As String
+        Dim msg As String = ""
+        IsSending = True
+        IsRec = False
+
+        visaSession.WriteString(p & vbLf, True)
+        'visaSession.WriteString(p & vbLf, True)
+        Dim tmp As DateTime = DateTime.Now
+        Dim isFin As Boolean = False
+        Dim c As Integer = 0
+
+        While (tmp.AddSeconds(10) > DateTime.Now OrElse c < 3) AndAlso isFin = False AndAlso IsRec = False
+            c += 1
+            ProcessData()
+            System.Threading.Thread.Sleep(10)
+        End While
+
+        If IsRec = False Then
+            msg = "接收34461数据失败"
+        End If
+
+        Return msg
+    End Function
+
+    ''' <summary>
+    ''' 读取34461的电压值，并保存在
+    ''' </summary>
+    Public Sub ProcessData()
+        ReturnValue34461 = ""
+        ReturnValue34461 = visaSession.ReadString()
+        'ReturnValue34461 = visaSession.IO.ReadSTB(Of Single)
+        'recDataof34461 = visaSession.ReadNumber()
+        '把读取34461仪表值赋值给公共变量recDataof34461
+        recDataof34461 = Convert.ToDouble(ReturnValue34461)
+
+        'For i As Integer = 0 To mList.Count - 1
+        '    mList(i)(ReturnValue)
+        'Next
+        If ReturnValue34461 <> "" Then
+            IsRec = True
+        End If
+    End Sub
+    Public Sub Read34461A(ByVal firstCellNum As Integer, ByVal testNum As Integer)
+        Dim rm As Ivi.Visa.Interop.ResourceManager = New Ivi.Visa.Interop.ResourceManager()   '打开一个新的资源管理器
+        Dim myDmm As Ivi.Visa.Interop.FormattedIO488 = New Ivi.Visa.Interop.FormattedIO488() '打开新的格式化IO 488会话
+        Dim delayTim As Integer = testNum * 300
+        Try
+            Dim DutAddr As String = "TCPIP0::192.168.66.81"   'LAN的示例字符串
+            DutAddr = Initsetting.IpAddOf34461
+            myDmm.IO = rm.Open(DutAddr, AccessMode.NO_LOCK, 2000, "") '打开DMM的手柄，超时2秒
+            ' myDmm.WriteString("READ?") '将DMM设置为等待触发状态，并在下一个触发信号后获取读数。
+            Dim DCVResult As Object() = myDmm.ReadList(IEEEASCIIType.ASCIIType_Any)  '获取数组中的读数
+
+            '继续拆分数组元素，关键字为“，”，拆分三项：arr(0)通道号，arr(1)成电阻值，arr(2)电压值
+            'Dim arr() = DCVResult.Split(",")
+            '定义ch ==元素素组数组（0）-1
+            Dim ch As Integer = firstCellNum
+
+            '把读出的电压数据放在RecieveData(ch).Voltage中
+            For ch = firstCellNum To firstCellNum + testNum
+                RecieveData(ch).Voltage = DCVResult(ch - firstCellNum)
+                If RecieveData(ch).Voltage > 10000 Then
+                    RecieveData(ch).Voltage = 10000
+                End If
+            Next
+        Catch e As Exception
+            Console.WriteLine("Error occured: " + e.Message)
+        Finally
+
+            '关闭您的资源
+            Try
+                myDmm.IO.Close()
+            Catch ex As Exception
+
+            End Try
+            Try
+                System.Runtime.InteropServices.Marshal.ReleaseComObject(myDmm)
+            Catch ex As Exception
+
+            End Try
+
+            Try
+                System.Runtime.InteropServices.Marshal.ReleaseComObject(rm)
+            Catch ex As Exception
+
+            End Try
+        End Try
+    End Sub
+    Public Sub extTrig34461(ByVal firstCellNum As Integer, ByVal testNum As Integer) ' As String()
+        Dim rm As Ivi.Visa.Interop.ResourceManager = New Ivi.Visa.Interop.ResourceManager()   '打开一个新的资源管理器
+        Dim myDmm As Ivi.Visa.Interop.FormattedIO488 = New Ivi.Visa.Interop.FormattedIO488() '打开新的格式化IO 488会话
+        Dim delayTim As Integer = testNum * 300
+        Dim commString As String
+        Try
+
+            Dim DutAddr As String = "TCPIP0::192.168.66.81"   'LAN的示例字符串
+            DutAddr = Initsetting.IpAddOf34461
+            myDmm.IO = rm.Open(DutAddr, AccessMode.NO_LOCK, 2000, "") '打开DMM的手柄，超时2秒
+            myDmm.IO.Timeout = 100000  '您也可以通过执行此命令设置超时，设置为10秒.要计算，不通点位数不同
+
+            '先复位
+            myDmm.IO.Clear()  '首先发送一个设备清除，以停止任何正在进行的测量
+            myDmm.WriteString("*RST")  'Reset the device
+            myDmm.WriteString("*IDN?")  'Get the IDN string                
+            Dim IDN As String = myDmm.ReadString()
+            Console.WriteLine(IDN)  'report the DMM's identity
+
+            '配置DCV 100V范围，10mV分辨率这是一个快速读数
+            myDmm.WriteString("CONF:VOLT:DC")
+
+            '配置触发器计数
+            commString = "TRIG:COUN " + testNum.ToString()
+            myDmm.WriteString(commString)  ' Set the trigger count to 64. 
+
+            '配置触发器源
+            myDmm.WriteString("TRIG:SOUR EXT")
+            '配置Ext触发器以查找正斜率信号。
+            myDmm.WriteString("TRIG:SLOP POS")
+
+            '设置电压表完整连接器以输出正信号。测量完成后，此接头总是发出信号。
+            '此命令仅决定信号的极性。它不会打开或关闭信号。
+            myDmm.WriteString("OUTP:TRIG:SLOP POS")
+            myDmm.WriteString("READ?") '将DMM设置为等待触发状态，并在下一个触发信号后获取读数。
+
+
+            Dim DCVResult As Object() = myDmm.ReadList(IEEEASCIIType.ASCIIType_Any)  '获取数组中的读数
+
+            '继续拆分数组元素，关键字为“，”，拆分三项：arr(0)通道号，arr(1)成电阻值，arr(2)电压值
+            'Dim arr() = DCVResult.Split(",")
+            '定义ch ==元素素组数组（0）-1
+            Dim ch As Integer = firstCellNum
+
+            '把读出的电压数据放在RecieveData(ch).Voltage中
+
+            For ch = firstCellNum To firstCellNum + testNum - 1
+                RecieveData(ch).Voltage = DCVResult(ch - firstCellNum)
+                If RecieveData(ch).Voltage > 10000 Then
+                    RecieveData(ch).Voltage = 10000
+                End If
+                'TextBox1.AppendText((RecieveData(ch).Voltage).ToString() & vbCrLf)
+            Next
+        Catch e As Exception
+            Console.WriteLine("Error occured: " + e.Message)
+        Finally
+
+            '关闭您的资源
+            Try
+                myDmm.IO.Close()
+            Catch ex As Exception
+
+            End Try
+            Try
+                System.Runtime.InteropServices.Marshal.ReleaseComObject(myDmm)
+            Catch ex As Exception
+
+            End Try
+
+            Try
+                System.Runtime.InteropServices.Marshal.ReleaseComObject(rm)
+            Catch ex As Exception
+
+            End Try
+        End Try
+    End Sub
+    Sub CheckDMMError(myDmm As FormattedIO488)
+        myDmm.WriteString("SYST:ERR?")
+        Dim errStr As String = myDmm.ReadString()
+
+        If (errStr.Contains("No error")) Then 'If no error, then return
+            Return
+            'If there is an error, read out all of the errors and return them in an exception
+        Else
+            Dim errStr2 As String = ""
+            Do
+                myDmm.WriteString("SYST:ERR?")
+                errStr2 = myDmm.ReadString()
+                If (Not errStr2.Contains("No error")) Then
+                    errStr = errStr + "\n" + errStr2
+                End If
+            Loop While (Not errStr2.Contains("No error"))
+            Throw New Exception("Exception: Encountered system error(s)\n" + errStr)
+
+        End If
+
+    End Sub
+    Public Function Trans_ReadData_34461() As Integer
+
+
+        Dim msg As String = ""
+        If ReFlag_34461 = -1 Then
+            ReFlag_34461 = ConnectFor34461()
+        End If
+
+        If ReFlag_34461 <> 0 Then
+            MsgBox("数字万用表连接失败！", vbOKOnly)
+            Trans_ReadData_34461 = -1
+            Exit Function
+        Else
+            'MsgBox("数字万用表连接成功！", vbOKOnly)
+        End If
+        msg = WriteLine（"MEAS:VOLT:DC?"）
+        'txtSend.Text = "MEAS:VOLT:DC?"
+        'txtRecieve_34461.Text = recDataof34461.ToString()
+
+        If msg <> "" Then
+            MsgBox("数字万用表接收电压数据失败！", vbOKOnly)
+            Trans_ReadData_34461 = -1
+            Exit Function
+        Else
+            'MsgBox("数字万用表接收电压数据成功！", vbOKOnly)
+        End If
+        Trans_ReadData_34461 = 0
+    End Function
+
+    ''' <summary>
+    ''' 传送---一批从34465读取的数据 20230928 weng 添加注释
+    ''' </summary>
+    ''' <returns></returns>
+    Friend Function Trans_BatchReadData_34465(ByVal firstCellNum As Integer, ByVal testNum As Integer) As String()
+        Dim RecvStr As String '接收字符串变量
+        Dim strDataArr() As String '字符串数据数组
+        Dim Timer As Single '时间值
+        Dim msg As String = ""
+        '如果串口没有打开，退出
+        If Com_3561.IsOpen = False Then
+            Return Nothing
+        End If
+        Dim Start
+        '获取当前的日期
+        'InsObj.TestData.CurData.TestDate = Date.Now
+        '定义字符串集合（链表）mStr
+        Dim mStr As New List(Of String)
+
+        RecvStr = ""
+        '清空串口缓存
+        Com_3561.DiscardInBuffer()
+        Com_3561.DiscardOutBuffer()
+        Com_3561.WriteTimeout = 3000
+        '一次性获取内阻仪存储区的数据
+        Com_3561.Write("MEMory:DATA?" & vbLf)
+        'Port.Port.Write(":FETC?" & vbLf)
+        '计算当前的时间，用秒来计算
+        Timer = Now.TimeOfDay.Hours * 3600 + Now.TimeOfDay.Minutes * 60 + Now.Second
+        Start = Timer
+        '定义临时变量接收数据
+        Dim TmpRec As String = ""
+        '启动循环，如果获取数据不是END并且在5秒内
+        Do While Left(Right(Trim(RecvStr), 5), 3) <> "END" And Timer < Start + 5
+            Timer = Now.TimeOfDay.Hours * 3600 + Now.TimeOfDay.Minutes * 60 + Now.Second
+            '通过串口读取缓存数据
+            TmpRec = Com_3561.ReadExisting()
+            If TmpRec <> "" Then
+                RecvStr = RecvStr + TmpRec
+                Start = Timer
+            Else
+            End If
+            '如果长度大于100,字符串集合添加一个元素
+            If Len(RecvStr) > 100 Then
+                mStr.Add(RecvStr)
+                RecvStr = ""
+            End If
+        Loop
+        '跳出循环后，如果RecvStr还有值，继续添加进mStr集合
+        If RecvStr <> "" Then
+            mStr.Add(RecvStr)
+            RecvStr = ""
+        End If
+        '如果mStr有值
+        If mStr.Count > 0 Then
+            RecvStr = ""
+            '把字符串集合拼成字符串，放在RecvStr
+            For mL As Integer = 0 To mStr.Count - 1
+                RecvStr = RecvStr & mStr(mL)
+            Next
+            '拆分字符串，用vbCrLf关键字，放在strDataArr数组
+            strDataArr = Split(RecvStr, vbCrLf)
+            '直接返回字符串数组strDataArr？
+            'Return strDataArr
+            '如果字符串数组为空，返回失败提示
+            If strDataArr Is Nothing Then
+                MsgBox("内阻仪取数失败！")
+                ClearData()
+                Return Nothing
+                '不为空，如果字符串数组的长度==总通道数+2
+            ElseIf strDataArr.Length = (testNum + 2) Then
+                '启动循环，遍历字符串数组0->length-1
+                For i = 0 To strDataArr.Length - 1
+                    Dim tmp As String = strDataArr(i)
+                    '如果取到的值为END，结束循环
+                    If Left(tmp, 3) = "END" Then
+                        Exit For
+                    Else
+                        '继续拆分数组元素，关键字为“，”，拆分三项：arr(0)通道号，arr(1)成电阻值，arr(2)电压值
+                        Dim arr() = tmp.Split(",")
+                        '定义ch ==元素素组数组（0）-1
+                        Dim ch As Integer = Val(arr(0) - 1) + （firstCellNum - 1）
+                        '如果通道号小于总的通道数，存储通道对应的值
+                        If ch < (testNum + firstCellNum) Then
+                            '如果元素数组长度>=3,才是正确数据
+                            If arr.Length >= 3 Then
+                                RecieveData(ch).Resistance = Val(arr(1)) * 1000 + Val(Initsetting.sngR_B)
+                                If RecieveData(ch).Resistance > 10000 Then
+                                    RecieveData(ch).Resistance = 10000
+                                End If
+                                RecieveData(ch).Voltage = Val(arr(2)) + Val(Initsetting.sngV_B)
+                                If RecieveData(ch).Voltage > 10000 Then
+                                    RecieveData(ch).Voltage = 10000
+                                End If
+                            Else
+                                msg = "解析传回的电压、内阻值出错:" & ch & ":" & tmp
+                            End If
+                            '继续完善结构数据的其他元素TestTime，IsTest
+                            RecieveData(ch).TestTime = Now
+                            ' RecieveData(ch).BatCode = frmInput.txtTray.Text
+                        Else
+                            msg = "传回的内阻索引值超出范围"
+                        End If
+                    End If
+                Next
+                Return Nothing
+            Else
+                msg = "内阻仪取数失败！个数不对： " & strDataArr.Length - (testNum + 2)
+                Return Nothing
+            End If
+        Else
+            msg = "内阻仪取数失败！没有接收到任何数据"
+            Return Nothing
+        End If
+    End Function
+    Public Function CheckCom_IOCard() As Short
+        '**************************
+        '检查IO卡端口是否可用
+        'Com_IOCard = frmMDI.Com_IOCard  'IO卡
+        With frmMDI.Com_IOCard
+            If .IsOpen Then
+                .Close()
+            End If
+            .PortName = "Com" & (Initsetting.IOPort + 1).ToString
+            If Initsetting.IORate > 0 Then
+                .BaudRate = Initsetting.IORate
+            Else
+                .BaudRate = 115200
+            End If
+            .DataBits = 8
+            .StopBits = 1
+            .Parity = Parity.None
+            .ReadBufferSize = 100
+            .NewLine = vbCrLf
+            Try
+                If Not .IsOpen Then
+                    .Open()
+                End If
+            Catch e As Exception
+                'MsgBox(e.Message, vbOKOnly)
+                MsgBox("IO卡连接失败", vbOKOnly)
+                CheckCom_IOCard = -1
+                Exit Function
+            End Try
+        End With
+        CheckCom_IOCard = 1
+    End Function
+
+    Public Function CheckCom_EmmCard() As Short
+        '**************************
+        '检查IO卡端口是否可用
+        'Com_IOCard =   'IO卡
+        Dim serialEmmPort As SerialPort = frmMDI.Com_EmmCard
+        With serialEmmPort
+
+            .PortName = "Com" & (Initsetting.EmmPort + 1).ToString
+            If Initsetting.EmmRate > 0 Then
+                .BaudRate = Initsetting.EmmRate
+            Else
+                .BaudRate = 19200
+            End If
+            .DataBits = 8
+            .StopBits = 1
+            .Parity = Parity.Even
+            .ReadBufferSize = 100
+            .NewLine = vbCrLf
+            Try
+                If Not .IsOpen Then
+                    .Open()
+                End If
+                'ConnectToEMM(serialEmmPort)
+                GetTotalEnergeValue(serialEmmPort)
+            Catch e As Exception
+                MsgBox("智能电表连接失败", vbOKOnly)
+                CheckCom_EmmCard = -1
+                Exit Function
+            End Try
+        End With
+        CheckCom_EmmCard = 1
+
+    End Function
+    Sub GetTotalEnergeValue(SerialPort As SerialPort)
+        '配置串口
+        'Dim portName As String = "Com" & (Initsetting.EmmPort + 1).ToString() ' 根据实际情况设置
+        'Dim baudRate As Integer = 19200
+        'Dim parity As Parity = Parity.Even
+        'Dim dataBits As Integer = 8
+        'Dim stopBits As StopBits = StopBits.One
+
+        'If Initsetting.EmmRate > 0 Then
+        '    baudRate = Initsetting.IORate
+        'Else
+        '    baudRate = 19200
+        'End If
+        '' 创建和配置串口
+        'Dim SerialPort As New SerialPort(portName, baudRate, parity, dataBits, stopBits)
+        Using SerialPort
+            If Not SerialPort.IsOpen Then
+                SerialPort.Open()
+            End If
+            ' 创建Modbus主站
+            Dim master As IModbusSerialMaster = ModbusSerialMaster.CreateRtu(SerialPort)
+            master.Transport.ReadTimeout = 1000
+            master.Transport.WriteTimeout = 1000
+            ' Modbus从站地址（设备地址）
+            Dim slaveId As Byte = 1 ' 根据实际情况设置
+
+            ' 读取寄存器
+            ' 0x0C83 是总有功电能输入的寄存器地址
+            Dim startAddress As UShort = &HC83
+            Dim numRegisters As UShort = 4 ' 读取64位的值，需要读取四个寄存器
+
+            Try
+                ' 读取寄存器
+                Dim registers() As UShort = master.ReadHoldingRegisters(slaveId, startAddress, numRegisters)
+
+                ' 将寄存器值转换为64位整数
+                totalEnergyOfEmm = CLng(registers(0)) << 48 Or CLng(registers(1)) << 32 Or CLng(registers(2)) << 16 Or registers(3)
+
+                ' 输出总电能值
+                Console.WriteLine($"总有功电能输入: {totalEnergyOfEmm} Wh")
+            Catch ex As Exception
+                Console.WriteLine($"读取寄存器时出错: {ex.Message}")
+            End Try
+        End Using
+        'ReadEnergeriEMM3200()
+    End Sub
+    Private Sub ConnectToEMM(serialEmmPort As SerialPort)
+
+        ' 创建Modbus主站
+        If eMMconnected = False Then
+            Try
+                ' 打开串口
+                If serialEmmPort.IsOpen Then
+                    serialEmmPort.Close()
+                End If
+                serialEmmPort.Open()
+                master = ModbusSerialMaster.CreateRtu(serialEmmPort)
+                eMMconnected = True
+            Catch ex As Exception
+                eMMconnected = False
+            End Try
+        End If
+        Dim registers As UShort() = master.ReadHoldingRegisters(1, 3204, 4)
+    End Sub
+
+    ''' <summary>
+    ''' 检查34461数字万用表的链接与通信
+    ''' </summary>
+    ''' <returns></returns>
+    Public Function CheckCom_34461() As Short
+        Dim rm As Ivi.Visa.Interop.ResourceManager = New Ivi.Visa.Interop.ResourceManager()   '打开一个新的资源管理器
+        Dim myDmm As Ivi.Visa.Interop.FormattedIO488 = New Ivi.Visa.Interop.FormattedIO488() '打开新的格式化IO 488会话
+        Try
+
+            Dim DutAddr As String = "TCPIP0::192.168.66.81"   'LAN的示例字符串
+            DutAddr = Initsetting.IpAddOf34461
+            myDmm.IO = rm.Open(DutAddr, AccessMode.NO_LOCK, 2000, "") '打开DMM的手柄，超时2秒
+            myDmm.IO.Timeout = 10000  '您也可以通过执行此命令设置超时，设置为10秒.要计算，不通点位数不同
+
+            '先复位
+            myDmm.IO.Clear()  '首先发送一个设备清除，以停止任何正在进行的测量
+            myDmm.WriteString("*RST")  'Reset the device
+            myDmm.WriteString("*IDN?")  'Get the IDN string                
+            Dim IDN As String = myDmm.ReadString()
+            If IDN.Contains("Keysight Technologies") Then
+                CheckCom_34461 = 0
+            Else
+                CheckCom_34461 = -1
+            End If
+            Console.WriteLine(IDN)  'report the DMM's identity
+
+        Catch
+            CheckCom_34461 = -1
+            Exit Function
+        End Try
+    End Function
+    ''' <summary>
+    ''' 连接安捷伦 34461仪表
+    ''' </summary>
+    ''' <returns></returns>
+    Public Function ConnectFor34461() As Integer
+
+        'Dim instr As String = "USB0::0x2A8D::0x1201::MY57501015::0::INSTR"
+        Dim instr As String = "TCPIP0::192.168.66.81::inst0::INSTR"
+        instr = Initsetting.IpAddOf34461
+        visaSession = New Ivi.Visa.Interop.FormattedIO488
+        Try
+            visaSession.IO = ResourcePort.Open(instr, Ivi.Visa.Interop.AccessMode.NO_LOCK, 5000, "")
+        Catch
+            ConnectFor34461 = -1
+            Exit Function
+        End Try
+        ConnectFor34461 = 0
+    End Function
+    ''' <summary>
+    ''' 添加日志
+    ''' </summary>
+    ''' <param name="logConstant"></param>
+    ''' <returns></returns>
+    Public Function AddAlarmLog(ByVal logConstant As String) As Integer
+        ' 记录错误到系统事件日志
+        Dim eventLogName As String = "MyEventLog" ' 事件日志的名称，替换为你想要使用的日志名称
+        Dim sourceName As String = "MyApplication" ' 日志来源的名称，替换为你的应用程序名称
+        AddAlarmLog = 1
+
+        If Not EventLog.SourceExists(sourceName) Then
+            EventLog.CreateEventSource(sourceName, eventLogName)
+        End If
+
+        Using eventLog As New EventLog(eventLogName)
+            eventLog.Source = sourceName
+            eventLog.WriteEntry("报警信息：" & logConstant & "  " & Now.ToString("s"))
+        End Using
+
+    End Function
+End Module

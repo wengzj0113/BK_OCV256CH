@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>StarTest(testType) 详细逻辑分析报告</title>
+  <style>
+    body { font-family: "Microsoft YaHei", Arial, sans-serif; line-height: 1.7; margin: 0; color: #1f2933; background: #f6f8fb; }
+    main { max-width: 1120px; margin: 0 auto; padding: 32px 28px 56px; background: #fff; }
+    h1, h2, h3 { line-height: 1.3; color: #102a43; }
+    h1 { font-size: 30px; border-bottom: 3px solid #2f80ed; padding-bottom: 12px; }
+    h2 { margin-top: 34px; font-size: 22px; border-left: 5px solid #2f80ed; padding-left: 10px; }
+    h3 { margin-top: 22px; font-size: 18px; }
+    code { background: #eef2f7; padding: 2px 5px; border-radius: 4px; }
+    pre { background: #102a43; color: #f0f4f8; padding: 14px; overflow: auto; border-radius: 6px; }
+    table { width: 100%; border-collapse: collapse; margin: 14px 0 22px; }
+    th, td { border: 1px solid #d9e2ec; padding: 9px 10px; vertical-align: top; }
+    th { background: #eef2f7; text-align: left; }
+    .note { background: #fffbea; border-left: 5px solid #f0b429; padding: 10px 14px; margin: 14px 0; }
+    .risk { background: #fff5f5; border-left: 5px solid #e12d39; padding: 10px 14px; margin: 14px 0; }
+    .ok { background: #f0fff4; border-left: 5px solid #2f9e44; padding: 10px 14px; margin: 14px 0; }
+    .muted { color: #627d98; }
+    .flow li { margin-bottom: 6px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>StarTest(testType) 详细逻辑分析报告</h1>
+  <p class="muted">文件：<code>frmTest.vb</code>；方法：<code>Public Function StarTest(ByVal testType As Integer)</code>；分析日期：2026-08-01。</p>
+
+  <h2>1. 方法定位</h2>
+  <p>
+    <code>StarTest(testType)</code> 是当前测试窗体的正式测试入口。它不是单纯的“启动测量”函数，而是一个大型流程编排函数，
+    同时负责测试前检查、托盘/夹具动作、调用正式测试 Runner、刷新界面、OK/NG 判定、本地保存、MES 上传、数据库写入，以及 NG 复测触发。
+  </p>
+  <table>
+    <tr><th>参数</th><th>含义</th></tr>
+    <tr><td><code>testType = 1</code></td><td>正常测试。按 <code>frmInput.txtFirst</code> 到 <code>frmInput.txtLast</code> 的连续通道范围测试。</td></tr>
+    <tr><td><code>testType = 0</code></td><td>NG 复测。按全局 <code>retestArray</code> 中标记为 1 的通道测试。</td></tr>
+  </table>
+  <div class="note">
+    当前方法虽然声明为 <code>Function</code>，但业务上主要以 <code>Call StarTest(...)</code> 方式调用，返回值没有被上层使用。
+    目前返回值只是为了满足函数签名，不能代表真实测试成功/失败状态。
+  </div>
+
+  <h2>2. 调用入口</h2>
+  <table>
+    <tr><th>入口</th><th>行为</th></tr>
+    <tr><td>开始按钮 <code>CmdStart_Click</code></td><td>先检查报警状态，再调用 <code>StarTest(1)</code>。</td></tr>
+    <tr><td>自动启动逻辑</td><td>当检测到自动启动条件且 <code>isRuning = False</code> 时调用 <code>StarTest(1)</code>。</td></tr>
+    <tr><td>NG 复测确认</td><td>正常测试后如果 <code>haveNgPoint = True</code>，用户确认后递归调用 <code>StarTest(0)</code>。</td></tr>
+  </table>
+
+  <h2>3. 顶层流程概览</h2>
+  <ol class="flow">
+    <li>初始化返回值、局部变量和 MES 上传对象。</li>
+    <li>清空报警显示、刷新电池界面和主窗体测试状态。</li>
+    <li>设置 <code>isRuning = True</code>。</li>
+    <li>确保托盘号存在于数据库托盘表中。</li>
+    <li>读取起始通道、结束通道、总测试数量。</li>
+    <li>正常测试时清空 <code>RecieveData</code> 的电压、内阻和测试时间。</li>
+    <li>检查托盘号为空或重复托盘号。</li>
+    <li>判断本次是 OCV1、OCV2 或 OCV3，并在首次测试时弹窗确认。</li>
+    <li>检查中位机串口通讯。</li>
+    <li>查询托盘状态，下压夹具，等待约 9 秒，再确认托盘闭合。</li>
+    <li>探针使用次数加 1，并刷新剩余寿命显示。</li>
+    <li>禁用托盘控制按钮，调用 <code>FormalTestRunner</code> 执行正式测试。</li>
+    <li>刷新界面，松开托盘，写运行日志。</li>
+    <li>按电压/内阻上下限判定 OK/NG。</li>
+    <li>保存本地测试文件，按勾选状态启动 MES 上传。</li>
+    <li>写入或更新数据库。</li>
+    <li>如果存在 NG 点，询问是否执行 NG 复测。</li>
+    <li>统一退出：恢复按钮、鼠标状态和 <code>isRuning = False</code>。</li>
+  </ol>
+
+  <h2>4. 前置检查与状态初始化</h2>
+  <h3>4.1 UI 与运行状态</h3>
+  <p>
+    方法开始后会清空 <code>txtAlarm</code>，刷新 <code>Pic_Bat</code>、<code>frmMDI.status_test</code> 和 <code>frmMDI.txtTesting</code>。
+    随后设置 <code>isRuning = True</code>，表示系统进入测试状态。
+  </p>
+  <h3>4.2 托盘号处理</h3>
+  <p>
+    方法会读取 <code>txtTray.Text</code> 作为托盘号，并检查：
+  </p>
+  <ul>
+    <li>如果托盘号为空，提示用户完成扫码，并打开 <code>frmInput</code>。</li>
+    <li>如果托盘号与上次相同，弹窗询问是否继续，避免重复误测。</li>
+    <li>如果托盘号不在数据库托盘表中，先调用 <code>InsertTrayNum</code> 插入。</li>
+  </ul>
+  <div class="risk">
+    注意：当前代码在检查托盘号为空之前，已经执行了 <code>db.IsExists(txtTray.Text)</code> 和可能的插入逻辑。
+    如果 <code>txtTray.Text</code> 为空，理论上存在向托盘表插入空托盘号的风险，应在后续重构中把托盘号校验前移。
+  </div>
+
+  <h2>5. OCV 次数判定</h2>
+  <p>
+    方法通过 <code>Rbtn1</code>、<code>Rbtn2</code>、<code>Rbtn3</code> 判断本次是 OCV1、OCV2 或 OCV3。
+    如果没有选择，则提示“请选择OCV！”并退出。
+  </p>
+  <p>
+    如果全局 <code>isAskOcvNum = False</code>，会弹窗要求确认当前 OCV 次数。用户取消时直接 <code>Exit Function</code>。
+  </p>
+  <div class="note">
+    这里的 <code>Exit Function</code> 不经过 <code>exit_sub</code> 标签，因此不会执行尾部统一恢复逻辑。
+    目前它发生在禁用托盘按钮之前，实际影响较小，但从结构上看仍不统一。
+  </div>
+
+  <h2>6. 中位机通讯与夹具动作</h2>
+  <p>
+    正式测试前先调用 <code>CheckCom_SCM()</code> 检查中位机串口通讯。当前实现使用 RS485 串口，参数来源于初始化配置中的
+    <code>SCMComPort</code> 和 <code>SCMComRate</code>。
+  </p>
+  <p>
+    通讯成功后，方法仍会调用旧夹具相关逻辑：
+  </p>
+  <ul>
+    <li><code>GetSignalTrayStatus()</code> 查询托盘/夹具状态。</li>
+    <li><code>mSock.GetSignalFixtureDown</code> 获取下压夹具指令。</li>
+    <li><code>socketSR(temp)</code> 发送旧 socket 指令。</li>
+    <li>等待 <code>Sleep(9000)</code>。</li>
+    <li>再次查询托盘状态，若 <code>fixtureClose = False</code>，提示托盘未闭合并退出。</li>
+  </ul>
+  <div class="note">
+    根据前面确认，夹具后续会由 PLC 实现。目前这段仍是旧逻辑，属于暂时保留区域。
+  </div>
+
+  <h2>7. 探针寿命计数</h2>
+  <p>
+    夹具闭合确认后，方法会把 <code>Initsetting.ProbeUsedCount</code> 加 1，并刷新 <code>txtUsed</code> 和 <code>txtRemain</code>。
+    如果剩余次数为 0，会弹窗提示更换探针。
+  </p>
+  <div class="risk">
+    当前探针计数发生在正式测试前。一旦后续仪表或中位机测试失败，本次探针使用次数仍已增加。
+    这可能是合理的，因为夹具已经下压；但应在工艺层面确认“下压即计数”还是“测试成功才计数”。
+  </div>
+
+  <h2>8. 正式测量子流程</h2>
+  <p>
+    <code>StarTest</code> 自身不直接下发通道计划，也不直接读取 3562/34461 缓存，而是委托给 <code>FormalTestRunner</code>：
+  </p>
+  <pre><code>If testType = 0 Then
+    formalRunner.RunRetestMeasurement(retestArray)
+Else
+    formalRunner.RunRangeMeasurement(firstCellNumToTest, lastCellNumToTest)
+End If</code></pre>
+  <h3>8.1 正常测试</h3>
+  <p>
+    <code>RunRangeMeasurement(start, end)</code> 根据起止通道构造连续通道列表，底层再拆分为 G1/G2。
+  </p>
+  <h3>8.2 NG 复测</h3>
+  <p>
+    <code>RunRetestMeasurement(retestArray)</code> 扫描 <code>retestArray</code>，把值为 1 的位置转换为物理通道号，再构造零星通道列表。
+  </p>
+  <h3>8.3 Runner 内部顺序</h3>
+  <ol>
+    <li>记录中位机计划日志。</li>
+    <li>清空 3562 和 34461 的缓存。</li>
+    <li>让 3562 进入外部触发缓存状态。</li>
+    <li>让 34461 进入外部触发等待状态。</li>
+    <li>中位机执行通道计划并 START。</li>
+    <li>中位机完成后，一次性读取 3562 缓存。</li>
+    <li>一次性读取 34461 缓存。</li>
+    <li><code>TwoPassResultMapper</code> 按选择通道和两遍规则把内阻、电压回填到 <code>RecieveData</code>。</li>
+    <li>异常时 STOP、清列表、清仪表缓存，并把异常抛回 <code>StarTest</code>。</li>
+  </ol>
+  <div class="ok">
+    这符合已确定的新逻辑：中位机只负责通道计划和 START；实际测量值仍由上位机读取 3562/34461 缓存并回填。
+  </div>
+
+  <h2>9. 测试后处理</h2>
+  <h3>9.1 界面刷新与松开托盘</h3>
+  <p>
+    测试完成后调用 <code>FreshBat(1, firstCellNumToTest, totalCellNumToTest, RecieveData, testType)</code> 刷新电池界面。
+    随后设置主界面文字为“测试结束”，调用 <code>TrayOpen()</code> 松开托盘，并等待 2 秒。
+  </p>
+  <h3>9.2 OK/NG 判定</h3>
+  <p>
+    正常测试时，遍历 <code>firstCellNumToTest ~ lastCellNumToTest</code>；NG 复测时，只遍历 <code>retestArray(j) = 1</code> 的通道。
+    每个通道调用 <code>IsNG(voltage, resistance)</code>：
+  </p>
+  <ul>
+    <li>返回 0：OK。</li>
+    <li>返回 1：电压 NG。</li>
+    <li>返回 2：内阻 NG。</li>
+  </ul>
+  <h3>9.3 本地保存</h3>
+  <p>
+    调用 <code>SaveTestDataLocalFile(RecieveData)</code> 保存本地 CSV/测试数据。当前保存逻辑按 256 通道数组生成输出数据。
+  </p>
+  <h3>9.4 MES 上传</h3>
+  <p>
+    如果 <code>FrmMesTask.chkResultDataUploadAssembly.Checked</code> 被勾选，则停止并启动 <code>ResultDataUploadAssembly</code> 定时器，
+    由上传模块处理 MES 结果上传。
+  </p>
+  <h3>9.5 数据库写入</h3>
+  <p>
+    方法连接数据库后遍历正常测试范围内的通道，按条码和托盘号查询是否已有记录：
+  </p>
+  <ul>
+    <li>已有记录：调用 <code>Ups4BarCode</code> 更新。</li>
+    <li>无记录：调用 <code>Ins4BarCode</code> 插入。</li>
+  </ul>
+  <div class="risk">
+    当前数据库写入始终遍历 <code>firstCellNumToTest ~ lastCellNumToTest</code>。
+    如果本次是 NG 复测，前面的 OK/NG 判定只处理复测点，但数据库写入仍可能覆盖整个连续范围。
+    这与“NG 复测只覆盖 NG 点”的目标存在潜在不一致，应在后续重构中重点处理。
+  </div>
+
+  <h2>10. NG 复测机制</h2>
+  <p>
+    <code>FreshBat</code> 在刷新显示时会根据 <code>IsNG</code> 设置 <code>haveNgPoint = True</code>，并把 NG 通道对应的
+    <code>retestArray(index)</code> 标记为 1。<code>StarTest</code> 测试结束后，如果 <code>haveNgPoint = True</code>，
+    会弹窗询问是否执行 NG 复测。
+  </p>
+  <p>
+    用户确认后：
+  </p>
+  <pre><code>haveNgPoint = False
+Call StarTest(0)</code></pre>
+  <div class="risk">
+    这里是递归调用。虽然一般只会递归一层或少量层，但从结构上看，测试流程再次进入同一个大型函数，
+    状态恢复、按钮启用、数据库写入范围、复测数组生命周期都比较难追踪。
+  </div>
+
+  <h2>11. 异常和退出路径</h2>
+  <table>
+    <tr><th>位置</th><th>处理方式</th><th>说明</th></tr>
+    <tr><td>托盘号为空/重复取消/未选 OCV/通讯失败/托盘未闭合</td><td><code>GoTo exit_sub</code></td><td>会执行尾部恢复按钮和状态。</td></tr>
+    <tr><td>OCV 确认弹窗取消</td><td><code>Exit Function</code></td><td>不会经过 <code>exit_sub</code>；目前发生较早，风险较低但结构不统一。</td></tr>
+    <tr><td>正式测试异常</td><td>记录到 <code>txtAlarm</code>，弹窗，然后 <code>GoTo exit_sub</code></td><td>Runner 内部会尝试 STOP、清列表、清缓存。</td></tr>
+    <tr><td>刷新/保存/上传/数据库异常</td><td>记录到 <code>txtAlarm</code> 并弹窗</td><td>Catch 后仍继续执行后续状态清理。</td></tr>
+  </table>
+
+  <h2>12. 当前主要风险点</h2>
+  <table>
+    <tr><th>风险</th><th>说明</th><th>建议</th></tr>
+    <tr>
+      <td>职责过重</td>
+      <td><code>StarTest</code> 同时处理 UI、设备、测量、保存、上传、数据库、复测。</td>
+      <td>拆成测试前校验、夹具动作、正式测量、结果处理、持久化、复测决策。</td>
+    </tr>
+    <tr>
+      <td>返回值无业务意义</td>
+      <td>方法是 <code>Function</code>，但调用方基本不用返回值，当前固定返回 0。</td>
+      <td>后续设计 <code>TestRunResult</code>，明确成功、取消、失败、异常原因。</td>
+    </tr>
+    <tr>
+      <td>NG 复测数据库覆盖范围</td>
+      <td>复测判定按 <code>retestArray</code>，但数据库写入按连续范围。</td>
+      <td>复测时只保存/更新复测通道，或明确覆盖策略。</td>
+    </tr>
+    <tr>
+      <td>旧夹具控制仍在正式流程中</td>
+      <td>中位机新 RS485 流程已接入，但夹具仍通过旧 <code>mSock/socketSR</code>。</td>
+      <td>等 PLC 方案确定后，把夹具控制从正式测量流程中抽象出来。</td>
+    </tr>
+    <tr>
+      <td>退出路径不统一</td>
+      <td>多数失败走 <code>GoTo exit_sub</code>，少量路径直接 <code>Exit Function</code>。</td>
+      <td>统一为结构化 Try/Finally，确保状态恢复一定执行。</td>
+    </tr>
+    <tr>
+      <td>托盘号校验顺序偏晚</td>
+      <td>当前先做数据库存在性处理，再检查托盘号是否为空。</td>
+      <td>把托盘号空值、重复确认前移到所有数据库操作之前。</td>
+    </tr>
+  </table>
+
+  <h2>13. 建议重构方向</h2>
+  <ol>
+    <li>新增 <code>TestRunResult</code>，让 <code>StarTest</code> 真正返回测试结果状态。</li>
+    <li>把托盘号、OCV、通道范围、中位机通讯检查提取为 <code>ValidateBeforeTest()</code>。</li>
+    <li>把夹具动作提取为 <code>FixtureController</code>，后续便于切换 PLC。</li>
+    <li>保留 <code>FormalTestRunner</code> 作为正式测量核心，避免测量细节回流到窗体代码。</li>
+    <li>新增 <code>TestResultPersistence</code>，统一处理本地文件、MES 上传触发和数据库写入。</li>
+    <li>把 NG 复测改为外层循环或状态机，避免递归调用 <code>StarTest(0)</code>。</li>
+  </ol>
+
+  <h2>14. 结论</h2>
+  <p>
+    当前 <code>StarTest(testType)</code> 已经接入新的 RS485 正式测量链路：通道计划与 START 由中位机执行，3562/34461 缓存由上位机读取，
+    并通过 <code>TwoPassResultMapper</code> 回填 <code>RecieveData</code>。这是正确方向。
+  </p>
+  <p>
+    但 <code>StarTest</code> 仍是一个历史包袱较重的“大流程函数”。它最需要后续处理的不是局部修补，而是把“测试运行状态”和“结果持久化范围”
+    这两个关键点设计清楚，尤其是 NG 复测覆盖规则、数据库写入范围和退出状态恢复。
+  </p>
+</main>
+</body>
+</html>

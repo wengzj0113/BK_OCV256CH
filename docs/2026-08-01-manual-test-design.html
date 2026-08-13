@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>手动测试功能设计文档</title>
+  <style>
+    body { margin: 0; background: #f5f7fa; color: #1f2933; font-family: "Microsoft YaHei", Arial, sans-serif; line-height: 1.7; }
+    main { max-width: 1120px; margin: 0 auto; padding: 32px 30px 56px; background: #fff; }
+    h1 { color: #102a43; border-bottom: 3px solid #2f80ed; padding-bottom: 12px; }
+    h2 { color: #102a43; margin-top: 32px; border-left: 5px solid #2f80ed; padding-left: 10px; }
+    h3 { color: #243b53; margin-top: 22px; }
+    code { background: #eef2f7; padding: 2px 5px; border-radius: 4px; }
+    pre { background: #102a43; color: #f0f4f8; padding: 14px; border-radius: 6px; overflow: auto; }
+    table { border-collapse: collapse; width: 100%; margin: 14px 0 22px; }
+    th, td { border: 1px solid #d9e2ec; padding: 9px 10px; vertical-align: top; }
+    th { background: #eef2f7; text-align: left; }
+    .note { background: #fffbea; border-left: 5px solid #f0b429; padding: 10px 14px; margin: 14px 0; }
+    .ok { background: #f0fff4; border-left: 5px solid #2f9e44; padding: 10px 14px; margin: 14px 0; }
+    .risk { background: #fff5f5; border-left: 5px solid #e12d39; padding: 10px 14px; margin: 14px 0; }
+    .muted { color: #627d98; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>手动测试功能设计文档</h1>
+  <p class="muted">项目：XL_OCV_256CH；日期：2026-08-01；目标窗体：MDI 主界面新增“手动测试”。</p>
+
+  <h2>1. 功能定位</h2>
+  <p>
+    手动测试定位为设备调试和通道验证工具，不作为正式生产测试入口。它允许操作员手动选择 1~256 中任意通道，
+    启动一次中位机通道计划和仪表缓存读取，并在独立页面显示本次结果。
+  </p>
+  <div class="ok">
+    第一版不写正式数据库、不上传 MES、不保存正式生产 CSV、不触发 NG 复测、不增加探针寿命计数、不执行夹具动作。
+  </div>
+
+  <h2>2. 菜单与打开方式</h2>
+  <p>在 MDI 主窗体菜单“测试(&amp;T)”下新增“手动测试”。点击后打开独立窗体 <code>FrmManualTest</code>。</p>
+  <pre><code>Using frm As New FrmManualTest()
+    frm.ShowDialog(Me)
+End Using</code></pre>
+  <p>
+    使用 <code>ShowDialog(Me)</code> 模态显示，保证窗体限制在 <code>MDIForm</code> 顶层，用户关闭手动测试页之前不能操作主窗体。
+  </p>
+
+  <h2>3. 页面布局</h2>
+  <h3>3.1 顶部操作区</h3>
+  <ul>
+    <li>全选</li>
+    <li>清空</li>
+    <li>反选</li>
+    <li>G1 全选</li>
+    <li>G2 全选</li>
+    <li>起始通道输入框</li>
+    <li>结束通道输入框</li>
+    <li>添加范围</li>
+    <li>零星通道文本框</li>
+    <li>添加列表</li>
+  </ul>
+
+  <h3>3.2 通道矩阵</h3>
+  <p>中间区域显示 16 行 x 16 列通道矩阵，共 256 个通道。</p>
+  <table>
+    <tr><th>区域</th><th>通道</th><th>显示建议</th></tr>
+    <tr><td>G1</td><td>CH1~CH128</td><td>浅蓝或浅灰背景，选中后高亮。</td></tr>
+    <tr><td>G2</td><td>CH129~CH256</td><td>浅绿或浅灰背景，选中后高亮。</td></tr>
+  </table>
+  <p>每个控件显示物理通道号，例如 <code>CH151</code>。鼠标提示可显示 <code>G2 本地 CH23</code>。</p>
+
+  <h3>3.3 状态与结果区</h3>
+  <ul>
+    <li>已选总数</li>
+    <li>G1 已选数量</li>
+    <li>G2 已选数量</li>
+    <li>预计 3562 触发次数</li>
+    <li>预计 34461 触发次数</li>
+    <li>状态文本：空闲、测试中、测试完成、测试失败</li>
+    <li>结果表格：通道、分组、电压 mV、内阻 mΩ、判定</li>
+  </ul>
+
+  <h2>4. 通道选择规则</h2>
+  <p>页面只接收物理通道号：<code>1~256</code>。</p>
+  <table>
+    <tr><th>输入方式</th><th>规则</th></tr>
+    <tr><td>单个点击</td><td>点击通道按钮，在选中和取消之间切换。</td></tr>
+    <tr><td>范围添加</td><td>起始和结束必须是 1~256 的整数，起始不能大于结束。</td></tr>
+    <tr><td>列表添加</td><td>支持 <code>3,8,25,129</code>、<code>3，8，25，129</code>、<code>CH3、CH8、CH25、CH129</code>。</td></tr>
+    <tr><td>去重排序</td><td>页面层去重，底层 <code>TestChannelPlanService</code> 也会再次去重排序。</td></tr>
+  </table>
+  <p>非法输入应提示具体无效项，例如：<code>以下通道无效：0,257,abc</code>。</p>
+
+  <h2>5. 测试启动流程</h2>
+  <ol>
+    <li>用户选择通道。</li>
+    <li>点击“开始测试”。</li>
+    <li>检查是否选择至少一个通道。</li>
+    <li>检查 <code>isRuning</code>，如果系统正在测试则禁止启动。</li>
+    <li>检查中位机串口通讯 <code>CheckCom_SCM()</code>。</li>
+    <li>设置 <code>isRuning = True</code>，禁用页面操作按钮。</li>
+    <li>调用 <code>FormalTestRunner.RunSparseMeasurement(channelNumbers)</code>。</li>
+    <li>从 <code>RecieveData</code> 读取本次选中通道结果。</li>
+    <li>显示电压、内阻和 OK/NG 判定。</li>
+    <li>写入手动测试日志。</li>
+    <li>恢复按钮，设置 <code>isRuning = False</code>。</li>
+  </ol>
+  <pre><code>Dim channelNumbers As List(Of Integer) = GetSelectedChannels()
+Dim formalRunner As New FormalTestRunner()
+formalRunner.RunSparseMeasurement(channelNumbers)</code></pre>
+
+  <h2>6. 复用和不复用的模块</h2>
+  <table>
+    <tr><th>模块</th><th>是否复用</th><th>说明</th></tr>
+    <tr><td><code>FormalTestRunner</code></td><td>复用</td><td>负责清缓存、设置仪表、下发中位机计划、读取缓存、回填数据。</td></tr>
+    <tr><td><code>TestChannelPlanService</code></td><td>复用</td><td>负责通道去重排序、G1/G2 拆分、G2 本地通道转换。</td></tr>
+    <tr><td><code>TwoPassResultMapper</code></td><td>复用</td><td>负责按两遍模式将内阻和电压回填到 <code>RecieveData</code>。</td></tr>
+    <tr><td><code>StarTest</code></td><td>不复用</td><td>它包含托盘号、夹具、MES、数据库、探针寿命、NG 复测等生产流程，不适合作为手动测试入口。</td></tr>
+  </table>
+
+  <h2>7. 日志设计</h2>
+  <p>手动测试不写正式 CSV，但写调试日志：</p>
+  <pre><code>logFile/ManualTest_yyyyMMdd.log</code></pre>
+  <p>日志内容包括：</p>
+  <ul>
+    <li>开始时间、结束时间</li>
+    <li>选择通道列表</li>
+    <li>G1/G2 拆分数量</li>
+    <li>执行成功或失败</li>
+    <li>异常信息</li>
+    <li>每个通道的电压、内阻、判定</li>
+  </ul>
+
+  <h2>8. 安全与异常处理</h2>
+  <ul>
+    <li>测试中禁止重复启动。</li>
+    <li>测试中禁止关闭窗体，提示“手动测试正在进行，请等待测试完成。”</li>
+    <li>异常时页面显示失败原因。</li>
+    <li>异常时 <code>FormalTestRunner</code> 会尝试 STOP、清列表、清仪表缓存。</li>
+    <li>页面层必须使用 <code>Try...Finally</code> 恢复按钮状态和 <code>isRuning</code>。</li>
+  </ul>
+  <div class="risk">
+    第一版不提供“停止”按钮。停止涉及中位机 STOP、仪表缓存清理、线程状态恢复，建议后续单独设计。
+  </div>
+
+  <h2>9. 第一版范围</h2>
+  <table>
+    <tr><th>包含</th><th>不包含</th></tr>
+    <tr>
+      <td>
+        菜单入口、模态窗体、256 通道矩阵、全选/清空/反选/G1/G2全选、范围添加、列表添加、开始测试、结果显示、调试日志。
+      </td>
+      <td>
+        正式数据库写入、MES 上传、正式 CSV 保存、NG 复测弹窗、探针计数、夹具下压/松开、停止按钮。
+      </td>
+    </tr>
+  </table>
+
+  <h2>10. 验收标准</h2>
+  <ul>
+    <li>菜单“测试(&amp;T)”下出现“手动测试”。</li>
+    <li>点击后在 MDI 主窗体顶层模态显示。</li>
+    <li>可以选择任意 1~256 通道。</li>
+    <li>范围和列表输入均能正确添加通道。</li>
+    <li>非法通道输入有明确提示。</li>
+    <li>已选数量、G1/G2 数量实时刷新。</li>
+    <li>开始测试会调用 <code>RunSparseMeasurement</code>。</li>
+    <li>测试结果显示在页面表格中。</li>
+    <li>生成 <code>ManualTest_yyyyMMdd.log</code>。</li>
+    <li>MSBuild 结果为 0 warning / 0 error。</li>
+  </ul>
+</main>
+</body>
+</html>

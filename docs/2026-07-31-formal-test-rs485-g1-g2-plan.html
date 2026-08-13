@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>正式测试流程迁移优化方案 - RS485 G1/G2 256CH</title>
+  <style>
+    body { font-family: "Microsoft YaHei", Arial, sans-serif; line-height: 1.65; margin: 32px; color: #222; }
+    h1, h2, h3 { line-height: 1.3; }
+    h1 { border-bottom: 2px solid #333; padding-bottom: 10px; }
+    h2 { margin-top: 32px; border-left: 5px solid #3366cc; padding-left: 10px; }
+    h3 { margin-top: 22px; color: #333; }
+    code, pre { font-family: Consolas, "Courier New", monospace; }
+    code { background: #f3f4f6; padding: 2px 5px; border-radius: 4px; }
+    pre { background: #f8f8f8; padding: 12px; border: 1px solid #ddd; overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0 20px; }
+    th, td { border: 1px solid #ddd; padding: 8px 10px; vertical-align: top; }
+    th { background: #f0f4ff; }
+    .ok { color: #087f23; font-weight: bold; }
+    .warn { color: #a15c00; font-weight: bold; }
+    .risk { color: #b00020; font-weight: bold; }
+    .box { border: 1px solid #d0d7de; background: #f6f8fa; padding: 12px 16px; border-radius: 6px; }
+    .small { color: #666; font-size: 0.94em; }
+    ul.checklist { list-style: none; padding-left: 0; }
+    ul.checklist li::before { content: "☐ "; color: #3366cc; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>正式测试流程迁移优化方案 - RS485 G1/G2 256CH</h1>
+
+  <div class="box">
+    <p><strong>目标：</strong>将当前正式测试流程从旧 <code>mSock / SocketCtrolCmd / TCP</code> 中位机控制，迁移到新的 <code>RS485 串口 + G1/G2 双组 + 256 通道 + 仪表缓存一次性读取</code> 架构。</p>
+    <p><strong>核心原则：</strong>中位机只负责通道计划和 START；3562 与 34461 都在测试过程中缓存本次全部测试值；上位机在完成事件后一次性读取缓存，并按 <code>ExecutionOrder</code> 回填到物理通道。</p>
+    <p><strong>技术栈：</strong>VB.NET WinForms、.NET Framework 4.8、<code>System.IO.Ports.SerialPort</code>、3562、34461、CRC16-Modbus、Visual Studio MSBuild。</p>
+  </div>
+
+  <h2>一、当前问题</h2>
+  <table>
+    <tr><th>问题</th><th>当前表现</th><th>目标状态</th></tr>
+    <tr>
+      <td>中位机通讯</td>
+      <td>正式测试仍大量使用 <code>mSock</code>、<code>SocketCtrolCmd</code>、TCP/IP。</td>
+      <td>统一改为 <code>SerialMiddleMachineClient</code>，使用 RS485 115200 8N1。</td>
+    </tr>
+    <tr>
+      <td>仪表选择</td>
+      <td>仍调用 <code>IOCardSetAcirOrOcv("ACIR")</code>、<code>IOCardSetAcirOrOcv("OCV")</code> 以及中位机“选择 ACIR/OCV”指令。</td>
+      <td>正式测试删除这些调用。中位机不再负责仪表选择，只负责通道计划和 START。</td>
+    </tr>
+    <tr>
+      <td>通道规模</td>
+      <td>保存、刷新、复测局部逻辑仍有 64 通道痕迹，例如 <code>testData(63)</code>、<code>ReDim retestArray(63)</code>。</td>
+      <td>统一使用 256 通道，数组长度以 <code>CalibrationService.ChannelCount</code> 或 <code>MAX_CHANNEL</code> 为准。</td>
+    </tr>
+    <tr>
+      <td>读数方式</td>
+      <td>ACIR 与 OCV 是两段旧流程，中位机分别切换，读数回填逻辑分散。</td>
+      <td>3562 和 34461 同步进入外部触发缓存模式，中位机执行计划后，上位机一次性读取两台仪表缓存。</td>
+    </tr>
+  </table>
+
+  <h2>二、目标测试流程</h2>
+  <ol>
+    <li>点击开始测试。</li>
+    <li>检查报警状态；如果报警中，禁止测试。</li>
+    <li>初始化测试状态：清空报警、设置 <code>isRuning=True</code>、读取起始/结束通道、初始化 256 通道 <code>RecieveData</code>、检查托盘号。</li>
+    <li>判断本次测试为 <strong>OCV0 / OCV1 / OCV2</strong>。</li>
+    <li>检查中位机串口通讯：RS485、115200、8N1。</li>
+    <li>夹具动作：查询托盘状态、下压夹具、等待约 9 秒、确认闭合。此部分未来接 PLC，本轮先做边界封装，避免继续依赖中位机旧 TCP。</li>
+    <li>探针寿命计数加 1。</li>
+    <li>配置 3562：外部触发、连续初始化、清空缓存、打开缓存。</li>
+    <li>配置 34461：外部触发、触发次数等于本次测试通道数，准备缓存电压。</li>
+    <li>生成中位机通道计划：
+      <ul>
+        <li>正常连续测试：<code>firstCellNumToTest ~ lastCellNumToTest</code>。</li>
+        <li>正常零星测试：按用户选择通道列表。</li>
+        <li>NG 复测：按 <code>retestArray</code> 中为 1 的通道。</li>
+      </ul>
+    </li>
+    <li>中位机执行 G1/G2 通道计划并 START。</li>
+    <li>等待中位机完成事件 <code>AA 41 00 40 00 06 A5 C8</code>；异常事件 <code>0x0064</code> 立即中止。</li>
+    <li>读取 3562 缓存，取得内阻数据。</li>
+    <li>读取 34461 缓存，取得电压数据。</li>
+    <li>按 <code>ExecutionOrder</code> 回填：
+      <pre>RecieveData(ch).Resistance = measuredResistance + calibrateValueArray(ch)
+RecieveData(ch).Voltage = measuredVoltage</pre>
+    </li>
+    <li>刷新 256 通道界面。</li>
+    <li>测试结束后松开托盘。</li>
+    <li>调用 <code>IsNG(voltage, resistance)</code> 判断 OK/NG，并写入 <code>retestArray</code>。</li>
+    <li>保存本地 CSV：<code>D:\OcvTestData\日期\托盘号.csv</code>。</li>
+    <li>如 MES 上传勾选，则启动结果上传。</li>
+    <li>写数据库：已有记录更新，没有记录插入。</li>
+    <li>如果有 NG 点，询问是否复测；确认后调用 <code>StarTest(0)</code>，按 <code>retestArray</code> 生成零星通道计划。</li>
+  </ol>
+
+  <h2>三、建议新增/改造的代码边界</h2>
+  <table>
+    <tr><th>文件</th><th>职责</th><th>改造说明</th></tr>
+    <tr>
+      <td><code>SerialMiddleMachineClient.vb</code></td>
+      <td>中位机 RS485 协议客户端</td>
+      <td>已具备 G1/G2、连续/列表、START/STOP、复核、日志能力。正式测试直接复用。</td>
+    </tr>
+    <tr>
+      <td><code>ChannelCalibrationRunner.vb</code></td>
+      <td>校准计划生成参考实现</td>
+      <td>其中 <code>BuildChannelPlan</code> 思路应抽到测试公共服务，避免正式测试复制逻辑。</td>
+    </tr>
+    <tr>
+      <td><code>frmTest.vb</code></td>
+      <td>正式测试主流程</td>
+      <td>重构 <code>StarTest</code>，删除旧 TCP 中位机、ACIR/OCV 选择、64 通道限制。</td>
+    </tr>
+    <tr>
+      <td><code>Module1.vb</code></td>
+      <td>仪表通讯与全局数据</td>
+      <td>保留连接初始化，新增/调整 34461 缓存批量读取函数；3562 可复用 <code>Trans_ReadCachedData_3562</code>。</td>
+    </tr>
+    <tr>
+      <td><code>FormalTestRunner.vb</code>（建议新增）</td>
+      <td>正式测试业务编排</td>
+      <td>从 <code>frmTest</code> 拆出通道计划、仪表准备、缓存读取、回填逻辑，降低窗体代码复杂度。</td>
+    </tr>
+    <tr>
+      <td><code>TestChannelPlanService.vb</code>（建议新增）</td>
+      <td>通道选择转执行计划</td>
+      <td>输入起止通道或 <code>retestArray</code>，输出 <code>MiddleMachineChannelPlan</code> 与 <code>ExecutionOrder</code>。</td>
+    </tr>
+  </table>
+
+  <h2>四、实施计划</h2>
+
+  <h3>Task 1：抽取通道计划服务</h3>
+  <ul class="checklist">
+    <li>新增 <code>TestChannelPlanService.vb</code>。</li>
+    <li>提供 <code>BuildRangePlan(startChannel, endChannel)</code>。</li>
+    <li>提供 <code>BuildSparsePlan(channelNumbers)</code>。</li>
+    <li>提供 <code>BuildRetestPlan(retestArray)</code>。</li>
+    <li>输出 <code>MiddleMachineChannelPlan</code>，其中 <code>ExecutionOrder</code> 使用物理通道号。</li>
+  </ul>
+  <pre>Public Class TestChannelPlanService
+    Public Function BuildRangePlan(startChannel As Integer, endChannel As Integer) As MiddleMachineChannelPlan
+        Dim channels As New List(Of Integer)()
+        For ch As Integer = startChannel To endChannel
+            channels.Add(ch)
+        Next
+        Return BuildSparsePlan(channels)
+    End Function
+
+    Public Function BuildRetestPlan(retestFlags As Int16()) As MiddleMachineChannelPlan
+        Dim channels As New List(Of Integer)()
+        For i As Integer = 0 To Math.Min(retestFlags.Length, CalibrationService.ChannelCount) - 1
+            If retestFlags(i) = 1 Then channels.Add(i + 1)
+        Next
+        Return BuildSparsePlan(channels)
+    End Function
+End Class</pre>
+
+  <h3>Task 2：新增正式测试执行器</h3>
+  <ul class="checklist">
+    <li>新增 <code>FormalTestRunner.vb</code>。</li>
+    <li>注入或持有 <code>SerialMiddleMachineClient</code>。</li>
+    <li>提供 <code>RunMeasurement(plan)</code>：配置仪表、运行中位机计划、读取缓存、返回结果集合。</li>
+    <li>结果类型包含：物理通道号、电压、内阻、测试时间。</li>
+  </ul>
+  <pre>Public Class FormalTestResult
+    Public Property ChannelIndex0 As Integer
+    Public Property Voltage As Single
+    Public Property Resistance As Single
+    Public Property TestTime As DateTime
+End Class</pre>
+
+  <h3>Task 3：3562 缓存读取统一化</h3>
+  <ul class="checklist">
+    <li>正式测试停止使用旧 <code>Trans_BatchReadData_3561</code> 作为主路径。</li>
+    <li>使用 <code>Trans_ReadCachedData_3562(expectedCount, voltages, resistances)</code>。</li>
+    <li>按 <code>ExecutionOrder</code> 回填，不再依赖仪表返回的局部序号。</li>
+    <li>回填时叠加 <code>calibrateValueArray(channelIndex0)</code>。</li>
+  </ul>
+
+  <h3>Task 4：34461 批量缓存读取</h3>
+  <ul class="checklist">
+    <li>新增 <code>Trans_ReadCachedData_34461(expectedCount, voltages)</code>。</li>
+    <li>配置 34461 外部触发、触发次数、等待缓存完成。</li>
+    <li>返回电压列表，数量必须不少于 <code>expectedCount</code>。</li>
+    <li>如果实机确认 34461 使用 <code>READ?</code> 阻塞返回数组，则封装在该函数中；如果使用其他内存查询命令，以实机命令为准。</li>
+  </ul>
+
+  <h3>Task 5：重构 <code>frmTest.StarTest</code></h3>
+  <ul class="checklist">
+    <li>保留报警检查、托盘号检查、OCV0/1/2 判断、探针计数、保存和数据库逻辑。</li>
+    <li>删除旧 <code>frmDebug.mSock</code> 通讯检查。</li>
+    <li>删除 <code>IOCardSetAcirOrOcv("ACIR")</code> 和 <code>IOCardSetAcirOrOcv("OCV")</code>。</li>
+    <li>删除 <code>SendSignalSellectInstrumentType</code>。</li>
+    <li>删除 <code>GetSignalSelectMutiChannel</code>、<code>GetSignalSelectMutiChannelNG</code>、<code>GetSignalMutiChannelTestFinish</code> 主流程依赖。</li>
+    <li>改为调用 <code>FormalTestRunner.RunMeasurement(plan)</code>。</li>
+  </ul>
+
+  <h3>Task 6：夹具动作隔离</h3>
+  <ul class="checklist">
+    <li>新增 <code>FixtureController.vb</code> 或在 <code>frmTest</code> 中先封装 <code>CloseFixtureForTest()</code>、<code>OpenFixtureAfterTest()</code>。</li>
+    <li>本轮不再通过中位机旧 TCP 发送夹具动作。</li>
+    <li>如果 PLC 尚未接入，函数可保留明确提示或临时复用现有动作，但必须集中隔离，便于后续替换。</li>
+  </ul>
+
+  <h3>Task 7：256 通道数据保存与刷新</h3>
+  <ul class="checklist">
+    <li>将 <code>SaveTestDataLocalFile</code> 中 <code>testData(63)</code> 改为 <code>testData(CalibrationService.ChannelCount - 1)</code>。</li>
+    <li>所有 <code>For i = 0 To 63</code> 改为 0 到 255。</li>
+    <li><code>FreshBat</code> 中 <code>ReDim retestArray(63)</code> 改为 255。</li>
+    <li>确认 UI 仍按当前布局显示；如果当前界面只能显示 64 点，需要另做 256 通道展示方案。</li>
+  </ul>
+
+  <h3>Task 8：OCV0/OCV1/OCV2 UI 与数据字段</h3>
+  <ul class="checklist">
+    <li>确认当前 <code>Rbtn1/Rbtn2/Rbtn3/Rbtn4</code> 如何映射到 OCV0/OCV1/OCV2。</li>
+    <li>删除或停用 OCV3/OCV4 入口。</li>
+    <li>数据库写入 <code>intOCV</code> 使用 0/1/2。</li>
+    <li>CSV 字段名称按现场要求调整为 OCV0/OCV1/OCV2。</li>
+  </ul>
+
+  <h3>Task 9：日志与可追溯</h3>
+  <ul class="checklist">
+    <li>沿用 <code>logFile/MiddleMachine_yyyyMMdd.log</code> 记录通道计划、写帧、回显、读寄存器、完成事件。</li>
+    <li>新增正式测试日志：托盘号、OCV序号、计划摘要、期望读数数量、3562实际数量、34461实际数量。</li>
+    <li>NG复测时记录 <code>retestArray</code> 转换出的物理通道列表。</li>
+  </ul>
+
+  <h2>五、验收测试</h2>
+  <table>
+    <tr><th>场景</th><th>输入</th><th>期望</th></tr>
+    <tr>
+      <td>连续 G1</td>
+      <td>CH4-CH8</td>
+      <td>同步模式，G1 本地 CH4-CH8，3562/34461 各读取 5 或两遍对应数量的数据，按 CH4-CH8 回填。</td>
+    </tr>
+    <tr>
+      <td>跨组零星</td>
+      <td>CH3, CH8, CH25, CH129</td>
+      <td>独立模式，G1 列表 3/8/25，G2 本地列表 1；按执行顺序回填。</td>
+    </tr>
+    <tr>
+      <td>G2 连续</td>
+      <td>CH151-CH152</td>
+      <td>下发 G2 本地 CH23-CH24，结果回填物理 CH151-CH152。</td>
+    </tr>
+    <tr>
+      <td>NG 复测</td>
+      <td><code>retestArray</code> 中多个离散 NG 点</td>
+      <td>生成零星通道计划，只测 NG 点，只覆盖 NG 点数据。</td>
+    </tr>
+    <tr>
+      <td>256 通道保存</td>
+      <td>全通道测试</td>
+      <td>CSV 输出 256 行；数据库写入 256 个通道结果。</td>
+    </tr>
+  </table>
+
+  <h2>六、构建验证</h2>
+  <pre>&amp; 'C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe' 'MP-60A-RV-64Mem.vbproj' /t:Build /p:Configuration=Debug /p:Platform=x86</pre>
+  <p>期望结果：<span class="ok">Build succeeded</span>，允许保留既有 warning，但不能有新增 error。</p>
+
+  <h2>七、风险点</h2>
+  <ul>
+    <li><span class="risk">34461 原始缓存命令需要实机确认。</span> 当前旧逻辑用 <code>READ?</code> + <code>ReadList</code>，是否满足“测试后读取内存缓存”需要现场验证。</li>
+    <li><span class="risk">夹具动作未接 PLC 前存在实现空窗。</span> 需要决定本轮是临时保留旧夹具动作，还是先封装为空/提示。</li>
+    <li><span class="warn">界面布局可能仍按 64 通道设计。</span> 数据层可先升 256，显示层可能需要单独优化。</li>
+    <li><span class="warn">两遍模式数据数量。</span> 如果中位机两遍模式导致仪表每通道两条数据，需要确认正式测试取第几遍、是否做均值或只取最终遍。</li>
+    <li><span class="warn">G2 单组使能值。</span> 当前实现仅 G2 时用 <code>0x006A=0x0002</code>，如实机要求两组使能必须为 3，需要一处调整。</li>
+  </ul>
+
+  <h2>八、执行顺序建议</h2>
+  <ol>
+    <li>先做 Task 1、2：抽出计划服务和正式测试执行器。</li>
+    <li>再做 Task 3、4：3562/34461 缓存读取统一。</li>
+    <li>再改 Task 5：替换 <code>StarTest</code> 主流程。</li>
+    <li>随后做 Task 7、8：256 通道保存、刷新、OCV0/1/2 映射。</li>
+    <li>最后做 Task 9 和实机验收。</li>
+  </ol>
+
+  <p class="small">生成时间：2026-07-31。保存位置：<code>docs/2026-07-31-formal-test-rs485-g1-g2-plan.html</code></p>
+</body>
+</html>

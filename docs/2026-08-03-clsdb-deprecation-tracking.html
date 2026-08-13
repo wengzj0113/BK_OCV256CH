@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>clsDB 弃用迁移追踪 (R2-15)</title>
+<style>
+  body { font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; max-width: 1100px; margin: 24px auto; padding: 0 24px; color: #1a1a1a; line-height: 1.6; }
+  h1, h2, h3 { color: #2c3e50; }
+  code { background: #f4f4f4; padding: 2px 6px; border-radius: 3px; font-family: "Consolas", "Menlo", monospace; font-size: 0.92em; }
+  pre { background: #f6f8fa; padding: 14px 18px; border-left: 4px solid #357edd; border-radius: 4px; overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; margin: 16px 0; }
+  th, td { border: 1px solid #d0d7de; padding: 8px 12px; text-align: left; vertical-align: top; }
+  th { background: #eef3f8; }
+  tr.done { background: #e9f5e9; }
+  tr.removed { background: #ffeaea; }
+  tr.pending { background: #fff8eb; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.85em; font-weight: 600; }
+  .tag.done { background: #28a745; color: #fff; }
+  .tag.removed { background: #dc3545; color: #fff; }
+  .tag.pending { background: #f0ad4e; color: #fff; }
+  .callout { background: #fdf6e3; border: 1px solid #d6c79c; padding: 12px 16px; border-radius: 6px; margin: 16px 0; }
+  .callout.danger { background: #fbedec; border-color: #d99694; }
+  .callout.note { background: #e8f4fd; border-color: #9fc6e8; }
+</style>
+</head>
+<body>
+
+<h1>clsDB 弃用迁移追踪 (R2-15)</h1>
+<p>
+  <strong>目的</strong>:跟踪 <code>clsDB</code> 从项目主代码移除的进度。<br>
+  <strong>范围</strong>:仅统计 <code>MP-60A-RV-64Mem.vbproj</code> 实际编译的源文件 (<code>frmTest - 副本.vb</code> 等副本文件不在内)。<br>
+  <strong>关联</strong>:<a href="2026-08-02-ocv-data-final-database-design.html">OCV_DATA 最终设计</a> |
+  <a href="sql/README.md">SQL 脚本目录</a>
+</p>
+
+<h2>1. 状态总览</h2>
+<table>
+  <thead>
+    <tr>
+      <th>类别</th>
+      <th>数量</th>
+      <th>说明</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>源文件中活跃使用点</td><td>7</td><td>vbproj 实际编译的代码里出现 <code>clsDB</code> / <code>myClsDB</code> / <code>objClsDB</code> / <code>clsTmp</code></td></tr>
+    <tr><td>已移除</td><td>1</td><td><code>MDIForm.vb:199 myClsDB.Dispose()</code> — 死代码,8 月 3 日已删除</td></tr>
+    <tr><td>已注释替代</td><td>2</td><td><code>FrmEMSTask (3).vb:14</code> / <code>frmInquery.vb:131</code> — 旧引用已注释</td></tr>
+    <tr><td>待迁移</td><td>4</td><td><code>clsDB.vb</code> 内部、<code>frmInput.vb</code>、<code>frmName.vb</code>、<code>frmSetCondition.vb</code></td></tr>
+  </tbody>
+</table>
+
+<h2>2. 活跃使用点明细</h2>
+<table>
+  <thead>
+    <tr>
+      <th>状态</th>
+      <th>文件</th>
+      <th>行</th>
+      <th>标识符</th>
+      <th>形 态</th>
+      <th>备 注</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr class="removed">
+      <td><span class="tag removed">REMOVED</span></td>
+      <td><code>MDIForm.vb</code></td>
+      <td>199</td>
+      <td><code>myClsDB</code></td>
+      <td>死代码</td>
+      <td>未声明直接调用 Dispose:理论上每次启动抛 NullReferenceException,被外层吞掉。8 月 3 日已替换为解释性注释。</td>
+    </tr>
+    <tr class="pending">
+      <td><span class="tag pending">PENDING</span></td>
+      <td><code>clsDB.vb</code></td>
+      <td>275, 296</td>
+      <td><code>objClsDB</code></td>
+      <td>类内部 <code>New clsDB</code></td>
+      <td>类本身被标记 <code>&lt;Obsolete&gt;</code>,这些内部自用方法会在随类废弃时一并替换。</td>
+    </tr>
+    <tr class="pending">
+      <td><span class="tag pending">PENDING</span></td>
+      <td><code>frmInput.vb</code></td>
+      <td>515, 519, 521, 529, 542</td>
+      <td><code>objClsDB</code></td>
+      <td>方法级 long-lived</td>
+      <td>扫描/保存托盘条码的目标方法。新代码应直接 <code>Using service As New OcvDataService()</code> + 调用 <code>RegisterTray / SaveTrayCells</code>(R2-15 存储过程已有)。</td>
+    </tr>
+    <tr class="pending">
+      <td><span class="tag pending">PENDING</span></td>
+      <td><code>frmName.vb</code></td>
+      <td>12</td>
+      <td><code>db</code></td>
+      <td>方法级一次性</td>
+      <td>调用 <code>db.IsExists(BatteryCode)</code>。R2-15 数据库设计没有直接的"条码存在性"存储过程,需要决定是否新增 <code>usp_CheckBatteryCodeExists</code>,还是改用 <code>RegisterTray</code> + 捕获唯一键冲突。</td>
+    </tr>
+    <tr class="pending">
+      <td><span class="tag pending">PENDING</span></td>
+      <td><code>frmSetCondition.vb</code></td>
+      <td>210, 252, 254, 258</td>
+      <td><code>clsTmp</code></td>
+      <td>方法级一次性</td>
+      <td>用 <code>clsTmp.IsExists</code> 校验条件名重复。该方法在 OCV_DATA 库没有对应表,需要确认等级条件方案的数据去向:<br>
+        - 选项 A:全套迁到 OCV_DATA (新增 <code>ConditionScheme</code> 表 + 存储过程)<br>
+        - 选项 B:只在 UI 层校验,不再查数据库</td>
+    </tr>
+    <tr class="done">
+      <td><span class="tag done">DONE</span></td>
+      <td><code>FrmEMSTask (3).vb</code></td>
+      <td>14</td>
+      <td><code>mesClsDB</code> (注释)</td>
+      <td>已注释</td>
+      <td>迁到 <code>SqlServerHelper</code> (R2-14)。</td>
+    </tr>
+    <tr class="done">
+      <td><span class="tag done">DONE</span></td>
+      <td><code>frmInquery.vb</code></td>
+      <td>131</td>
+      <td>注释提及</td>
+      <td>已注释</td>
+      <td>查询路径全部走 <code>OcvDataService</code>。</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>3. 8 月 3 日修复详情</h2>
+
+<h3>3.1 死代码删除</h3>
+<pre><code>-- MDIForm.vb 行 197-201
+'If CheckTcp_MES() = 1 Then
+'    mSock.SendSignalPCConnectWithMESStatus(CByte(1))
+'Else
+'    mSock.SendSignalPCConnectWithMESStatus(CByte(0))
+'End If
+'frmTest.ShowDialog()
+<b>'R2-15: myClsDB 已随 clsDB 一起淘汰,Dispose 死代码删除 (数据库生命周期由 OcvDataService 每次 Using 管理)</b>
+mSock = frmDebug.mSock
+</code></pre>
+
+<div class="callout danger">
+  <strong>为什么这是个真 bug</strong>:
+  <ul>
+    <li><code>myClsDB</code> 在 MDIForm 整个文件内<strong>从未声明</strong>(无 <code>Dim myClsDB</code>、无 <code>New</code>),触发 BC30451 编译错误。</li>
+    <li>运行时,VB.NET 实例方法的 <code>Dispose</code> 调用会让编译器把 <code>myClsDB</code> 解析为 <code>MyClass.clsDB</code>(模块级如有的话) — 该模块级字段不存在,所以结果是 <code>NullReferenceException</code>。</li>
+    <li>之所以没被发现,是因为它位于 <code>MDIForm_Load</code> 中被外层 <code>On Error Resume Next</code>(如果存在)或后续 try/catch 吞掉,但仍然每次启动都跑一遍异常路径。</li>
+  </ul>
+</div>
+
+<div class="callout note">
+  <strong>为什么 R2-15 后这行不该存在</strong>:
+  <ul>
+    <li>旧 <code>clsDB</code> 模式 = 长生命周期 <code>SqlConnection</code> + 模块级标志位 <code>myConnection</code> + 单例 <code>myClsDB</code>。</li>
+    <li>新 <code>OcvDataService</code> 模式 = 每次调用 <code>Using connection As New SqlConnection(...)</code>,自动释放,无单例。</li>
+    <li>因此整个项目已经<strong>不存在需要 Dispose 的数据库对象</strong>,<code>myClsDB.Dispose()</code> 实质上是在清理一个已经被清理过的对象。</li>
+  </ul>
+</div>
+
+<h2>4. 迁移原则</h2>
+<ol>
+  <li><strong>新代码不再使用 <code>clsDB</code></strong>。统一 <code>Using service As New OcvDataService()</code> + 存储过程调用。</li>
+  <li><strong>跨方法调用需要长连接</strong>的情形:
+    <ul>
+      <li>不要重新引入 <code>myClsDB</code> 这种名字,直接新定义 <code>Private ocvService As New OcvDataService()</code> (重 Using of the same connection via 内部方法)。</li>
+      <li>更佳:在 UI 层每次都 <code>Using</code>,把跨方法逻辑下沉到 <code>OcvDataService</code> 的高层方法里。</li>
+    </ul>
+  </li>
+  <li><strong>存储过程优先</strong>:R2-15 已交付 21 个核心存储过程,任何新 SQL 都先看 <code>docs/sql/002_create_core_procedures.sql</code>。</li>
+  <li><strong>仍走 <code>clsDB</code> 的方法</strong>:在迁移前保留 <code>Obsolete</code> 警告,避免新代码被引入。</li>
+</ol>
+
+<h2>5. 后续清理计划</h2>
+<table>
+  <thead>
+    <tr>
+      <th>优先级</th>
+      <th>项</th>
+      <th>改动点</th>
+      <th>风险</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>P2</td>
+      <td><code>frmInput.vb</code> 迁到 <code>OcvDataService</code></td>
+      <td>替换 <code>objClsDB</code> 为 <code>Using service As New OcvDataService()</code>,复用 <code>RegisterTray / SaveTrayCells</code></td>
+      <td>中 (需看测试用例 <code>003_database_verification_cases.sql</code> 能否覆盖)</td>
+    </tr>
+    <tr>
+      <td>P3</td>
+      <td><code>frmName.vb</code> 条码存在性校验</td>
+      <td>决策:新增 <code>usp_CheckBatteryCodeExists</code> 还是改用 <code>RegisterTray</code> 唯一键冲突</td>
+      <td>需要先确定 UI 行为(是否允许自动新建)</td>
+    </tr>
+    <tr>
+      <td>P3</td>
+      <td><code>frmSetCondition.vb</code> 条件名校验</td>
+      <td>需要确认 <code>GradeScheme</code> 表是否承载这套逻辑,决定新增存储过程还是只在 UI 校验</td>
+      <td>低/中,取决于业务确认</td>
+    </tr>
+    <tr>
+      <td>P4</td>
+      <td><code>clsDB.vb</code> 物理删除</td>
+      <td>仅当 P2/P3 全部完成后,删除 <code>clsDB.vb</code> + 从 <code>MP-60A-RV-64Mem.vbproj</code> 移除 <code>&lt;Compile Include</code></td>
+      <td>必须最终回归测试</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>6. 验证清单</h2>
+<ul>
+  <li>构建 <code>XL_OCV_256CH.exe</code> 0 error,0 新增 warning。</li>
+  <li><code>clsDB</code> 全文搜索仅出现在 <code>clsDB.vb</code> 本身 / 文档 / 副本文件。</li>
+  <li>登录 <code>MDIForm</code> 主窗,验证弹出 "OCV_DATA connected" 或 "disconnected" — 之前是<strong>每次启动都抛 NullReferenceException</strong>。</li>
+</ul>
+
+<h2>7. 修订记录</h2>
+<table>
+  <thead>
+    <tr>
+      <th>日期</th>
+      <th>改动</th>
+      <th>作者</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>2026-08-03</td>
+      <td>删除 MDIForm.vb:199 <code>myClsDB.Dispose()</code> 死代码,新增文档</td>
+      <td>Claude</td>
+    </tr>
+  </tbody>
+</table>
+
+</body>
+</html>

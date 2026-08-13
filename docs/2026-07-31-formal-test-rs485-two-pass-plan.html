@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>正式测试流程优化方案 - RS485 两遍交叉 256CH</title>
+  <style>
+    body { font-family: "Microsoft YaHei", Arial, sans-serif; line-height: 1.65; margin: 32px; color: #222; }
+    h1, h2, h3 { line-height: 1.3; }
+    h1 { border-bottom: 2px solid #333; padding-bottom: 10px; }
+    h2 { margin-top: 32px; border-left: 5px solid #3366cc; padding-left: 10px; }
+    h3 { margin-top: 22px; }
+    code, pre { font-family: Consolas, "Courier New", monospace; }
+    code { background: #f3f4f6; padding: 2px 5px; border-radius: 4px; }
+    pre { background: #f8f8f8; padding: 12px; border: 1px solid #ddd; overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0 20px; }
+    th, td { border: 1px solid #ddd; padding: 8px 10px; vertical-align: top; }
+    th { background: #f0f4ff; }
+    .box { border: 1px solid #d0d7de; background: #f6f8fa; padding: 12px 16px; border-radius: 6px; }
+    .risk { color: #b00020; font-weight: bold; }
+    .warn { color: #a15c00; font-weight: bold; }
+    .ok { color: #087f23; font-weight: bold; }
+    .small { color: #666; font-size: 0.94em; }
+    ul.checklist { list-style: none; padding-left: 0; }
+    ul.checklist li::before { content: "□ "; color: #3366cc; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>正式测试流程优化方案 - RS485 两遍交叉 256CH</h1>
+
+  <div class="box">
+    <p><strong>目标：</strong>将正式测试流程迁移为 <code>RS485 中位机通道计划 + START</code>，由 3562 与 34461 使用缓存方式保存测试值，测试完成后上位机一次性读取缓存，并按照 G1/G2 两遍交叉规则回填 256 个物理通道。</p>
+    <p><strong>核心变化：</strong>两遍模式不是重复测量取均值，而是 G1/G2 交叉分工。第一遍 G1 测内阻、G2 测电压；第二遍 G1 测电压、G2 测内阻。最终每个物理通道只形成一组内阻和一组电压。</p>
+    <p><strong>适用范围：</strong>正式测试、零星通道测试、NG 复测、校准流程可继续复用中位机通道计划能力，但正式测试的数据回填必须使用本文定义的两遍映射规则。</p>
+  </div>
+
+  <h2>一、已确认的设备职责</h2>
+  <table>
+    <tr><th>设备</th><th>职责</th><th>说明</th></tr>
+    <tr>
+      <td>中位机</td>
+      <td>只负责通道计划和 START</td>
+      <td>通过 RS485，115200 bps，8N1 通讯。协议帧头 <code>AA</code>，写命令 <code>0x06</code> 原样回显，读命令 <code>0x03</code> 返回寄存器，事件帧 <code>0x41</code> 主动上报。</td>
+    </tr>
+    <tr>
+      <td>3562</td>
+      <td>内阻测试仪</td>
+      <td>设置外部触发、连续初始化、清空缓存、打开缓存。完成后一次性读取全部内阻缓存。</td>
+    </tr>
+    <tr>
+      <td>34461</td>
+      <td>电压测试仪</td>
+      <td>设置外部触发，并按本次预期触发数量读取一组缓存电压。</td>
+    </tr>
+    <tr>
+      <td>上位机</td>
+      <td>流程编排、数据读取、数据回填、判定、保存、上传</td>
+      <td>上位机不再向中位机发送选择 ACIR/OCV 的旧指令，也不再依赖旧 TCP 中位机逻辑。</td>
+    </tr>
+  </table>
+
+  <h2>二、两遍模式定义</h2>
+  <table>
+    <tr><th>阶段</th><th>G1 物理通道</th><th>G2 物理通道</th><th>3562 缓存含义</th><th>34461 缓存含义</th></tr>
+    <tr>
+      <td>第一遍</td>
+      <td>CH1-CH128</td>
+      <td>CH129-CH256</td>
+      <td>G1 内阻，即 CH1-CH128 Resistance</td>
+      <td>G2 电压，即 CH129-CH256 Voltage</td>
+    </tr>
+    <tr>
+      <td>第二遍</td>
+      <td>CH1-CH128</td>
+      <td>CH129-CH256</td>
+      <td>G2 内阻，即 CH129-CH256 Resistance</td>
+      <td>G1 电压，即 CH1-CH128 Voltage</td>
+    </tr>
+  </table>
+
+  <h3>完整 CH1-CH256 测试的缓存映射</h3>
+  <pre>3562[0..127]   -> CH1..CH128 Resistance
+3562[128..255] -> CH129..CH256 Resistance
+
+34461[0..127]   -> CH129..CH256 Voltage
+34461[128..255] -> CH1..CH128 Voltage</pre>
+
+  <h3>非完整通道测试的映射原则</h3>
+  <p>连续区间、零星通道、NG 复测都必须先按物理通道拆分为 G1/G2：</p>
+  <pre>G1PhysicalChannels = selected channels where 1 <= ch <= 128
+G2PhysicalChannels = selected channels where 129 <= ch <= 256
+G2LocalChannels = G2PhysicalChannels - 128</pre>
+  <p>两遍模式下，仪表缓存不是简单等于用户选择顺序，而是按组和遍次回填：</p>
+  <pre>First pass:
+  3562 values -> G1PhysicalChannels Resistance
+  34461 values -> G2PhysicalChannels Voltage
+
+Second pass:
+  3562 values -> G2PhysicalChannels Resistance
+  34461 values -> G1PhysicalChannels Voltage</pre>
+  <p><strong>已确认：</strong>中位机两遍模式允许某一组为空。两台仪表触发次数不要求永远相同；对上位机来说，只要正确设定 G1 和 G2 的目标通道即可。缓存数据的回填顺序按每组物理通道号升序排列，不按用户点击顺序。</p>
+  <pre>G1PhysicalChannels = sort ascending(G1 selected physical channels)
+G2PhysicalChannels = sort ascending(G2 selected physical channels)
+
+3562 resistance order:
+  first G1PhysicalChannels ascending
+  then  G2PhysicalChannels ascending
+
+34461 voltage order:
+  first G2PhysicalChannels ascending
+  then  G1PhysicalChannels ascending</pre>
+
+  <h2>三、目标正式测试流程</h2>
+  <ol>
+    <li>点击开始测试。</li>
+    <li>检查报警状态；报警时禁止测试。</li>
+    <li>初始化测试状态：清空报警显示，设置 <code>isRuning=True</code>，读取起始通道和结束通道，初始化 256 通道 <code>RecieveData</code>，检查托盘号，防止空托盘号或重复托盘号误测。</li>
+    <li>判断本次是 OCV0、OCV1、OCV2。</li>
+    <li>检查中位机串口通讯：RS485，115200，8N1。串口来源使用 <code>frmInit</code> 设置。</li>
+    <li>夹具动作：查询托盘状态、夹具下压、等待约 9 秒、确认夹具闭合。夹具后续由 PLC 实现，本轮先封装边界，避免继续扩散旧中位机 TCP 逻辑。</li>
+    <li>探针寿命计数加 1。</li>
+    <li>配置 3562：外部触发、连续初始化、清空缓存、打开缓存。</li>
+    <li>配置 34461：外部触发、清空缓存、设置触发数量、准备缓存读取。</li>
+    <li>根据正常测试、零星测试或 NG 复测生成通道计划。通道列表必须按物理通道号升序组织。</li>
+    <li>下发计划前清空 3562 和 34461 缓存。</li>
+    <li>确认 3562 和 34461 已进入外部触发等待状态。</li>
+    <li>中位机执行通道计划并 START。</li>
+    <li>等待中位机完成事件 <code>AA 41 00 40 00 06 A5 C8</code>，并轮询基础状态寄存器进行双确认。收到异常事件 <code>AA 41 00 40 00 64 24 21</code> 时停止测试。</li>
+    <li>读取 3562 缓存。</li>
+    <li>读取 34461 缓存。</li>
+    <li>按两遍交叉映射规则回填 <code>RecieveData(ch).Resistance</code> 和 <code>RecieveData(ch).Voltage</code>。内阻叠加 <code>calibrateValueArray(ch)</code> 校准值。</li>
+    <li>刷新 256 通道电池界面。</li>
+    <li>测试结束后松开托盘。</li>
+    <li>调用 <code>IsNG(voltage, resistance)</code> 判断 OK/NG。NG 点写入 <code>retestArray</code>。</li>
+    <li>保存本地 CSV：<code>D:\OcvTestData\日期\托盘号.csv</code>。</li>
+    <li>如 MES 上传勾选，则启动结果上传。</li>
+    <li>写数据库：已有记录则更新，没有则插入。</li>
+    <li>如果发现 NG 点，询问是否执行 NG 复测；确认后按 <code>retestArray</code> 生成零星通道计划。NG 复测后只覆盖 NG 点，未复测通道保持初测结果。</li>
+  </ol>
+
+  <h2>四、必须补齐的设计细节</h2>
+  <table>
+    <tr><th>项目</th><th>必须明确的规则</th><th>原因</th></tr>
+    <tr>
+      <td>缓存数量</td>
+      <td>两遍模式下，3562 和 34461 的实际触发次数可以不同。上位机按本次 G1/G2 指定通道构建各仪表的期望读取数量；完整 256CH 时每台仪表各 256 条。</td>
+      <td>中位机允许某一组为空，且两组长度可以不同，不能把仪表触发次数写死为固定值。</td>
+    </tr>
+    <tr>
+      <td>通道映射</td>
+      <td>正式测试不直接使用单一 <code>ExecutionOrder</code> 回填全部数据，而使用 <code>G1PhysicalChannels</code>、<code>G2PhysicalChannels</code>、遍次和仪表类型组合回填。</td>
+      <td>单一顺序会在两遍交叉模式下导致电压/内阻错填。</td>
+    </tr>
+    <tr>
+      <td>零星通道</td>
+      <td>零星通道先拆分 G1/G2。G2 下发前转换为本地 CH1-CH128，回填时恢复为物理 CH129-CH256。</td>
+      <td>中位机按本地组内通道执行，上位机保存必须使用物理通道号。</td>
+    </tr>
+    <tr>
+      <td>两组长度不同</td>
+      <td>缓存顺序按每组物理通道号升序排列。G1/G2 列表长度不同不影响回填，只要上位机保存的是排序后的 G1/G2 通道列表。</td>
+      <td>用升序通道列表作为缓存和物理通道之间的唯一映射依据，避免用户选择顺序造成错填。</td>
+    </tr>
+    <tr>
+      <td>串口收发</td>
+      <td>每条 <code>0x06</code> 等待原样回显。写配置后必须读取 <code>0x005B~0x005D</code> 判断写入结果、最后写入地址和配置锁状态。</td>
+      <td>写命令回显只代表收到，不代表执行成功。</td>
+    </tr>
+    <tr>
+      <td>状态确认</td>
+      <td>START 后正式流程轮询基础状态 <code>AA 03 00 40 00 07 1C 07</code>，完成事件与状态寄存器双确认。</td>
+      <td>状态读取成为正式流程的一部分，提高现场抗干扰能力。</td>
+    </tr>
+    <tr>
+      <td>事件过滤</td>
+      <td>START 前清空串口接收缓冲；等待事件时只接受本轮 START 之后的新 <code>0x41</code> 完成/异常事件。</td>
+      <td>避免旧完成事件造成误判。</td>
+    </tr>
+    <tr>
+      <td>异常收尾</td>
+      <td>异常或超时时必须 STOP、清 G1/G2 通道列表、清理仪表触发/缓存状态、恢复 <code>isRuning=False</code>、记录日志、避免下轮沿用旧缓存。</td>
+      <td>实机故障后最怕状态脏，下一次测试数据会污染。</td>
+    </tr>
+    <tr>
+      <td>缓存时序</td>
+      <td>下发中位机计划前清仪表缓存；START 前确认仪表已进入等待触发状态；完成后先读取仪表缓存，再允许下一次测试初始化；异常时也清缓存。</td>
+      <td>缓存清理和读取顺序必须固定，否则可能读到上一盘残留数据。</td>
+    </tr>
+    <tr>
+      <td>校准单位</td>
+      <td><code>calibrateValueArray(ch)</code> 按 mΩ 保存。3562 读取值进入 <code>RecieveData</code> 前也必须统一为 mΩ，再叠加校准值。</td>
+      <td>避免 Ω 与 mΩ 混用导致结果放大或缩小 1000 倍。</td>
+    </tr>
+    <tr>
+      <td>NG 复测覆盖</td>
+      <td>NG 复测只覆盖 NG 点。CSV、数据库、MES 上传均应使用覆盖后的最终结果；未复测通道保持初测结果。</td>
+      <td>保证界面、文件、数据库和 MES 的最终数据一致。</td>
+    </tr>
+    <tr>
+      <td>互斥访问</td>
+      <td>正式测试、校准、调试手动动作之间必须互斥访问中位机和仪表。</td>
+      <td>避免串口和仪表命令交叉。</td>
+    </tr>
+    <tr>
+      <td>校准/正式测试映射隔离</td>
+      <td>校准页面继续使用 <code>ChannelCalibrationRunner</code>；正式测试使用 <code>TwoPassResultMapper</code>。不要把两遍交叉映射套到校准流程。</td>
+      <td>两者虽然共用中位机通道计划，但数据来源和回填含义不同。</td>
+    </tr>
+    <tr>
+      <td>256 通道界面</td>
+      <td>全局变量已调整为 <code>Public Const intRow As Int16 = 16</code>、<code>Public Const intCol As Int16 = 16</code>。本方案不再单独修改界面布局。</td>
+      <td>界面 16x16 显示由全局变量处理，当前优化聚焦测试主流程和数据正确性。</td>
+    </tr>
+  </table>
+
+  <h2>五、建议的代码边界</h2>
+  <table>
+    <tr><th>文件</th><th>类型</th><th>职责</th></tr>
+    <tr>
+      <td><code>SerialMiddleMachineClient.vb</code></td>
+      <td>复用/增强</td>
+      <td>RS485 协议、CRC、写回显、读寄存器、事件接收、通道计划下发、日志。</td>
+    </tr>
+    <tr>
+      <td><code>TestChannelPlanService.vb</code></td>
+      <td>新增</td>
+      <td>把用户选择的物理通道拆分为 G1/G2，生成连续或列表计划，并输出两遍映射所需的 <code>G1PhysicalChannels</code>、<code>G2PhysicalChannels</code>。</td>
+    </tr>
+    <tr>
+      <td><code>TwoPassResultMapper.vb</code></td>
+      <td>新增</td>
+      <td>把 3562/34461 缓存数组按两遍交叉规则回填到 <code>RecieveData</code>。</td>
+    </tr>
+    <tr>
+      <td><code>FormalTestRunner.vb</code></td>
+      <td>新增</td>
+      <td>正式测试编排：准备仪表、运行中位机计划、读取缓存、调用映射器、返回结果。</td>
+    </tr>
+    <tr>
+      <td><code>Module1.vb</code></td>
+      <td>修改</td>
+      <td>补齐 34461 缓存读取函数，确认 3562 缓存读取格式，保留串口配置读取。</td>
+    </tr>
+    <tr>
+      <td><code>frmTest.vb</code></td>
+      <td>修改</td>
+      <td>重构 <code>StarTest</code>，删除旧 TCP 中位机主流程、删除 ACIR/OCV 选择指令、接入正式测试 Runner，扩展 256 通道保存和刷新。</td>
+    </tr>
+  </table>
+
+  <h2>六、实施计划</h2>
+
+  <h3>Task 1：建立通道选择模型</h3>
+  <ul class="checklist">
+    <li>新增 <code>TestChannelPlanService.vb</code>。</li>
+    <li>实现 <code>BuildRangeSelection(startChannel, endChannel)</code>。</li>
+    <li>实现 <code>BuildSparseSelection(channels)</code>。</li>
+    <li>实现 <code>BuildRetestSelection(retestArray)</code>。</li>
+    <li>输出对象必须包含 <code>SelectedPhysicalChannels</code>、<code>G1PhysicalChannels</code>、<code>G2PhysicalChannels</code>、<code>G2LocalChannels</code>、<code>ExpectedHiokiCount</code>、<code>ExpectedDmmCount</code>。</li>
+    <li><code>G1PhysicalChannels</code> 和 <code>G2PhysicalChannels</code> 必须按通道号升序排列，允许任意一组为空。</li>
+  </ul>
+  <pre>G1PhysicalChannels = sort ascending(channels where 1 <= ch <= 128)
+G2PhysicalChannels = sort ascending(channels where 129 <= ch <= 256)
+G2LocalChannels = G2PhysicalChannels - 128
+
+ExpectedHiokiCount = G1PhysicalChannels.Count + G2PhysicalChannels.Count
+ExpectedDmmCount = G2PhysicalChannels.Count + G1PhysicalChannels.Count</pre>
+
+  <h3>Task 2：建立两遍映射器</h3>
+  <ul class="checklist">
+    <li>新增 <code>TwoPassResultMapper.vb</code>。</li>
+    <li>输入：通道选择模型、3562 内阻数组、34461 电压数组、校准数组。</li>
+    <li>校验：3562 返回数量必须不小于 <code>ExpectedHiokiCount</code>，34461 返回数量必须不小于 <code>ExpectedDmmCount</code>。</li>
+    <li>回填规则：3562 按 G1 升序内阻、G2 升序内阻；34461 按 G2 升序电压、G1 升序电压。</li>
+    <li>内阻回填前确认 3562 值单位为 mΩ，再叠加同样为 mΩ 的 <code>calibrateValueArray</code>。</li>
+  </ul>
+  <pre>For i = 0 To G1PhysicalChannels.Count - 1
+    ch = G1PhysicalChannels(i)
+    RecieveData(ch - 1).Resistance = hiokiResistance(i) + calibrateValueArray(ch - 1)
+Next
+
+For i = 0 To G2PhysicalChannels.Count - 1
+    ch = G2PhysicalChannels(i)
+    RecieveData(ch - 1).Resistance = hiokiResistance(G1PhysicalChannels.Count + i) + calibrateValueArray(ch - 1)
+Next
+
+For i = 0 To G2PhysicalChannels.Count - 1
+    ch = G2PhysicalChannels(i)
+    RecieveData(ch - 1).Voltage = dmmVoltage(i)
+Next
+
+For i = 0 To G1PhysicalChannels.Count - 1
+    ch = G1PhysicalChannels(i)
+    RecieveData(ch - 1).Voltage = dmmVoltage(G2PhysicalChannels.Count + i)
+Next</pre>
+
+  <h3>Task 3：补齐仪表缓存读取闭环</h3>
+  <ul class="checklist">
+    <li>复核 <code>Trans_ReadCachedData_3562(expectedCount, voltages, resistances)</code> 的单位和返回顺序。</li>
+    <li>新增或修正 <code>Trans_ReadCachedData_34461(expectedCount, voltages)</code>。</li>
+    <li>每次下发中位机计划前清空两台仪表缓存。</li>
+    <li>START 前确认两台仪表均已进入外部触发等待状态。</li>
+    <li>完成后先读取两台仪表缓存，再允许下一次测试初始化。</li>
+    <li>异常时清空两台仪表缓存。</li>
+    <li>读取后记录期望数量、实际数量、原始返回摘要。</li>
+  </ul>
+
+  <h3>Task 4：增强中位机串口闭环</h3>
+  <ul class="checklist">
+    <li>START 前清空串口接收缓冲。</li>
+    <li>每条写命令校验原样回显。</li>
+    <li>关键配置写入后必须读取 <code>0x005B~0x005D</code>。</li>
+    <li>START 后轮询基础状态 <code>AA 03 00 40 00 07 1C 07</code>。</li>
+    <li>等待完成事件 <code>0x0006</code>，异常事件 <code>0x0064</code> 立即失败。</li>
+    <li>超时或异常时发送 STOP，并清空 G1/G2 通道列表。</li>
+  </ul>
+
+  <h3>Task 5：新增正式测试 Runner</h3>
+  <ul class="checklist">
+    <li>新增 <code>FormalTestRunner.vb</code>。</li>
+    <li>实现 <code>RunTwoPassMeasurement(selection)</code>。</li>
+    <li>流程为：准备 3562、准备 34461、下发中位机计划、START、等待完成、读取两台仪表缓存、调用 <code>TwoPassResultMapper</code>。</li>
+    <li>失败时执行统一收尾：STOP、清缓存或复位触发状态、记录日志、抛出明确错误。</li>
+  </ul>
+
+  <h3>Task 6：重构 <code>frmTest.StarTest</code></h3>
+  <ul class="checklist">
+    <li>保留报警检查、托盘号检查、OCV0/1/2 判断、探针寿命、保存、MES、数据库、NG 复测入口。</li>
+    <li>删除正式测试主流程中的旧 <code>mSock</code>、<code>SocketCtrolCmd</code>、<code>GetSignalSelectMutiChannel</code>、<code>GetSignalMutiChannelTestFinish</code> 依赖。</li>
+    <li>删除 <code>IOCardSetAcirOrOcv("ACIR")</code>、<code>IOCardSetAcirOrOcv("OCV")</code> 和选择 ACIR/OCV 仪表的中位机指令。</li>
+    <li>根据正常范围、零星选择或 NG 复测构建通道选择模型。</li>
+    <li>调用 <code>FormalTestRunner.RunTwoPassMeasurement</code> 完成测试。</li>
+  </ul>
+
+  <h3>Task 7：扩展 256 通道保存、刷新、复测</h3>
+  <ul class="checklist">
+    <li>把 <code>testData(63)</code>、<code>ReDim retestArray(63)</code>、<code>For i = 0 To 63</code> 等固定 64 通道逻辑改为 256。</li>
+    <li>确认 CSV 输出 256 个物理通道。</li>
+    <li>确认数据库写入支持 CH1-CH256。</li>
+    <li>确认 MES 上传格式支持 256 通道。</li>
+    <li>如果当前界面只能显示 64 点，至少数据层先完整保存 256 点，界面显示作为单独 UI 优化项。</li>
+  </ul>
+
+  <h3>Task 8：互斥和异常安全</h3>
+  <ul class="checklist">
+    <li>正式测试开始时检查校准是否运行中。</li>
+    <li>校准开始时检查正式测试是否运行中。</li>
+    <li>中位机串口、3562、34461 通讯加统一互斥入口。</li>
+    <li>所有异常路径都恢复 <code>isRuning=False</code>。</li>
+  </ul>
+
+  <h2>七、验收用例</h2>
+  <table>
+    <tr><th>场景</th><th>输入</th><th>预期</th></tr>
+    <tr>
+      <td>完整 256CH</td>
+      <td>CH1-CH256</td>
+      <td>3562 返回 256 条，34461 返回 256 条。3562[0..127] 回填 CH1-128 内阻，3562[128..255] 回填 CH129-256 内阻；34461[0..127] 回填 CH129-256 电压，34461[128..255] 回填 CH1-128 电压。</td>
+    </tr>
+    <tr>
+      <td>只测 G1</td>
+      <td>CH4-CH8</td>
+      <td>G1 数量 5，G2 数量 0。3562 按 G1 升序回填 CH4-CH8 内阻；34461 在 G2 段为空后，按 G1 升序回填 CH4-CH8 电压。</td>
+    </tr>
+    <tr>
+      <td>只测 G2</td>
+      <td>CH151-CH152</td>
+      <td>G1 数量 0，G2 数量 2。下发 G2 本地 CH23-CH24。3562 在 G1 段为空后，按 G2 升序回填 CH151-CH152 内阻；34461 按 G2 升序回填 CH151-CH152 电压。</td>
+    </tr>
+    <tr>
+      <td>跨组零星</td>
+      <td>CH3、CH8、CH25、CH129</td>
+      <td>G1 列表为 3、8、25，G2 本地列表为 1。按 G1/G2 两遍规则回填，不按用户原始选择顺序直接回填。</td>
+    </tr>
+    <tr>
+      <td>NG 复测</td>
+      <td><code>retestArray</code> 中多个离散点</td>
+      <td>只生成 NG 点的零星通道计划；复测结果只覆盖对应 NG 通道，不影响未复测通道。</td>
+    </tr>
+    <tr>
+      <td>异常事件</td>
+      <td>收到 <code>AA 41 00 40 00 64 24 21</code></td>
+      <td>立即 STOP，恢复运行状态，记录日志，不保存为正常测试结果。</td>
+    </tr>
+  </table>
+
+  <h2>八、实机联调顺序</h2>
+  <ol>
+    <li>单独验证 RS485 写回显、读寄存器、事件接收、CRC。</li>
+    <li>验证 CH4-CH8 连续测试，确认两台仪表缓存数量和 34461 读取命令。</li>
+    <li>验证完整 CH1-CH128，确认 G1 单组映射。</li>
+    <li>验证 CH151-CH152，确认 G2 本地通道转换和回填。</li>
+    <li>验证跨组零星 CH3、CH8、CH25、CH129。</li>
+    <li>验证完整 CH1-CH256 两遍交叉映射。</li>
+    <li>验证异常事件、超时、STOP 后再次启动不会沿用旧缓存。</li>
+    <li>验证 CSV、数据库、MES 上传的 256 通道完整性。</li>
+  </ol>
+
+  <h2>九、构建验证</h2>
+  <pre>&amp; 'C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe' 'MP-60A-RV-64Mem.vbproj' /t:Build /p:Configuration=Debug /p:Platform=x86</pre>
+  <p>期望结果：<span class="ok">Build succeeded</span>。允许保留既有 warning，但不能新增 error。</p>
+
+  <h2>十、执行优先级</h2>
+  <ol>
+    <li>先实现 <code>TestChannelPlanService</code> 和 <code>TwoPassResultMapper</code>，用纯逻辑测试确认映射正确。</li>
+    <li>再闭环 3562/34461 缓存读取，确认数量和顺序。</li>
+    <li>然后增强 <code>SerialMiddleMachineClient</code> 的写后读、事件过滤和异常 STOP。</li>
+    <li>最后重构 <code>frmTest.StarTest</code>，接入正式测试 Runner。</li>
+    <li>256 通道保存、数据库、MES、界面刷新跟随主流程一起验证。</li>
+  </ol>
+
+  <p class="small">生成时间：2026-07-31。保存位置：<code>docs/2026-07-31-formal-test-rs485-two-pass-plan.html</code></p>
+</body>
+</html>

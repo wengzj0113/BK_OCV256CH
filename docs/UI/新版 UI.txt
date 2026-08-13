@@ -1,0 +1,1656 @@
+下面我直接把刚才那个新版 UI，拆成一份**可以交给程序员直接修改的界面实施方案**。原则是：
+
+**不改变现有 OCV 功能、不改变256通道逻辑、不改变数据库和测试流程，只重构界面布局、控件样式和信息层级。**
+
+建议把这次改造定义为：
+
+**OCV 上位机 UI V2.0 改造**
+
+---
+
+# 一、总体界面结构调整
+
+你现在的界面总体结构其实不用推翻，仍然保留：
+
+```text
+┌────────────────────────────────────────────────────────────┐
+│ 顶部标题栏 / 主菜单                                         │
+├──────────────┬─────────────────────────────────────────────┤
+│              │ 状态统计栏                                  │
+│ 左侧控制区   ├─────────────────────────────────────────────┤
+│              │                                             │
+│              │       16 × 16 = 256 通道显示区              │
+│              │                                             │
+├──────────────┴─────────────────────────────────────────────┤
+│ 底部设备状态栏                                              │
+└────────────────────────────────────────────────────────────┘
+```
+
+也就是说：
+
+**左边操作，右边看结果，上面看总体状态，下面看通信状态。**
+
+这个结构非常适合 OCV，不建议改。
+
+---
+
+# 二、第一项：顶部菜单栏重做
+
+你当前：
+
+```text
+系统设置 | 测试 | 查询 | 校准 | MES上传
+```
+
+功能不变。
+
+改成高度约：
+
+```text
+60 px
+```
+
+背景：
+
+```text
+#0B2345
+```
+
+深蓝色。
+
+标题区域：
+
+```text
+OCV电池电压/内阻测试系统
+V2.3.0
+```
+
+左侧放公司 Logo。
+
+菜单采用：
+
+```text
+图标 + 文字
+```
+
+例如：
+
+```text
+⚙ 系统设置
+▶ 测试
+⌕ 查询
+◎ 校准
+⬆ MES上传
+```
+
+当前页面：
+
+```text
+测试
+```
+
+下面增加：
+
+```text
+3px 蓝色选中条
+```
+
+颜色：
+
+```text
+#1677FF
+```
+
+不要再使用传统 Windows MenuStrip 灰色菜单。
+
+---
+
+# 三、左侧区域宽度重新规划
+
+当前左侧大约 250px。
+
+建议调整到：
+
+```text
+360～380px
+```
+
+如果屏幕是：
+
+```text
+1920 × 1080
+```
+
+建议：
+
+```text
+左侧：380px
+右侧：剩余空间
+```
+
+左侧所有模块改成 Card：
+
+```text
+圆角：6px
+边框：#E5E7EB
+背景：#FFFFFF
+间距：8～12px
+```
+
+不要再使用现在大量：
+
+```text
+GroupBox
+蓝色标题边框
+紫色背景
+```
+
+视觉上会立刻现代很多。
+
+---
+
+# 四、工位选择
+
+现在：
+
+```text
+工作站选择
+○ OCV1
+```
+
+改为一个独立 Card：
+
+```text
+① 工位选择
+
+   ● OCV1                     ● 在线
+```
+
+或者：
+
+```text
+[ OCV1 ▼ ]                    ● 在线
+```
+
+状态颜色：
+
+```text
+在线     #22C55E
+离线     #9CA3AF
+报警     #EF4444
+测试中   #1677FF
+```
+
+不要使用 RadioButton。
+
+如果只有：
+
+```text
+OCV1 / OCV2
+```
+
+建议 ComboBox。
+
+---
+
+# 五、托盘与电池信息重新布局
+
+你现在这一块：
+
+```text
+扫码
+首电池位置
+尾电池位置
+数据库名称
+启动测试
+停止测试
+NG点测试
+仪器调零
+```
+
+功能保持不变。
+
+改成：
+
+```text
+② 托盘与电池信息
+
+扫码
+┌─────────────────────────────┐
+│ 请扫描托盘条码          [扫码] │
+└─────────────────────────────┘
+
+首电芯位置       尾电芯位置
+[ 1-1 ]          [ 16-16 ]
+
+数据库
+[ 127.0.0.1 ▼ ]
+
+[ ▶ 启动测试 ] [ ■ 停止测试 ]
+
+[ ↻ NG复测   ] [ ◎ 仪器调零 ]
+```
+
+这里有一个很重要的原则：
+
+### “启动测试”必须是视觉主按钮
+
+例如：
+
+```text
+背景：#1677FF
+文字：白色
+```
+
+停止：
+
+```text
+图标红色
+白色背景
+红色边框
+```
+
+NG复测：
+
+```text
+橙色
+```
+
+仪器调零：
+
+```text
+紫色或中性蓝
+```
+
+程序控制逻辑仍然：
+
+```csharp
+btnStart_Click
+btnStop_Click
+btnNgRetest_Click
+btnZero_Click
+```
+
+完全不用改业务层。
+
+---
+
+# 六、通道校准重新排版
+
+原：
+
+```text
+选择通道
+校准
+
+标准电阻值
+仪表测试阻值
+校准值
+```
+
+建议改：
+
+```text
+③ 通道校准
+
+选择通道
+[ 1-1 ▼ ]              [ 校准 ]
+
+标准电阻值             校准值
+[ 3.750 ] mΩ          [ 3.742 ] mΩ
+```
+
+其中：
+
+```text
+标准值 = 黑色
+实际值 = 蓝色
+正常校准值 = 绿色
+超差 = 红色
+```
+
+如果误差：
+
+```text
+abs(实际值 - 标准值) > 校准允许误差
+```
+
+直接显示：
+
+```text
+3.81 mΩ
+误差 +1.6%
+```
+
+红色。
+
+---
+
+# 七、合格范围设置
+
+你现在：
+
+```text
+电压(mV)
+Min
+Max
+
+内阻(mΩ)
+Min
+Max
+```
+
+保留，但是左右排列。
+
+改：
+
+```text
+④ 合格范围
+
+       最小值          最大值
+
+电压   [ 0    ]      [ 4200 ] mV
+
+内阻   [ 0.10 ]      [ 5.00 ] mΩ
+```
+
+建议输入框：
+
+```text
+Height = 30
+BorderColor = #D1D5DB
+```
+
+单位不要写在输入框里面。
+
+避免：
+
+```text
+[mV:Min]
+[mV:Max]
+```
+
+这种密集布局。
+
+---
+
+# 八、报警指标重新设计
+
+原来：
+
+```text
+温度1
+温度2
+温度3
+温度4
+
+烟感1
+烟感2
+设备状态
+```
+
+建议改为：
+
+```text
+⑤ 设备状态
+
+温度1     温度2     温度3
+25.6℃     25.2℃     25.1℃
+
+● 烟感1正常
+● 烟感2正常
+
+设备状态           运行状态
+● 正常             ● 运行中
+```
+
+状态不要使用绿色矩形块。
+
+统一使用：
+
+```text
+● + 状态文字
+```
+
+例如：
+
+```text
+● 正常
+● 已连接
+● 运行中
+```
+
+异常：
+
+```text
+● 报警
+```
+
+这样整个 UI 会干净很多。
+
+---
+
+# 九、探针使用次数
+
+你现在纯数字：
+
+```text
+最佳使用次数 30000
+已经使用次数 29
+剩余使用次数 29971
+```
+
+建议功能不变，增加一个 ProgressBar。
+
+例如：
+
+```text
+⑥ 探针使用统计
+
+建议寿命
+30000 次
+
+已使用
+29 次
+[█                               ]
+
+剩余
+29971 次
+```
+
+计算：
+
+```csharp
+double rate =
+    UsedCount * 100.0 / MaxCount;
+```
+
+如果：
+
+```text
+< 80%
+```
+
+正常。
+
+```text
+80～95%
+```
+
+黄色。
+
+```text
+>95%
+```
+
+红色。
+
+这样维护人员一眼就知道探针寿命。
+
+---
+
+# 十、信息显示区域改成“事件日志”
+
+现在：
+
+```text
+信息显示
+```
+
+建议明确叫：
+
+```text
+⑦ 事件日志
+```
+
+内容：
+
+```text
+10:23:15  系统启动完成
+10:23:18  电压表连接成功
+10:23:20  内阻仪连接成功
+10:23:22  数据库连接成功
+10:23:25  托盘 TRAY20260813001 扫码成功
+10:23:31  开始 OCV1 测试
+```
+
+状态：
+
+```text
+INFO      普通
+SUCCESS   绿色
+WARNING   黄色
+ERROR     红色
+```
+
+建议后台继续用你现有日志机制，只改变 UI 渲染。
+
+例如内部统一：
+
+```csharp
+AddLog(
+    "开始 OCV1 测试",
+    LogLevel.Info
+);
+```
+
+---
+
+# 十一、报警复位
+
+现在底部一个非常大的：
+
+```text
+报警复位
+```
+
+可以保留。
+
+但建议：
+
+```text
+白色背景
+红色边框
+红色图标
+红色文字
+```
+
+不要使用非常鲜艳的青色按钮。
+
+例如：
+
+```text
+⚠ 报警复位
+```
+
+只有：
+
+```text
+当前存在报警
+```
+
+按钮才高亮。
+
+---
+
+# 十二、最重要：右侧增加状态统计栏
+
+这是整个改版最值得增加的 UI。
+
+不是增加业务功能，只是把已有的256通道状态进行统计。
+
+顶部：
+
+```text
+┌─────────┐
+│ 总通道  │
+│   256   │
+└─────────┘
+
+┌─────────────┐
+│ ● PASS      │
+│ 238   93.0% │
+└─────────────┘
+
+┌─────────────┐
+│ ● NG        │
+│ 6     2.3%  │
+└─────────────┘
+
+┌─────────────┐
+│ ● 测试中    │
+│ 8     3.1%  │
+└─────────────┘
+
+┌─────────────┐
+│ ● 空闲      │
+│ 4     1.6%  │
+└─────────────┘
+```
+
+计算非常简单：
+
+```csharp
+Total = 256;
+
+PassCount =
+    channels.Count(x => x.Status == Pass);
+
+NgCount =
+    channels.Count(x => x.Status == NG);
+
+TestingCount =
+    channels.Count(x => x.Status == Testing);
+
+IdleCount =
+    channels.Count(x => x.Status == Idle);
+```
+
+占比：
+
+```csharp
+PassRate =
+    PassCount * 100.0 / Total;
+```
+
+这一项非常适合程序直接实现。
+
+---
+
+# 十三、256通道区域是此次UI改造重点
+
+你现在的通道显示最大问题不是逻辑。
+
+而是：
+
+### 所有通道视觉上几乎一样。
+
+现在：
+
+```text
+1-1
+2-1
+3-1
+...
+```
+
+全部：
+
+```text
+灰色大区域
+绿色小标题
+```
+
+操作员实际上很难快速判断。
+
+建议改成：
+
+```text
+16 × 16 Tile
+```
+
+每个通道一个 Cell：
+
+```text
+┌────────┐
+│ 1-1    │
+└────────┘
+```
+
+不同状态直接改变整个 Tile。
+
+---
+
+# 十四、定义统一的 ChannelStatus
+
+程序里建议建立：
+
+```csharp
+public enum ChannelStatus
+{
+    Empty,
+    Waiting,
+    Testing,
+    Pass,
+    NG,
+    Retest,
+    Error,
+    Disabled
+}
+```
+
+以后 UI 不自己判断颜色。
+
+统一：
+
+```csharp
+GetChannelColor(ChannelStatus status)
+```
+
+---
+
+# 十五、颜色标准
+
+建议固定一套，不允许程序员自己随意选颜色。
+
+### PASS
+
+```text
+背景：#DCFCE7
+文字：#15803D
+```
+
+### NG
+
+```text
+背景：#FEE2E2
+文字：#DC2626
+```
+
+### 测试中
+
+```text
+背景：#DBEAFE
+文字：#2563EB
+```
+
+### 等待
+
+```text
+背景：#FEF3C7
+文字：#D97706
+```
+
+### 空闲
+
+```text
+背景：#F3F4F6
+文字：#6B7280
+```
+
+### 禁用
+
+```text
+背景：#E5E7EB
+文字：#9CA3AF
+```
+
+### 通讯/设备故障
+
+```text
+背景：#FEE2E2
+文字：#991B1B
+```
+
+---
+
+# 十六、通道 Tile 不要长期显示完整测试数据
+
+这一点我建议你不要学一些测试软件。
+
+256个通道如果全部显示：
+
+```text
+3652mV
+1.02mΩ
+PASS
+```
+
+会非常乱。
+
+主界面只显示：
+
+```text
+1-1
+```
+
+通过颜色表示状态。
+
+鼠标放上去：
+
+```text
+Channel : 1-1
+Barcode : CELL0012345
+
+OCV1 : 3652.31 mV
+IR1  : 0.852 mΩ
+
+OCV2 : 3651.98 mV
+IR2  : 0.861 mΩ
+
+K : 0.013 mV/h
+
+Result : PASS
+```
+
+或者点击通道：
+
+右侧弹出：
+
+```text
+Channel Detail
+```
+
+这样信息密度最合理。
+
+---
+
+# 十七、建议重新定义 Channel 数据对象
+
+建议你的 UI 不再直接操作：
+
+```text
+Label1
+Panel2
+Edit3
+```
+
+而是统一一个数据对象。
+
+例如：
+
+```csharp
+public class ChannelViewModel
+{
+    public int ChannelNo { get; set; }
+
+    public int Row { get; set; }
+
+    public int Column { get; set; }
+
+    public string CellBarcode { get; set; }
+
+    public double? OCV1 { get; set; }
+
+    public double? IR1 { get; set; }
+
+    public double? OCV2 { get; set; }
+
+    public double? IR2 { get; set; }
+
+    public double? KValue { get; set; }
+
+    public ChannelStatus Status { get; set; }
+
+    public string NgReason { get; set; }
+}
+```
+
+UI只绑定：
+
+```text
+Status
+OCV
+IR
+K
+Result
+```
+
+这样以后你做：
+
+```text
+历史查询
+托盘追溯
+NG复测
+实时刷新
+```
+
+都会容易很多。
+
+---
+
+# 十八、256通道布局计算
+
+如果：
+
+```text
+16列
+16行
+```
+
+不要手工摆：
+
+```text
+Panel001
+Panel002
+Panel003
+...
+Panel256
+```
+
+程序启动时自动生成。
+
+例如 WinForms：
+
+```csharp
+for (int row = 0; row < 16; row++)
+{
+    for (int col = 0; col < 16; col++)
+    {
+        int channel =
+            row * 16 + col + 1;
+
+        CreateChannelTile(
+            channel,
+            row,
+            col
+        );
+    }
+}
+```
+
+建议使用：
+
+```text
+TableLayoutPanel
+```
+
+或者自定义：
+
+```text
+ChannelGridControl
+```
+
+如果准备长期维护，我更推荐：
+
+```text
+自定义 ChannelGridControl
+```
+
+---
+
+# 十九、右侧通道区域增加行列坐标
+
+建议：
+
+```text
+       1   2   3   4 ........ 16
+
+1     □   □   □   □
+2     □   □   □   □
+3     □   □   □   □
+...
+16
+```
+
+这样现场人员说：
+
+> 第12排第8个电池有问题
+
+软件可以快速定位：
+
+```text
+12-8
+```
+
+与你现在：
+
+```text
+1-1
+2-1
+...
+```
+
+概念完全一致。
+
+只是视觉上更标准。
+
+---
+
+# 二十、鼠标操作
+
+通道建议支持：
+
+### 单击
+
+打开：
+
+```text
+通道详情
+```
+
+### 双击
+
+如果有权限：
+
+```text
+通道诊断
+```
+
+### 鼠标悬停
+
+Tooltip：
+
+```text
+通道：5-8
+条码：CELL002831
+电压：3651.7mV
+内阻：0.82mΩ
+状态：PASS
+```
+
+不要让主界面一直显示这些数据。
+
+---
+
+# 二十一、底部状态栏重新设计
+
+当前状态栏：
+
+```text
+状态：
+中位机：检测中...
+内阻仪：检测中...
+万用表：检测中...
+Database connected
+MES：检测中...
+```
+
+建议统一：
+
+```text
+● 工位：OCV1
+
+● PLC：已连接
+
+● 电压表：已连接
+
+● 内阻仪：已连接
+
+● 数据库：127.0.0.1
+
+● MES：已连接
+
+                    当前用户：admin
+
+                    2026-08-13 08:42:16
+```
+
+所有状态统一：
+
+```text
+● 已连接
+```
+
+而不是一部分中文、一部分英文。
+
+例如不要：
+
+```text
+Database connected
+```
+
+改：
+
+```text
+数据库：已连接
+```
+
+---
+
+# 二十二、字体规范
+
+整个软件统一。
+
+中文：
+
+```text
+Microsoft YaHei UI
+微软雅黑
+```
+
+推荐：
+
+```text
+标题：16～18px / Bold
+
+模块标题：14px / SemiBold
+
+普通文字：12～13px
+
+辅助文字：11px
+
+关键数字：24～30px
+```
+
+不要同一页面：
+
+```text
+宋体
+微软雅黑
+Arial
+Tahoma
+```
+
+混着使用。
+
+---
+
+# 二十三、间距规范
+
+这是工业软件非常容易忽略的。
+
+统一：
+
+```text
+窗口外边距       12px
+
+Card间距         10px
+
+Card内部Padding  12px
+
+控件上下间距      8px
+
+Label输入框间距   6px
+```
+
+不要：
+
+```text
+控件全部挤在一起
+```
+
+---
+
+# 二十四、所有输入框高度统一
+
+建议：
+
+```text
+TextBox：
+Height 30～32px
+```
+
+按钮：
+
+```text
+Height 34～38px
+```
+
+重要按钮：
+
+```text
+Height 40px
+```
+
+圆角：
+
+```text
+4～6px
+```
+
+---
+
+# 二十五、不要大量使用边框
+
+你当前 UI 一个明显问题是：
+
+```text
+框里面套框
+GroupBox里面又GroupBox
+每个数据都有边框
+```
+
+新版原则：
+
+> 靠“留白、标题、颜色层级”分组，而不是靠大量边框。
+
+页面背景：
+
+```text
+#F5F7FA
+```
+
+Card：
+
+```text
+#FFFFFF
+```
+
+Card Border：
+
+```text
+#E5E7EB
+```
+
+这样自然就有层次。
+
+---
+
+# 二十六、运行时不要一直刷新整个 Form
+
+这个属于UI改造时顺手必须优化的地方。
+
+不要：
+
+```csharp
+this.Refresh();
+panel.Refresh();
+form.Refresh();
+```
+
+256通道测试时频繁这么做。
+
+建议：
+
+```text
+数据更新
+↓
+只更新发生变化的 Channel
+↓
+重新绘制对应 Tile
+```
+
+例如：
+
+```csharp
+UpdateChannel(
+    channelNo,
+    status,
+    ocv,
+    ir
+);
+```
+
+如果：
+
+```text
+CH88
+```
+
+变化，只更新：
+
+```text
+CH88
+```
+
+不要256个全部刷新。
+
+否则后面非常容易出现：
+
+```text
+界面闪烁
+CPU占用高
+测试过程中卡顿
+```
+
+---
+
+# 二十七、UI线程刷新统一处理
+
+例如：
+
+```csharp
+private void UpdateChannelUI(
+    ChannelViewModel channel)
+{
+    if (InvokeRequired)
+    {
+        BeginInvoke(new Action(
+            () => UpdateChannelUI(channel)));
+
+        return;
+    }
+
+    channelControls[
+        channel.ChannelNo
+    ].Update(channel);
+}
+```
+
+测量线程绝对不要直接操作 UI。
+
+结构应该：
+
+```text
+34465A
+3562A
+PLC
+   ↓
+测试线程
+   ↓
+Channel状态模型
+   ↓
+UI更新
+```
+
+而不是：
+
+```text
+仪器读取代码
+↓
+直接 Label.Text =
+```
+
+---
+
+# 二十八、测试流程在UI上的状态建议
+
+例如通道经历：
+
+```text
+EMPTY
+  ↓
+WAITING
+  ↓
+OCV TESTING
+  ↓
+IR TESTING
+  ↓
+CALCULATING
+  ↓
+PASS / NG
+```
+
+颜色对应：
+
+```text
+EMPTY       灰
+
+WAITING     浅黄
+
+OCV TESTING 蓝
+
+IR TESTING  蓝
+
+PASS        绿
+
+NG          红
+```
+
+主界面不用显示复杂文字。
+
+鼠标 Tooltip 或详情窗口显示：
+
+```text
+当前步骤：
+IR1 Testing
+```
+
+---
+
+# 二十九、主界面视觉优先级
+
+最终屏幕应该让操作员一眼首先看到：
+
+### 第一优先级
+
+```text
+256通道状态
+```
+
+### 第二优先级
+
+```text
+PASS / NG
+```
+
+### 第三优先级
+
+```text
+设备是否正常
+```
+
+### 第四优先级
+
+```text
+测试操作
+```
+
+### 第五优先级
+
+```text
+参数
+```
+
+你现在的界面问题之一，就是：
+
+> 参数输入框和256通道状态视觉权重几乎一样。
+
+新版一定要解决这个问题。
+
+---
+
+# 三十、建议最终主界面尺寸比例
+
+1920×1080情况下：
+
+```text
+TopHeader
+H = 58
+
+BottomStatus
+H = 36
+
+LeftPanel
+W = 370
+
+MainArea
+W ≈ 1550
+```
+
+MainArea：
+
+```text
+统计区域
+H = 105
+
+ChannelGrid
+剩余全部
+```
+
+最终：
+
+```text
+1920
+┌──────────────────────────────────────────────┐
+│ Header 58                                   │
+├────────┬─────────────────────────────────────┤
+│        │ KPI 105                             │
+│        ├─────────────────────────────────────┤
+│ 370px  │                                     │
+│        │            256 Channel              │
+│        │                                     │
+│        │                                     │
+├────────┴─────────────────────────────────────┤
+│ Status 36                                   │
+└──────────────────────────────────────────────┘
+```
+
+---
+
+# 三十一、建议程序内部拆成这些UI控件
+
+不要把所有东西继续写在 MainForm。
+
+建议：
+
+```text
+MainForm
+
+├── HeaderControl
+│
+├── StationControl
+│
+├── TrayInfoControl
+│
+├── CalibrationControl
+│
+├── LimitSettingControl
+│
+├── DeviceStatusControl
+│
+├── ProbeLifeControl
+│
+├── EventLogControl
+│
+├── StatisticsControl
+│
+├── ChannelGridControl
+│
+├── ChannelTileControl
+│
+└── BottomStatusControl
+```
+
+这样以后维护非常方便。
+
+---
+
+# 三十二、建议的目录结构
+
+如果是C#版本：
+
+```text
+UI
+│
+├─ Forms
+│   └─ MainForm.cs
+│
+├─ Controls
+│   ├─ HeaderControl.cs
+│   ├─ TrayInfoControl.cs
+│   ├─ ChannelGridControl.cs
+│   ├─ ChannelTileControl.cs
+│   ├─ StatisticsControl.cs
+│   ├─ EventLogControl.cs
+│   └─ DeviceStatusControl.cs
+│
+├─ ViewModels
+│   ├─ ChannelViewModel.cs
+│   ├─ DeviceStatusViewModel.cs
+│   └─ TrayViewModel.cs
+│
+├─ Styles
+│   ├─ UiColors.cs
+│   ├─ UiFonts.cs
+│   └─ UiSizes.cs
+│
+└─ Services
+    └─ UiUpdateService.cs
+```
+
+---
+
+# 三十三、颜色不要散落在代码里面
+
+禁止：
+
+```csharp
+panel.BackColor =
+    Color.FromArgb(123, 234, 111);
+```
+
+到处出现。
+
+统一：
+
+```csharp
+public static class UiColors
+{
+    public static readonly Color Primary =
+        ColorTranslator.FromHtml("#1677FF");
+
+    public static readonly Color Success =
+        ColorTranslator.FromHtml("#22C55E");
+
+    public static readonly Color Danger =
+        ColorTranslator.FromHtml("#EF4444");
+
+    public static readonly Color Warning =
+        ColorTranslator.FromHtml("#F59E0B");
+
+    public static readonly Color Background =
+        ColorTranslator.FromHtml("#F5F7FA");
+
+    public static readonly Color Card =
+        Color.White;
+
+    public static readonly Color TextPrimary =
+        ColorTranslator.FromHtml("#1F2937");
+
+    public static readonly Color TextSecondary =
+        ColorTranslator.FromHtml("#6B7280");
+}
+```
+
+这是非常值得做的。
+
+以后你想做：
+
+```text
+V3 UI
+```
+
+只改这一套主题。
+
+---
+
+# 三十四、第一阶段不要改业务代码
+
+我特别建议你这次分两阶段。
+
+## 第一阶段：纯UI升级
+
+只做：
+
+```text
+布局
+颜色
+字体
+按钮
+通道显示
+状态栏
+日志
+统计卡片
+```
+
+不改：
+
+```text
+测试流程
+仪表通信
+数据库
+MES
+PLC
+校准算法
+NG判定
+```
+
+这样上线风险最低。
+
+---
+
+# 三十五、第二阶段再重构架构
+
+UI稳定以后再慢慢把：
+
+```text
+业务逻辑
+仪表通讯
+数据库
+UI
+```
+
+拆开。
+
+目标：
+
+```text
+UI
+ ↓
+Business Service
+ ↓
+Test Engine
+ ↓
+Instrument Service
+ ↓
+34465A / 3562A / PLC / MES
+```
+
+这样以后 OCV2、DCIR甚至其他设备都能复用。
+
+---
+
+# 最终我建议你给程序员的任务，可以直接概括成下面这16项
+
+1. **保持现有所有测试功能和流程不变。**
+2. 主界面改为“顶部导航 + 左侧控制 + 右侧256通道 + 底部状态栏”。
+3. 左侧所有传统 GroupBox 改为白色 Card。
+4. 主背景改为浅灰 `#F5F7FA`。
+5. 顶部改为深蓝工业风导航栏。
+6. 增加256通道总体统计：PASS、NG、测试中、空闲。
+7. 256通道改为16×16 Tile矩阵。
+8. 整个 Tile 根据状态变色，不再使用“绿色标题+灰色大块”。
+9. 建立统一 `ChannelStatus` 枚举。
+10. 建立统一 `ChannelViewModel`。
+11. 鼠标悬停显示 OCV、IR、K、条码和结果。
+12. 状态指示统一使用“● + 文字”。
+13. 信息显示改为时间轴式事件日志。
+14. 探针寿命增加进度显示。
+15. 状态更新只刷新变化通道，禁止整页反复 `Refresh()`。
+16. 所有颜色、字体、尺寸集中管理，不允许散落到各窗体代码中。
+
+这套做完以后，**不需要改变你的 OCV 核心测试逻辑，整个软件的观感就会从十几年前的传统工业上位机，提升到现在比较成熟的商业化锂电设备软件水平。**
+
+尤其是你这张现有界面，最优先做的其实只有三个地方：**256通道矩阵、左侧控制区、顶部状态统计**。这三项做好，整体效果大约已经能完成这次 UI 升级的 70%～80%。

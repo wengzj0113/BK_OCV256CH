@@ -1,0 +1,836 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OCV_DATA 最终数据库设计文档</title>
+  <style>
+    :root {
+      --ink: #1f2933;
+      --muted: #52606d;
+      --line: #d9e2ec;
+      --soft: #f5f7fa;
+      --accent: #0f766e;
+      --accent-soft: #e6fffb;
+      --warn: #a16207;
+      --warn-soft: #fef9c3;
+      --bad: #b91c1c;
+      --bad-soft: #fee2e2;
+      --ok: #166534;
+      --ok-soft: #dcfce7;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: "Microsoft YaHei", "Segoe UI", Arial, sans-serif;
+      line-height: 1.68;
+      background: #ffffff;
+    }
+    header {
+      padding: 36px 48px 26px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+    }
+    main {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 28px 36px 64px;
+    }
+    h1 {
+      margin: 0 0 10px;
+      font-size: 30px;
+      letter-spacing: 0;
+    }
+    h2 {
+      margin: 34px 0 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--line);
+      font-size: 22px;
+      letter-spacing: 0;
+    }
+    h3 {
+      margin: 24px 0 8px;
+      font-size: 17px;
+      letter-spacing: 0;
+    }
+    p { margin: 8px 0; }
+    code, pre {
+      font-family: Consolas, "Courier New", monospace;
+    }
+    pre {
+      overflow: auto;
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #0f172a;
+      color: #e2e8f0;
+      line-height: 1.55;
+      font-size: 13px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0 20px;
+      font-size: 14px;
+    }
+    th, td {
+      border: 1px solid var(--line);
+      padding: 9px 10px;
+      vertical-align: top;
+    }
+    th {
+      background: var(--soft);
+      text-align: left;
+      font-weight: 700;
+    }
+    ul, ol { padding-left: 24px; }
+    li { margin: 5px 0; }
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .note {
+      margin: 14px 0;
+      padding: 12px 14px;
+      border-left: 4px solid var(--accent);
+      background: var(--accent-soft);
+      border-radius: 4px;
+    }
+    .warning {
+      margin: 14px 0;
+      padding: 12px 14px;
+      border-left: 4px solid var(--warn);
+      background: var(--warn-soft);
+      border-radius: 4px;
+    }
+    .danger {
+      margin: 14px 0;
+      padding: 12px 14px;
+      border-left: 4px solid var(--bad);
+      background: var(--bad-soft);
+      border-radius: 4px;
+    }
+    .ok {
+      margin: 14px 0;
+      padding: 12px 14px;
+      border-left: 4px solid var(--ok);
+      background: var(--ok-soft);
+      border-radius: 4px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px 16px;
+      background: #ffffff;
+    }
+    .small { color: var(--muted); font-size: 13px; }
+    @media (max-width: 820px) {
+      header { padding: 26px 22px 18px; }
+      main { padding: 20px 18px 44px; }
+      .grid { grid-template-columns: 1fr; }
+      table { font-size: 13px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>OCV_DATA 最终数据库设计文档</h1>
+    <div class="meta">
+      <span>项目：XL_OCV_256CH</span>
+      <span>日期：2026-08-02</span>
+      <span>目标数据库：OCV_DATA</span>
+      <span>适用范围：256 通道 OCV/ACIR 测试、扫码托盘、电芯结果、复测、校准、查询、MES 离线队列</span>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <h2>1. 设计结论</h2>
+      <p>新数据库不能只替代旧的 <code>CW_tblData_Info</code>。当前上位机代码中的数据库操作同时覆盖托盘、条码、测试结果、查询分档、MES 上传缓存和设备日志，因此 <code>OCV_DATA</code> 需要设计成上位机数据访问的深模块：上位机通过少量存储过程完成业务操作，数据库内部负责表结构、历史版本、最新结果汇总、分档规则和离线队列。</p>
+      <div class="ok">
+        <strong>最终建议：</strong>采用规范化表结构保存真实历史数据，同时提供 <code>vw_CellTestSummary</code> 视图兼容旧查询界面的横向 OCV1/OCV2/OCV3/OCV4 显示方式。
+      </div>
+      <div class="warning">
+        <strong>关键修正：</strong>上一版方案缺少分档规则、旧查询汇总视图、上传离线队列和托盘绑定历史。本版已补齐这些能力。
+      </div>
+    </section>
+
+    <section>
+      <h2>2. 当前代码数据库操作覆盖矩阵</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>代码位置</th>
+            <th>现有操作</th>
+            <th>旧表/对象</th>
+            <th>新库支撑方式</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>frmInput.vb</code></td>
+            <td>扫码得到托盘号后，按托盘号查询每个通道电池条码</td>
+            <td><code>CW_TrayMain</code>, <code>CW_TraySub</code></td>
+            <td><code>Tray</code>, <code>TrayCell</code>, <code>usp_GetTrayCellsByTrayCode</code></td>
+          </tr>
+          <tr>
+            <td><code>frmTest.vb</code></td>
+            <td>开始测试前注册托盘号</td>
+            <td><code>cw_trayMain</code></td>
+            <td><code>Tray</code>, <code>usp_RegisterTray</code></td>
+          </tr>
+          <tr>
+            <td><code>frmTest.vb</code>, <code>clsDB.vb</code></td>
+            <td>测试完成后按电芯条码插入或更新 OCV 阶段结果</td>
+            <td><code>CW_tblData_Info</code></td>
+            <td><code>TestTask</code>, <code>TestResult</code>, <code>usp_CreateTestTask</code>, <code>usp_SaveTestResults</code>, <code>usp_CompleteTestTask</code></td>
+          </tr>
+          <tr>
+            <td><code>frmInquery.vb</code></td>
+            <td>按日期、托盘、OCV 阶段查询结果并导出</td>
+            <td><code>CW_tblData_Info</code>, <code>CW_TrayMain</code></td>
+            <td><code>vw_CellTestSummary</code>, <code>usp_GetTrayListByDateAndOcvStage</code>, <code>usp_GetTrayLatestStageResults</code></td>
+          </tr>
+          <tr>
+            <td><code>frmInquery.vb</code>, <code>frmSetCondition.vb</code>, <code>Module1.vb</code></td>
+            <td>维护分档条件、读取可选字段、计算等级统计</td>
+            <td><code>CW_tblCondition</code>, <code>CW_tblSelFld</code></td>
+            <td><code>GradeScheme</code>, <code>GradeRule</code>, <code>GradeSelectableField</code>, 分档存储过程</td>
+          </tr>
+          <tr>
+            <td><code>SqlServerHelper.vb</code> 和 MES 上传类</td>
+            <td>MES 上传失败时缓存 JSON，网络恢复后重传</td>
+            <td><code>UnsentData</code>, <code>PendingUploads</code></td>
+            <td><code>UploadOutbox</code>, 上传队列存储过程</td>
+          </tr>
+          <tr>
+            <td><code>SerialMiddleMachineClient.vb</code>, 测试流程</td>
+            <td>保存中位机/仪表通讯摘要和异常</td>
+            <td>当前主要是文件日志</td>
+            <td><code>DeviceCommLog</code>, <code>usp_SaveDeviceCommLog</code></td>
+          </tr>
+          <tr>
+            <td><code>FrmChannelCalibration.vb</code>, 校准相关模块</td>
+            <td>保存 1-256 通道校准值，正式测试时叠加</td>
+            <td>当前主要是文件/数组</td>
+            <td><code>ChannelCalibration</code>, 校准存储过程</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>3. 核心业务规则</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>托盘与通道</h3>
+          <ul>
+            <li>目标系统支持 1-256 物理通道。</li>
+            <li>托盘允许空位，查到多少电芯条码就绑定多少通道。</li>
+            <li>通道映射暂按当前界面逻辑：<code>ChannelNo = (ColNo - 1) * 16 + RowNo</code>。</li>
+            <li>同一托盘允许重新绑定，历史通过 <code>BindVersion</code> 保存。</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>测试结果</h3>
+          <ul>
+            <li>每次开始测试创建一条 <code>TestTask</code>。</li>
+            <li>每个被测通道保存一条 <code>TestResult</code>。</li>
+            <li>同一电芯同一 OCV 阶段允许多次测试，查询默认取最新一次。</li>
+            <li>NG 复测不覆盖历史，另建任务并记录复测关系。</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>校准</h3>
+          <ul>
+            <li><code>CalibrateValue</code> 单位按 mΩ 保存。</li>
+            <li>正式结果保存原始内阻、校准值、最终内阻。</li>
+            <li>校准表保留历史，当前值通过 <code>IsActive = 1</code> 标识。</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>上传与日志</h3>
+          <ul>
+            <li>MES 上传失败进入 <code>UploadOutbox</code>，后续重传。</li>
+            <li><code>MesUploadLog</code> 保存上传摘要和响应。</li>
+            <li>中位机、3562、34461 的关键命令摘要进入 <code>DeviceCommLog</code>，原始详细日志仍可保留文件。</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>4. 表结构设计</h2>
+
+      <h3>4.1 Tray 托盘主表</h3>
+      <table>
+        <thead><tr><th>字段</th><th>类型</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td>TrayId</td><td>bigint identity primary key</td><td>托盘内部主键</td></tr>
+          <tr><td>TrayCode</td><td>nvarchar(100) not null unique</td><td>托盘条码</td></tr>
+          <tr><td>CellCount</td><td>int not null default 0</td><td>当前有效绑定电芯数量</td></tr>
+          <tr><td>Status</td><td>int not null default 0</td><td>0 新建，1 已绑定，2 已测试，3 已上传，9 异常</td></tr>
+          <tr><td>CreatedAt</td><td>datetime2 not null default sysdatetime()</td><td>创建时间</td></tr>
+          <tr><td>UpdatedAt</td><td>datetime2 null</td><td>更新时间</td></tr>
+          <tr><td>Remark</td><td>nvarchar(500) null</td><td>备注</td></tr>
+        </tbody>
+      </table>
+
+      <h3>4.2 TrayCell 托盘电芯绑定表</h3>
+      <table>
+        <thead><tr><th>字段</th><th>类型</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td>TrayCellId</td><td>bigint identity primary key</td><td>绑定记录主键</td></tr>
+          <tr><td>TrayId</td><td>bigint not null</td><td>关联 <code>Tray</code></td></tr>
+          <tr><td>TrayCode</td><td>nvarchar(100) not null</td><td>冗余托盘号，便于查询和导出</td></tr>
+          <tr><td>ChannelNo</td><td>int not null</td><td>物理通道号 1-256</td></tr>
+          <tr><td>RowNo</td><td>int null</td><td>托盘行号</td></tr>
+          <tr><td>ColNo</td><td>int null</td><td>托盘列号</td></tr>
+          <tr><td>BatteryCode</td><td>nvarchar(100) not null</td><td>电芯条码</td></tr>
+          <tr><td>BindVersion</td><td>int not null default 1</td><td>同一托盘重新绑定时递增</td></tr>
+          <tr><td>SourceType</td><td>int not null default 0</td><td>1 远端接口，2 本地数据库，3 手工录入，4 文件导入</td></tr>
+          <tr><td>IsActive</td><td>bit not null default 1</td><td>是否当前有效绑定</td></tr>
+          <tr><td>BoundAt</td><td>datetime2 not null default sysdatetime()</td><td>绑定时间</td></tr>
+          <tr><td>UnboundAt</td><td>datetime2 null</td><td>失效时间</td></tr>
+        </tbody>
+      </table>
+      <p class="small">建议约束：<code>ChannelNo between 1 and 256</code>；当前有效数据唯一 <code>(TrayId, ChannelNo, IsActive)</code> 和 <code>(TrayId, BatteryCode, IsActive)</code>。</p>
+
+      <h3>4.3 TestTask 测试任务主表</h3>
+      <table>
+        <thead><tr><th>字段</th><th>类型</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td>TestTaskId</td><td>bigint identity primary key</td><td>测试任务主键</td></tr>
+          <tr><td>TaskNo</td><td>nvarchar(100) not null unique</td><td>任务号，建议格式 OCV-yyyyMMddHHmmss-序号</td></tr>
+          <tr><td>TrayId</td><td>bigint null</td><td>关联托盘</td></tr>
+          <tr><td>TrayCode</td><td>nvarchar(100) not null</td><td>托盘号</td></tr>
+          <tr><td>TestType</td><td>int not null</td><td>0 手动，1 OCV1，2 OCV2，3 OCV3，4 OCV4，5 校准</td></tr>
+          <tr><td>TestMode</td><td>int not null</td><td>1 连续通道，2 零星通道，3 NG 复测，4 手动选择</td></tr>
+          <tr><td>StartChannel</td><td>int null</td><td>连续测试起始通道</td></tr>
+          <tr><td>EndChannel</td><td>int null</td><td>连续测试结束通道</td></tr>
+          <tr><td>SelectedChannels</td><td>nvarchar(max) null</td><td>零星/手动通道 JSON 或逗号列表</td></tr>
+          <tr><td>OperatorName</td><td>nvarchar(100) null</td><td>操作员</td></tr>
+          <tr><td>EquipmentCode</td><td>nvarchar(100) null</td><td>设备编码</td></tr>
+          <tr><td>StartTime</td><td>datetime2 not null default sysdatetime()</td><td>开始时间</td></tr>
+          <tr><td>EndTime</td><td>datetime2 null</td><td>结束时间</td></tr>
+          <tr><td>Status</td><td>int not null default 0</td><td>0 创建，1 测试中，2 完成，3 失败，4 取消</td></tr>
+          <tr><td>Result</td><td>int null</td><td>1 OK，2 NG，3 未判定</td></tr>
+          <tr><td>ErrorMessage</td><td>nvarchar(1000) null</td><td>异常信息</td></tr>
+        </tbody>
+      </table>
+
+      <h3>4.4 TestResult 测试结果明细表</h3>
+      <table>
+        <thead><tr><th>字段</th><th>类型</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td>TestResultId</td><td>bigint identity primary key</td><td>结果主键</td></tr>
+          <tr><td>TestTaskId</td><td>bigint not null</td><td>关联测试任务</td></tr>
+          <tr><td>TrayCode</td><td>nvarchar(100) not null</td><td>托盘号</td></tr>
+          <tr><td>BatteryCode</td><td>nvarchar(100) null</td><td>电芯条码，空位或异常时允许为空</td></tr>
+          <tr><td>ChannelNo</td><td>int not null</td><td>物理通道号</td></tr>
+          <tr><td>Voltage</td><td>decimal(18,6) null</td><td>最终电压，建议单位 V</td></tr>
+          <tr><td>VoltageMillivolt</td><td>decimal(18,6) null</td><td>电压 mV，便于导出和 MES</td></tr>
+          <tr><td>ResistanceRaw</td><td>decimal(18,6) null</td><td>原始内阻，mΩ</td></tr>
+          <tr><td>CalibrateValue</td><td>decimal(18,6) null</td><td>校准叠加值，mΩ</td></tr>
+          <tr><td>Resistance</td><td>decimal(18,6) null</td><td>最终内阻，mΩ</td></tr>
+          <tr><td>IsNg</td><td>bit not null default 0</td><td>是否 NG</td></tr>
+          <tr><td>NgReason</td><td>nvarchar(500) null</td><td>NG 原因</td></tr>
+          <tr><td>TestTime</td><td>datetime2 null</td><td>通道测试时间</td></tr>
+          <tr><td>CreatedAt</td><td>datetime2 not null default sysdatetime()</td><td>创建时间</td></tr>
+        </tbody>
+      </table>
+      <p class="small">建议唯一约束：<code>(TestTaskId, ChannelNo)</code>。同一电芯多次测试不覆盖历史，通过视图取最新结果。</p>
+
+      <h3>4.5 RetestTask 复测关系表</h3>
+      <table>
+        <thead><tr><th>字段</th><th>类型</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td>RetestTaskId</td><td>bigint identity primary key</td><td>复测关系主键</td></tr>
+          <tr><td>OriginalTestTaskId</td><td>bigint not null</td><td>原测试任务</td></tr>
+          <tr><td>RetestTestTaskId</td><td>bigint not null</td><td>复测任务</td></tr>
+          <tr><td>TrayCode</td><td>nvarchar(100) not null</td><td>托盘号</td></tr>
+          <tr><td>RetestChannels</td><td>nvarchar(max) not null</td><td>复测通道列表</td></tr>
+          <tr><td>CreatedAt</td><td>datetime2 not null default sysdatetime()</td><td>创建时间</td></tr>
+          <tr><td>CreatedBy</td><td>nvarchar(100) null</td><td>操作员</td></tr>
+        </tbody>
+      </table>
+
+      <h3>4.6 ChannelCalibration 通道校准表</h3>
+      <table>
+        <thead><tr><th>字段</th><th>类型</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td>CalibrationId</td><td>bigint identity primary key</td><td>校准记录主键</td></tr>
+          <tr><td>ChannelNo</td><td>int not null</td><td>通道号 1-256</td></tr>
+          <tr><td>StandardResistance</td><td>decimal(18,6) not null</td><td>标准阻值，mΩ</td></tr>
+          <tr><td>MeasuredResistance</td><td>decimal(18,6) null</td><td>实测阻值，mΩ</td></tr>
+          <tr><td>CalibrateValue</td><td>decimal(18,6) not null</td><td>校准值，mΩ</td></tr>
+          <tr><td>Unit</td><td>nvarchar(20) not null default 'mΩ'</td><td>单位</td></tr>
+          <tr><td>IsActive</td><td>bit not null default 1</td><td>当前有效</td></tr>
+          <tr><td>CreatedAt</td><td>datetime2 not null default sysdatetime()</td><td>创建时间</td></tr>
+          <tr><td>CreatedBy</td><td>nvarchar(100) null</td><td>操作员</td></tr>
+          <tr><td>Remark</td><td>nvarchar(500) null</td><td>备注</td></tr>
+        </tbody>
+      </table>
+
+      <h3>4.7 GradeScheme / GradeRule / GradeSelectableField 分档规则表</h3>
+      <table>
+        <thead><tr><th>表</th><th>关键字段</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>GradeScheme</td>
+            <td>GradeSchemeId, SchemeName, IsActive, CreatedAt, UpdatedAt</td>
+            <td>分档方案，相当于旧 <code>LvName</code></td>
+          </tr>
+          <tr>
+            <td>GradeRule</td>
+            <td>GradeRuleId, GradeSchemeId, GradeName, FieldCode, FieldName, Operator, ThresholdValue, Seq</td>
+            <td>分档规则，相当于旧 <code>CW_tblCondition</code></td>
+          </tr>
+          <tr>
+            <td>GradeSelectableField</td>
+            <td>FieldCode, FieldName, Unit, SourceColumn, IsActive</td>
+            <td>可选字段，相当于旧 <code>CW_tblSelFld</code></td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="small">建议预置字段：VolA、ResiA、VolB、ResiB、VolC、ResiC、VolD、ResiD、TimeA、TimeB、TimeC、TimeD。</p>
+
+      <h3>4.8 UploadOutbox 上传离线队列表</h3>
+      <table>
+        <thead><tr><th>字段</th><th>类型</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td>UploadOutboxId</td><td>bigint identity primary key</td><td>队列主键</td></tr>
+          <tr><td>InterfaceName</td><td>nvarchar(100) not null</td><td>接口名，如 ResultDataUploadAssembly</td></tr>
+          <tr><td>TargetUrl</td><td>nvarchar(500) null</td><td>目标地址</td></tr>
+          <tr><td>PayloadJson</td><td>nvarchar(max) not null</td><td>请求 JSON</td></tr>
+          <tr><td>Status</td><td>int not null default 0</td><td>0 待发送，1 已发送，2 失败，3 暂停</td></tr>
+          <tr><td>RetryCount</td><td>int not null default 0</td><td>重试次数</td></tr>
+          <tr><td>LastError</td><td>nvarchar(1000) null</td><td>最后错误</td></tr>
+          <tr><td>CreatedAt</td><td>datetime2 not null default sysdatetime()</td><td>入队时间</td></tr>
+          <tr><td>LastTriedAt</td><td>datetime2 null</td><td>最后尝试时间</td></tr>
+          <tr><td>SentAt</td><td>datetime2 null</td><td>发送成功时间</td></tr>
+        </tbody>
+      </table>
+
+      <h3>4.9 MesUploadLog / DeviceCommLog / SystemSetting / 其他日志表</h3>
+      <table>
+        <thead><tr><th>表</th><th>用途</th><th>关键字段</th></tr></thead>
+        <tbody>
+          <tr><td>MesUploadLog</td><td>保存 MES 上传请求响应摘要</td><td>TestTaskId, InterfaceName, RequestJson, ResponseJson, Status, ErrorMessage, CreatedAt</td></tr>
+          <tr><td>DeviceCommLog</td><td>保存中位机、3562、34461 关键通讯摘要</td><td>TestTaskId, DeviceType, Direction, CommandText, ResponseText, IsSuccess, ErrorMessage, CreatedAt</td></tr>
+          <tr><td>SystemSetting</td><td>保存系统参数、阈值、接口地址、串口参数</td><td>SettingKey, SettingValue, ValueType, Description, UpdatedAt, UpdatedBy</td></tr>
+          <tr><td>AlarmEvent</td><td>保存报警事件</td><td>AlarmCode, AlarmName, StartTime, EndTime, Status, Source, Remark</td></tr>
+          <tr><td>EnergySnapshot</td><td>保存电表能耗快照</td><td>EquipmentCode, EnergyValue, SnapshotTime, CreatedAt</td></tr>
+          <tr><td>OperatorLog</td><td>保存关键人工操作</td><td>OperatorName, ActionName, TargetType, TargetValue, CreatedAt</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>5. 关键视图</h2>
+      <h3>5.1 vw_CellTestSummary</h3>
+      <p>用于兼容旧查询界面的横向结果格式。旧代码依赖 <code>Fld_VolA/Fld_ResiA/Fld_TimeA</code> 等列，新库使用规范化结果表后，需要通过视图汇总每个电芯每个阶段最新结果。</p>
+      <table>
+        <thead><tr><th>输出字段</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td>TrayCode</td><td>托盘号</td></tr>
+          <tr><td>BatteryCode</td><td>电芯条码</td></tr>
+          <tr><td>ChannelNo</td><td>通道号</td></tr>
+          <tr><td>VolA, ResiA, TimeA, ResultA</td><td>OCV1 最新结果</td></tr>
+          <tr><td>VolB, ResiB, TimeB, ResultB</td><td>OCV2 最新结果</td></tr>
+          <tr><td>VolC, ResiC, TimeC, ResultC</td><td>OCV3 最新结果</td></tr>
+          <tr><td>VolD, ResiD, TimeD, ResultD</td><td>OCV4 最新结果</td></tr>
+        </tbody>
+      </table>
+      <pre><code>-- 视图思想示例，正式脚本中按 SQL Server 语法展开
+vw_CellTestSummary =
+  TestResult join TestTask
+  按 BatteryCode + TestType 分组取 TestTime 最新一条
+  再 pivot 成 VolA/ResiA/TimeA ... VolD/ResiD/TimeD</code></pre>
+    </section>
+
+    <section>
+      <h2>6. 存储过程接口</h2>
+      <p>上位机后续应尽量只调用下面这些存储过程，减少散落 SQL。这样数据库成为稳定接口，表结构可以在内部演进。</p>
+
+      <h3>6.1 托盘与条码</h3>
+      <table>
+        <thead><tr><th>存储过程</th><th>用途</th><th>关键入参/返回</th></tr></thead>
+        <tbody>
+          <tr><td>usp_RegisterTray</td><td>注册托盘号，不存在则创建</td><td>@TrayCode，返回 @TrayId</td></tr>
+          <tr><td>usp_SaveTrayCells</td><td>保存托盘通道条码，支持空位和绑定版本</td><td>@TrayCode, @CellsJson, @SourceType</td></tr>
+          <tr><td>usp_GetTrayCellsByTrayCode</td><td>扫码后按托盘号获取通道条码</td><td>返回 ChannelNo, RowNo, ColNo, BatteryCode</td></tr>
+          <tr><td>usp_DeactivateTrayCells</td><td>停用某托盘当前绑定</td><td>@TrayCode</td></tr>
+        </tbody>
+      </table>
+
+      <h3>6.2 测试任务与结果</h3>
+      <table>
+        <thead><tr><th>存储过程</th><th>用途</th><th>关键入参/返回</th></tr></thead>
+        <tbody>
+          <tr><td>usp_CreateTestTask</td><td>开始测试时创建任务</td><td>@TrayCode, @TestType, @TestMode, @SelectedChannels，返回 @TestTaskId, @TaskNo</td></tr>
+          <tr><td>usp_SaveTestResults</td><td>批量保存通道测试结果</td><td>@TestTaskId, @ResultsJson</td></tr>
+          <tr><td>usp_CompleteTestTask</td><td>完成或失败时更新任务状态</td><td>@TestTaskId, @Status, @Result, @ErrorMessage</td></tr>
+          <tr><td>usp_GetTrayLatestStageResults</td><td>按托盘查询各 OCV 阶段最新结果</td><td>@TrayCode, @DateFrom, @DateTo</td></tr>
+          <tr><td>usp_GetCellLatestStageResults</td><td>按电芯查询各阶段最新结果</td><td>@BatteryCode</td></tr>
+          <tr><td>usp_GetTrayListByDateAndOcvStage</td><td>查询界面按日期和阶段列出托盘</td><td>@OcvStage, @DateFrom, @DateTo</td></tr>
+        </tbody>
+      </table>
+
+      <h3>6.3 复测</h3>
+      <table>
+        <thead><tr><th>存储过程</th><th>用途</th></tr></thead>
+        <tbody>
+          <tr><td>usp_SaveRetestTask</td><td>保存原任务和复测任务关系</td></tr>
+          <tr><td>usp_GetRetestHistory</td><td>查询某托盘/某任务复测历史</td></tr>
+        </tbody>
+      </table>
+
+      <h3>6.4 分档规则</h3>
+      <table>
+        <thead><tr><th>存储过程</th><th>用途</th></tr></thead>
+        <tbody>
+          <tr><td>usp_GetGradeSchemes</td><td>获取分档方案列表</td></tr>
+          <tr><td>usp_GetGradeSelectableFields</td><td>获取可选字段</td></tr>
+          <tr><td>usp_GetGradeRules</td><td>获取某方案全部规则</td></tr>
+          <tr><td>usp_SaveGradeScheme</td><td>保存分档方案及规则</td></tr>
+          <tr><td>usp_DeleteGradeScheme</td><td>删除或停用分档方案</td></tr>
+        </tbody>
+      </table>
+
+      <h3>6.5 校准、上传与日志</h3>
+      <table>
+        <thead><tr><th>存储过程</th><th>用途</th></tr></thead>
+        <tbody>
+          <tr><td>usp_GetActiveCalibrationValues</td><td>读取当前 1-256 通道校准值</td></tr>
+          <tr><td>usp_SaveChannelCalibration</td><td>保存通道校准值，旧记录置为非当前</td></tr>
+          <tr><td>usp_EnqueueUpload</td><td>MES 上传失败入队</td></tr>
+          <tr><td>usp_GetPendingUploads</td><td>获取待上传队列</td></tr>
+          <tr><td>usp_MarkUploadSent</td><td>标记上传成功</td></tr>
+          <tr><td>usp_MarkUploadFailed</td><td>记录上传失败和重试次数</td></tr>
+          <tr><td>usp_SaveDeviceCommLog</td><td>保存设备通讯摘要</td></tr>
+          <tr><td>usp_SaveMesUploadLog</td><td>保存 MES 上传日志</td></tr>
+          <tr><td>usp_SaveAlarmEvent</td><td>保存报警事件</td></tr>
+          <tr><td>usp_SaveEnergySnapshot</td><td>保存能耗快照</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>7. 索引与约束建议</h2>
+      <table>
+        <thead><tr><th>对象</th><th>索引/约束</th><th>原因</th></tr></thead>
+        <tbody>
+          <tr><td>Tray</td><td>unique(TrayCode)</td><td>托盘号唯一</td></tr>
+          <tr><td>TrayCell</td><td>index(TrayCode, IsActive), unique(TrayId, ChannelNo, IsActive), unique(TrayId, BatteryCode, IsActive)</td><td>扫码查询快，防止当前绑定重复</td></tr>
+          <tr><td>TestTask</td><td>index(TrayCode, TestType, StartTime), index(Status)</td><td>查询托盘历史和任务状态</td></tr>
+          <tr><td>TestResult</td><td>unique(TestTaskId, ChannelNo), index(BatteryCode, TestTime), index(TrayCode, ChannelNo)</td><td>防止任务内重复通道，支持按电芯和托盘查询</td></tr>
+          <tr><td>GradeRule</td><td>index(GradeSchemeId, GradeName, Seq)</td><td>快速加载分档规则</td></tr>
+          <tr><td>UploadOutbox</td><td>index(Status, InterfaceName, CreatedAt)</td><td>快速查待上传数据</td></tr>
+          <tr><td>DeviceCommLog</td><td>index(TestTaskId, CreatedAt), index(DeviceType, CreatedAt)</td><td>按任务和设备追溯通讯</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>8. 与上位机改造的对应关系</h2>
+      <table>
+        <thead><tr><th>现有入口</th><th>改造后调用</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>frmInput.LoadTrayBatteryCodes</code></td>
+            <td><code>usp_GetTrayCellsByTrayCode</code></td>
+            <td>不再直接查旧 <code>CW_TrayMain/CW_TraySub</code></td>
+          </tr>
+          <tr>
+            <td><code>frmTest.StarTest</code> 开始</td>
+            <td><code>usp_RegisterTray</code>, <code>usp_CreateTestTask</code></td>
+            <td>测试前创建任务，记录通道选择</td>
+          </tr>
+          <tr>
+            <td><code>frmTest.StarTest</code> 完成</td>
+            <td><code>usp_SaveTestResults</code>, <code>usp_CompleteTestTask</code></td>
+            <td>批量保存，不再逐通道拼 SQL 更新</td>
+          </tr>
+          <tr>
+            <td><code>frmInquery.freshTray</code></td>
+            <td><code>vw_CellTestSummary</code> 或 <code>usp_GetTrayLatestStageResults</code></td>
+            <td>保留旧横向字段表现，内部来自规范化表</td>
+          </tr>
+          <tr>
+            <td><code>frmSetCondition</code></td>
+            <td>分档规则存储过程</td>
+            <td>替代 <code>CW_tblCondition/CW_tblSelFld</code></td>
+          </tr>
+          <tr>
+            <td><code>SqlServerHelper</code></td>
+            <td><code>UploadOutbox</code> 存储过程</td>
+            <td>替代 <code>UnsentData/PendingUploads</code></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>9. 实施计划</h2>
+      <ol>
+        <li>创建 <code>OCV_DATA</code> 数据库和基础表：<code>Tray</code>、<code>TrayCell</code>、<code>TestTask</code>、<code>TestResult</code>。</li>
+        <li>创建托盘和测试结果相关存储过程，先支撑扫码和正式测试落库。</li>
+        <li>创建 <code>vw_CellTestSummary</code>，验证查询界面可通过视图拿到旧格式字段。</li>
+        <li>创建分档规则表和存储过程，迁移 <code>CW_tblCondition/CW_tblSelFld</code> 能力。</li>
+        <li>创建 <code>UploadOutbox</code>，迁移 MES 离线缓存能力。</li>
+        <li>创建校准、通讯日志、报警和能耗相关表。</li>
+        <li>新增上位机数据库访问 Adapter，例如 <code>OcvDataRepository</code>，统一封装存储过程调用。</li>
+        <li>逐步替换旧 <code>clsDB</code> 的直接 SQL 调用，优先替换扫码托盘和测试结果保存。</li>
+        <li>完成查询/导出切换后，再移除对旧 <code>CWSQL</code> 表的依赖。</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>10. 风险与待确认事项</h2>
+      <div class="danger">
+        <strong>必须确认：</strong>现场托盘位置是否最终采用列优先映射 <code>ChannelNo = (ColNo - 1) * 16 + RowNo</code>。如果数据库或 MES 使用行优先，只需要替换 <code>usp_SaveTrayCells</code> 内部映射或上位机导入映射。
+      </div>
+      <ul>
+        <li>远端托盘条码接口尚未提供，因此 <code>TrayCell</code> 的数据来源需要先支持手工导入或后续接口写入。</li>
+        <li>旧查询界面使用 VBScript 表达式计算分档，后续建议由数据库或上位机专门规则引擎替代。</li>
+        <li>旧代码中 OCV 阶段命名 A/B/C/D 与界面 OCV0/OCV1/OCV2 需要在改造前统一定义。</li>
+        <li>MES 上传 JSON 量较大，<code>UploadOutbox.PayloadJson</code> 使用 <code>nvarchar(max)</code>，同时需要定期归档。</li>
+        <li>设备日志量可能增长很快，<code>DeviceCommLog</code> 建议只保存关键摘要，详细原始帧继续保留文件。</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>11. 补充的生产级设计</h2>
+      <p>再次检查后，原方案已经覆盖了当前代码里的主要读写动作，但要真正支撑产线长期运行，还需要把“重复提交、并发写入、数据归档、规则版本、接口追溯、权限和恢复能力”明确纳入设计。下面这些内容建议作为最终数据库方案的一部分，而不是后续临时补丁。</p>
+
+      <h3>11.1 幂等与重复提交防护</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>场景</th>
+            <th>风险</th>
+            <th>设计补充</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>保存测试结果</td>
+            <td>软件重试、重复点击、异常恢复后可能重复写同一盘同一阶段数据。</td>
+            <td><code>TestTask</code> 增加 <code>IdempotencyKey</code>；<code>TestResult</code> 保持 <code>TestTaskId + ChannelNo + MeasurementType</code> 唯一；<code>usp_SaveTestResults</code> 必须支持重复调用不重复插入。</td>
+          </tr>
+          <tr>
+            <td>托盘明细保存</td>
+            <td>扫码后多次触发 <code>txtTray_TextChanged</code>，或接口重试导致通道条码重复。</td>
+            <td><code>usp_SaveTrayCells</code> 按 <code>TrayId + ChannelNo</code> 做 upsert；同一托盘同一通道只保留一条当前记录，历史变更进入审计表。</td>
+          </tr>
+          <tr>
+            <td>MES 上传队列</td>
+            <td>断网恢复后重复入队，导致同一测试结果多次上传。</td>
+            <td><code>UploadOutbox</code> 增加 <code>IdempotencyKey</code>，建议由 <code>TrayCode + OcvStage + TestRound + UploadType</code> 生成唯一键。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>11.2 并发、锁定与多实例防护</h3>
+      <ul>
+        <li>关键主表建议增加 <code>RowVersion rowversion</code>：<code>Tray</code>、<code>TrayCell</code>、<code>TestTask</code>、<code>GradeScheme</code>、<code>ChannelCalibration</code>。</li>
+        <li><code>UploadOutbox</code> 需要增加 <code>LockedBy</code>、<code>LockedAt</code>、<code>NextRetryAt</code>，防止多个上位机实例或多个定时器同时上传同一条队列。</li>
+        <li>同一托盘同一 OCV 阶段是否允许重新测试，应由 <code>usp_CreateTestTask</code> 判断；允许重测时必须生成新的 <code>TestRound</code>，不允许静默覆盖整盘历史。</li>
+        <li>正式测试开始时，建议把 <code>TestTask.Status</code> 从 <code>Created</code> 改为 <code>Running</code>，结束后改为 <code>Completed</code> 或 <code>Failed</code>；异常退出的任务可由恢复逻辑识别。</li>
+      </ul>
+
+      <h3>11.3 OCV 阶段、规格限值与规则版本</h3>
+      <p>当前代码和历史数据里存在 <code>OCV0/OCV1/OCV2</code>、<code>currentOCVNum</code>、A/B/C/D 后缀等多套命名。新库不建议继续硬编码这些含义，应增加阶段和规格版本表。</p>
+      <pre><code>OcvStage
+- OcvStageId
+- StageCode          -- OCV0 / OCV1 / OCV2
+- LegacyStageNo      -- 兼容 currentOCVNum
+- LegacyColumnSuffix -- 兼容旧查询 A/B/C/D
+- DisplayName
+- MesStageCode
+- SortOrder
+- IsActive</code></pre>
+      <pre><code>TestSpec
+- TestSpecId
+- SpecName
+- OcvStageId
+- EffectiveFrom
+- EffectiveTo
+- IsActive
+- CreatedAt
+
+TestSpecLimit
+- TestSpecLimitId
+- TestSpecId
+- MeasurementType    -- Voltage / Resistance
+- LowerLimit
+- UpperLimit
+- UnitName           -- V / mOhm
+- NgCode</code></pre>
+      <p><code>TestResult</code> 建议记录本次判定使用的 <code>TestSpecId</code>，或者直接冗余保存当时的电压/内阻上下限。这样后续修改参数后，历史结果不会被新规则“重新解释”。</p>
+
+      <h3>11.4 单位、精度与校准值口径</h3>
+      <ul>
+        <li>电压建议以 <code>VoltageVolt decimal(18,9)</code> 作为主存储单位，毫伏显示通过视图或计算字段得到。</li>
+        <li>内阻建议以 <code>ResistanceMilliohm decimal(18,6)</code> 作为主存储单位。</li>
+        <li><code>calibrateValueArray(ch)</code> 已明确按 mΩ 保存，因此 <code>ChannelCalibration.CalibrationValueMilliohm</code> 必须用 mΩ 命名，避免后续误按 Ω 叠加。</li>
+        <li>如果保存原始值和校准后值，字段应明确区分：<code>RawResistanceMilliohm</code>、<code>CalibrationValueMilliohm</code>、<code>FinalResistanceMilliohm</code>。</li>
+      </ul>
+
+      <h3>11.5 数据生命周期、归档与日志膨胀</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>数据</th>
+            <th>建议保留</th>
+            <th>说明</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>TestTask</code> / <code>TestResult</code></td>
+            <td>3-5 年或按客户追溯要求</td>
+            <td>核心追溯数据，必要时按月分区或按年度归档。</td>
+          </tr>
+          <tr>
+            <td><code>DeviceCommLog</code></td>
+            <td>6-12 个月</td>
+            <td>数据库只保存摘要和关键帧，完整串口日志继续落文件，并在 <code>FileArtifact</code> 登记路径。</td>
+          </tr>
+          <tr>
+            <td><code>UploadOutbox</code> / <code>MesUploadLog</code></td>
+            <td>6-12 个月</td>
+            <td>已成功上传的数据可归档；失败数据保留到人工处理完成。</td>
+          </tr>
+          <tr>
+            <td><code>AlarmEvent</code> / <code>EnergySnapshot</code></td>
+            <td>1-2 年</td>
+            <td>用于设备维护分析，长期保留可转入历史库。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>11.6 审计、人工修改与文件追溯</h3>
+      <p>条码、分档规则、校准值、系统参数都可能被人工修改。只保存最终值不够，需要能回答“谁在什么时候改了什么”。</p>
+      <pre><code>AuditLog
+- AuditId
+- EntityName
+- EntityKey
+- ActionName       -- Insert / Update / Delete / Approve / RetryUpload
+- BeforeJson
+- AfterJson
+- OperatorName
+- WorkstationName
+- CreatedAt</code></pre>
+      <pre><code>FileArtifact
+- FileArtifactId
+- ArtifactType     -- LocalCsv / MiddleMachineLog / InstrumentLog / ImportFile
+- TestTaskId
+- TrayCode
+- FilePath
+- FileHash
+- CreatedAt</code></pre>
+      <p>本地 CSV、串口日志、导入文件不是数据库的替代品，但它们是追溯证据。建议至少保存文件路径、文件类型、生成时间和哈希值。</p>
+
+      <h3>11.7 外部接口与未来托盘明细服务</h3>
+      <p>远端托盘接口当前尚未提供，因此新库要同时支持本地导入和未来接口接入。建议增加接口调用记录：</p>
+      <pre><code>ExternalSyncLog
+- ExternalSyncLogId
+- SourceName        -- TrayApi / MesApi / ManualImport
+- BusinessKey       -- TrayCode / TaskCode
+- RequestJson
+- ResponseJson
+- IsSuccess
+- ErrorMessage
+- CreatedAt</code></pre>
+      <ul>
+        <li><code>TrayCell.SourceType</code> 保留 <code>RemoteApi</code>、<code>LocalDb</code>、<code>ManualImport</code>、<code>ManualEdit</code>。</li>
+        <li>未来接口返回空位时，数据库应允许 <code>BatteryCode</code> 为空，但 <code>ChannelNo</code> 仍然保留，以便区分“空位”和“未返回”。</li>
+        <li>托盘条码只作为入口，不应把扫码程序返回的整串内容直接当作电芯明细；电芯明细必须来自托盘明细表或接口响应。</li>
+      </ul>
+
+      <h3>11.8 权限、备份和启动健康检查</h3>
+      <ul>
+        <li>建议建立 SQL 角色：<code>ocv_app_writer</code> 只能执行上位机需要的存储过程；<code>ocv_query_reader</code> 只能读视图和报表过程；<code>ocv_admin</code> 管理结构和基础配置。</li>
+        <li>上位机原则上调用存储过程，不直接拼 SQL 写核心表；这样可以把唯一性、幂等、审计和事务封装在数据库层。</li>
+        <li>增加 <code>SchemaVersion</code> 表，记录数据库版本、升级脚本编号和升级时间；上位机启动时检查版本，不匹配则提示禁止测试。</li>
+        <li>增加 <code>usp_CheckDatabaseHealth</code>：检查数据库连接、版本、关键表是否存在、待上传失败数量、未完成测试任务数量。</li>
+        <li>备份建议采用完整备份 + 差异备份 + 日志备份；上线前至少做一次恢复演练，确认能恢复到指定时间点。</li>
+      </ul>
+
+      <h3>11.9 数据库落地验证清单</h3>
+      <ol>
+        <li>空托盘、部分通道托盘、满盘 256 通道托盘均可保存并查询。</li>
+        <li>同一托盘同一通道重复保存时不会产生重复当前记录。</li>
+        <li>连续通道、零星通道、跨 G1/G2 通道的测试结果均可按通道正确落库。</li>
+        <li>NG 复测只覆盖或更新指定 NG 点，数据库、CSV、MES 出口口径一致。</li>
+        <li>修改分档规则或上下限后，历史结果仍按当时规则可追溯。</li>
+        <li>MES 上传失败后进入重试队列，重复执行上传任务不会重复入队。</li>
+        <li>校准值修改会写入审计，正式测试保存原始内阻、校准值和最终内阻。</li>
+        <li>数据库版本不匹配、连接失败、关键存储过程缺失时，上位机禁止开始测试。</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>12. 最终表清单</h2>
+      <pre><code>OCV_DATA
+├─ Tray
+├─ TrayCell
+├─ TestTask
+├─ TestResult
+├─ RetestTask
+├─ ChannelCalibration
+├─ GradeScheme
+├─ GradeRule
+├─ GradeSelectableField
+├─ UploadOutbox
+├─ MesUploadLog
+├─ DeviceCommLog
+├─ SystemSetting
+├─ AlarmEvent
+├─ EnergySnapshot
+├─ OperatorLog
+├─ OcvStage
+├─ TestSpec
+├─ TestSpecLimit
+├─ AuditLog
+├─ FileArtifact
+├─ ExternalSyncLog
+└─ SchemaVersion
+
+Views
+└─ vw_CellTestSummary
+
+Primary stored procedure groups
+├─ Tray: usp_RegisterTray, usp_SaveTrayCells, usp_GetTrayCellsByTrayCode
+├─ Test: usp_CreateTestTask, usp_SaveTestResults, usp_CompleteTestTask
+├─ Query: usp_GetTrayLatestStageResults, usp_GetTrayListByDateAndOcvStage
+├─ Grade: usp_GetGradeSchemes, usp_SaveGradeScheme, usp_DeleteGradeScheme
+├─ Calibration: usp_GetActiveCalibrationValues, usp_SaveChannelCalibration
+├─ Upload: usp_EnqueueUpload, usp_GetPendingUploads, usp_MarkUploadSent
+├─ Log: usp_SaveDeviceCommLog, usp_SaveMesUploadLog, usp_SaveAlarmEvent
+├─ Audit: usp_SaveAuditLog, usp_GetEntityAuditTrail
+└─ Health: usp_CheckDatabaseHealth, usp_GetSchemaVersion</code></pre>
+    </section>
+  </main>
+</body>
+</html>

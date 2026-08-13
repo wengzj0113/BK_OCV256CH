@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>XL-OCV-256CH 系统整体逻辑说明</title>
+  <style>
+    body { font-family: "Microsoft YaHei", Arial, sans-serif; line-height: 1.7; margin: 32px; color: #222; }
+    h1, h2, h3 { line-height: 1.3; }
+    h1 { border-bottom: 2px solid #333; padding-bottom: 10px; }
+    h2 { margin-top: 32px; border-left: 5px solid #3366cc; padding-left: 10px; }
+    h3 { margin-top: 22px; color: #333; }
+    code, pre { font-family: Consolas, "Courier New", monospace; }
+    code { background: #f3f4f6; padding: 2px 5px; border-radius: 4px; }
+    pre { background: #f8f8f8; padding: 12px; border: 1px solid #ddd; overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0 20px; }
+    th, td { border: 1px solid #ddd; padding: 8px 10px; vertical-align: top; }
+    th { background: #f0f4ff; }
+    .box { border: 1px solid #d0d7de; background: #f6f8fa; padding: 12px 16px; border-radius: 6px; }
+    .warn { color: #a15c00; font-weight: bold; }
+    .risk { color: #b00020; font-weight: bold; }
+    .ok { color: #087f23; font-weight: bold; }
+    .small { color: #666; font-size: 0.94em; }
+  </style>
+</head>
+<body>
+  <h1>XL-OCV-256CH 系统整体逻辑说明</h1>
+
+  <div class="box">
+    <p><strong>文档目的：</strong>说明当前系统在完成 RS485 中位机、G1/G2、两遍交叉测试、256 通道和校准页面优化后的整体运行逻辑。</p>
+    <p><strong>当前定位：</strong>上位机负责业务流程、仪表配置、数据读取、数据映射、判定、保存和上传；中位机只负责通道计划和 START；3562 与 34461 负责按外部触发缓存测试值。</p>
+    <p><strong>生成日期：</strong>2026-08-01。</p>
+  </div>
+
+  <h2>一、系统分层</h2>
+  <table>
+    <tr><th>层级</th><th>主要文件/对象</th><th>职责</th></tr>
+    <tr>
+      <td>窗体业务层</td>
+      <td><code>frmTest.vb</code>、<code>FrmChannelCalibration.vb</code>、<code>frmInit.vb</code></td>
+      <td>处理按钮、界面状态、托盘号、OCV 选择、报警提示、测试启动、校准页面和参数设置。</td>
+    </tr>
+    <tr>
+      <td>正式测试编排层</td>
+      <td><code>FormalTestRunner.vb</code></td>
+      <td>准备 3562/34461 缓存，运行中位机计划，读取仪表缓存，并调用两遍映射器回填数据。</td>
+    </tr>
+    <tr>
+      <td>通道计划层</td>
+      <td><code>TestChannelPlanService.vb</code></td>
+      <td>把连续通道、零星通道或 NG 复测点转换成 G1/G2 升序通道列表和中位机计划。</td>
+    </tr>
+    <tr>
+      <td>数据映射层</td>
+      <td><code>TwoPassResultMapper.vb</code></td>
+      <td>按两遍交叉规则把 3562 内阻缓存和 34461 电压缓存回填到 <code>RecieveData</code>。</td>
+    </tr>
+    <tr>
+      <td>中位机通讯层</td>
+      <td><code>SerialMiddleMachineClient.vb</code></td>
+      <td>RS485 串口协议、CRC、写回显、读寄存器、事件帧、STOP/START、G1/G2 通道计划、日志。</td>
+    </tr>
+    <tr>
+      <td>仪表通讯层</td>
+      <td><code>Module1.vb</code></td>
+      <td>3562 串口通讯、34461 VISA 通讯、缓存准备、缓存读取、全局数据结构和上下限判定。</td>
+    </tr>
+    <tr>
+      <td>数据持久化/上传层</td>
+      <td><code>frmTest.vb</code>、<code>clsDB.vb</code>、MES 上传类</td>
+      <td>本地 CSV 保存、数据库插入/更新、MES 上传触发。</td>
+    </tr>
+  </table>
+
+  <h2>二、核心全局数据</h2>
+  <table>
+    <tr><th>变量/结构</th><th>含义</th><th>说明</th></tr>
+    <tr>
+      <td><code>MAX_CHANNEL = 256</code></td>
+      <td>系统通道总数</td>
+      <td>当前项目按 256 个物理通道运行。</td>
+    </tr>
+    <tr>
+      <td><code>intRow = 16</code>、<code>intCol = 16</code></td>
+      <td>界面点位布局</td>
+      <td>16 x 16 显示 256 个点位。</td>
+    </tr>
+    <tr>
+      <td><code>RecieveData(0..255)</code></td>
+      <td>正式测试结果缓存</td>
+      <td>数组下标为 0-based；物理 CH1 对应 <code>RecieveData(0)</code>，CH256 对应 <code>RecieveData(255)</code>。</td>
+    </tr>
+    <tr>
+      <td><code>retestArray(0..255)</code></td>
+      <td>NG 复测标记</td>
+      <td>值为 1 表示该物理通道需要复测；下标 0 对应 CH1。</td>
+    </tr>
+    <tr>
+      <td><code>calibrateValueArray</code></td>
+      <td>内阻校准补偿值</td>
+      <td>单位为 mΩ。正式测试回填内阻时：3562 测量 mΩ + 校准 mΩ。</td>
+    </tr>
+    <tr>
+      <td><code>Initsetting.SCMComPort</code>、<code>Initsetting.SCMComRate</code></td>
+      <td>中位机串口参数</td>
+      <td>由 <code>frmInit</code> 设置。默认通讯为 RS485、115200、8N1。</td>
+    </tr>
+  </table>
+
+  <h2>三、正式测试总流程</h2>
+  <ol>
+    <li>用户点击开始测试，入口为 <code>CmdStart_Click</code>。</li>
+    <li>如果处于报警状态，直接禁止测试。</li>
+    <li>调用 <code>StarTest(1)</code> 启动正常测试；NG 复测时调用 <code>StarTest(0)</code>。</li>
+    <li>清空报警显示，刷新界面状态，设置 <code>isRuning=True</code>。</li>
+    <li>读取起始通道、结束通道，计算本次通道数量。</li>
+    <li>正常测试时初始化 256 个 <code>RecieveData</code> 的电压、内阻、测试时间。</li>
+    <li>检查托盘号：空托盘号禁止测试；与上次托盘号相同则提示确认。</li>
+    <li>判断 OCV 轮次：当前仍由 <code>Rbtn1~Rbtn4</code> 映射到 OCV 序号。</li>
+    <li>通过 <code>CheckCom_SCM()</code> 检查中位机串口通讯，并同步全局 <code>Com_SCM</code>。</li>
+    <li>执行夹具动作：当前仍保留旧夹具逻辑，后续将由 PLC 替换。</li>
+    <li>探针寿命计数加 1，并刷新剩余次数。</li>
+    <li>禁用托盘手动控制按钮，进入测试中状态。</li>
+    <li>调用 <code>FormalTestRunner</code> 执行正式测量。</li>
+    <li>测量完成后刷新电池界面，松开托盘。</li>
+    <li>调用 <code>IsNG(voltage, resistance)</code> 判定 OK/NG。</li>
+    <li>保存本地 CSV。</li>
+    <li>如 MES 上传勾选，则触发 MES 结果上传。</li>
+    <li>写数据库：已有记录更新，无记录插入。</li>
+    <li>如发现 NG 点，询问是否执行 NG 复测；确认后调用 <code>StarTest(0)</code>。</li>
+    <li>退出时恢复托盘按钮、鼠标状态，并设置 <code>isRuning=False</code>。</li>
+  </ol>
+
+  <h2>四、正式测量编排逻辑</h2>
+  <p>正式测量由 <code>FormalTestRunner</code> 完成，窗体不再直接发送旧 TCP 多通道测试指令，也不再切换 ACIR/OCV 仪表选择。</p>
+  <pre>StarTest
+  -> FormalTestRunner.RunRangeMeasurement(startChannel, endChannel)
+     or FormalTestRunner.RunRetestMeasurement(retestArray)
+  -> TestChannelPlanService 生成通道选择模型
+  -> 清 3562/34461 缓存
+  -> PrepareCachedData_3562
+  -> PrepareCachedData_34461
+  -> SerialMiddleMachineClient.RunPlan
+  -> Trans_ReadCachedData_3562
+  -> Trans_ReadCachedData_34461
+  -> TwoPassResultMapper.Apply
+  -> RecieveData 完成回填</pre>
+
+  <h3>仪表缓存时序</h3>
+  <ol>
+    <li>下发中位机计划前，先清理 3562 和 34461 的缓存/缓冲。</li>
+    <li>3562 设置为外部触发、连续初始化、清空缓存、打开缓存。</li>
+    <li>34461 设置为外部触发，设置触发次数，并通过 <code>READ?</code> 进入等待触发状态。</li>
+    <li>中位机执行通道计划并 START。</li>
+    <li>中位机上报完成后，上位机读取 3562 缓存。</li>
+    <li>上位机读取 34461 缓存。</li>
+    <li>任何异常都会尝试 STOP、清 G1/G2 列表，并清理仪表缓存。</li>
+  </ol>
+
+  <h2>五、G1/G2 与两遍模式</h2>
+  <table>
+    <tr><th>组别</th><th>物理通道</th><th>中位机本地通道</th></tr>
+    <tr>
+      <td>G1</td>
+      <td>CH1-CH128</td>
+      <td>CH1-CH128</td>
+    </tr>
+    <tr>
+      <td>G2</td>
+      <td>CH129-CH256</td>
+      <td>物理通道 - 128，即 CH129 对应本地 CH1，CH256 对应本地 CH128</td>
+    </tr>
+  </table>
+
+  <h3>两遍交叉含义</h3>
+  <table>
+    <tr><th>阶段</th><th>G1</th><th>G2</th><th>3562 数据</th><th>34461 数据</th></tr>
+    <tr>
+      <td>第一遍</td>
+      <td>切换 G1 目标通道</td>
+      <td>切换 G2 目标通道</td>
+      <td>G1 内阻</td>
+      <td>G2 电压</td>
+    </tr>
+    <tr>
+      <td>第二遍</td>
+      <td>切换 G1 目标通道</td>
+      <td>切换 G2 目标通道</td>
+      <td>G2 内阻</td>
+      <td>G1 电压</td>
+    </tr>
+  </table>
+
+  <h3>缓存回填顺序</h3>
+  <p>通道选择模型会把通道去重并按物理通道号升序排列。缓存按每组升序回填，不按用户点击顺序。</p>
+  <pre>3562 resistance:
+  first  -> G1PhysicalChannels ascending
+  second -> G2PhysicalChannels ascending
+
+34461 voltage:
+  first  -> G2PhysicalChannels ascending
+  second -> G1PhysicalChannels ascending</pre>
+
+  <p>示例：选择 CH3、CH8、CH25、CH129：</p>
+  <pre>G1PhysicalChannels = [3, 8, 25]
+G2PhysicalChannels = [129]
+G2LocalChannels = [1]
+
+3562[0] -> CH3   Resistance
+3562[1] -> CH8   Resistance
+3562[2] -> CH25  Resistance
+3562[3] -> CH129 Resistance
+
+34461[0] -> CH129 Voltage
+34461[1] -> CH3   Voltage
+34461[2] -> CH8   Voltage
+34461[3] -> CH25  Voltage</pre>
+
+  <h2>六、中位机通讯逻辑</h2>
+  <table>
+    <tr><th>项目</th><th>当前逻辑</th></tr>
+    <tr>
+      <td>通讯参数</td>
+      <td>RS485，115200 bps，8N1。端口和波特率来自 <code>Initsetting.SCMComPort</code>、<code>Initsetting.SCMComRate</code>。</td>
+    </tr>
+    <tr>
+      <td>帧格式</td>
+      <td>帧头 <code>0xAA</code>；写命令 <code>0x06</code>；读命令 <code>0x03</code>；事件帧 <code>0x41</code>。</td>
+    </tr>
+    <tr>
+      <td>CRC</td>
+      <td>CRC16-Modbus，低字节在前。</td>
+    </tr>
+    <tr>
+      <td>写命令</td>
+      <td>发送后等待 8 字节原样回显；提供 <code>WriteRegisterAndVerifyStatus</code> 用于写后读取 <code>0x005B~0x005D</code>。</td>
+    </tr>
+    <tr>
+      <td>每次运行计划</td>
+      <td>先 STOP，再清 G1/G2 列表，配置模式和通道，配置两遍、四项全测、稳定档，复核寄存器，然后 START。</td>
+    </tr>
+    <tr>
+      <td>完成判断</td>
+      <td>等待事件 <code>0x41</code>，状态 <code>0x0006</code> 表示完成；状态 <code>0x0064</code> 表示异常。</td>
+    </tr>
+    <tr>
+      <td>异常处理</td>
+      <td>异常或超时会尝试 STOP，并清 G1/G2 通道列表。</td>
+    </tr>
+    <tr>
+      <td>日志</td>
+      <td>写入 <code>Application.StartupPath\logFile\MiddleMachine_yyyyMMdd.log</code>。</td>
+    </tr>
+  </table>
+
+  <h2>七、OK/NG 判定和复测</h2>
+  <ol>
+    <li>测试完成后，正式测试按起始通道到结束通道逐点判定。</li>
+    <li>NG 复测时只遍历 <code>retestArray(i)=1</code> 的通道。</li>
+    <li>判定函数为 <code>IsNG(voltage, resistance)</code>。</li>
+    <li>电压以 V 保存到 <code>RecieveData(ch).Voltage</code>，判定时乘以 1000 与 mV 上下限比较。</li>
+    <li>内阻以 mΩ 保存到 <code>RecieveData(ch).Resistance</code>，直接与 mΩ 上下限比较。</li>
+    <li>NG 复测只覆盖 NG 点，未复测通道保留初测结果。</li>
+  </ol>
+
+  <h2>八、数据保存、数据库和 MES</h2>
+  <table>
+    <tr><th>环节</th><th>当前逻辑</th></tr>
+    <tr>
+      <td>本地 CSV</td>
+      <td>保存到 <code>D:\OcvTestData\日期\托盘号.csv</code>；当前保存数组已扩展为 256 个通道。</td>
+    </tr>
+    <tr>
+      <td>文件重名</td>
+      <td>如果同名文件存在，自动生成 <code>托盘号_1.csv</code>、<code>托盘号_2.csv</code> 等。</td>
+    </tr>
+    <tr>
+      <td>数据库</td>
+      <td>按通道遍历，查询电芯记录；存在则更新，不存在则插入。</td>
+    </tr>
+    <tr>
+      <td>MES</td>
+      <td>如果 <code>FrmMesTask.chkResultDataUploadAssembly</code> 勾选，则启动上传计时器。</td>
+    </tr>
+  </table>
+
+  <h2>九、校准逻辑</h2>
+  <ol>
+    <li>校准入口已独立为菜单项“校准”和独立 256 通道校准页面。</li>
+    <li>校准页面使用 <code>ChannelCalibrationRunner</code>，不使用正式测试的 <code>TwoPassResultMapper</code>。</li>
+    <li>校准可以全选、范围选择、单通道或部分通道选择。</li>
+    <li>校准值保存到 <code>CalibrateArr.csv</code>，并加载到 <code>calibrateValueArray</code>。</li>
+    <li>标准阻值会保存到配置中，下次打开窗体时使用上次修改值。</li>
+    <li>校准完成后自动保存校准值。</li>
+    <li><span class="warn">注意：</span>校准和正式测试虽然都可复用中位机通道计划，但数据映射规则不同。正式测试是两遍交叉，校准不是。</li>
+  </ol>
+
+  <h2>十、当前仍保留/待后续替换的部分</h2>
+  <table>
+    <tr><th>项目</th><th>当前状态</th><th>后续方向</th></tr>
+    <tr>
+      <td>夹具动作</td>
+      <td>正式测试中仍保留旧夹具下压、托盘状态、松开托盘逻辑。</td>
+      <td>后续按 PLC 通讯方案替换。</td>
+    </tr>
+    <tr>
+      <td>调试/手动旧函数</td>
+      <td><code>frmTest.vb</code> 中仍有旧的 <code>Trig34461</code>、部分旧 TCP 调试函数。</td>
+      <td>正式测试主路径已不调用；后续可分批清理。</td>
+    </tr>
+    <tr>
+      <td>OCV 序号</td>
+      <td>界面仍有 <code>Rbtn1~Rbtn4</code>，当前逻辑映射到 OCV1~OCV4。</td>
+      <td>如果现场只使用 OCV0/OCV1/OCV2，需要再统一 UI 和数据库字段定义。</td>
+    </tr>
+    <tr>
+      <td>34461 缓存命令</td>
+      <td>当前封装为 <code>READ?</code> 后 <code>ReadList</code>。</td>
+      <td>需要实机确认 34461 外触发缓存数量、返回顺序和超时设置。</td>
+    </tr>
+    <tr>
+      <td>写后状态寄存器</td>
+      <td>已提供 <code>WriteRegisterAndVerifyStatus</code>，但普通 <code>RunPlan</code> 的大部分写命令仍使用原样回显校验。</td>
+      <td>后续可把关键配置写入统一切到写后读取 <code>0x005B~0x005D</code>。</td>
+    </tr>
+  </table>
+
+  <h2>十一、运行状态和日志</h2>
+  <ul>
+    <li>测试运行标志：<code>isRuning</code>。</li>
+    <li>正式测试日志：<code>logFile\LogOfRun.txt</code>。</li>
+    <li>中位机通讯日志：<code>logFile\MiddleMachine_yyyyMMdd.log</code>。</li>
+    <li>异常时窗体会写入 <code>txtAlarm</code>，并弹窗提示。</li>
+    <li>退出测试流程时会恢复托盘按钮和鼠标状态。</li>
+  </ul>
+
+  <h2>十二、建议的实机检查顺序</h2>
+  <ol>
+    <li>确认 <code>frmInit</code> 中中位机串口号和 115200 波特率保存正确。</li>
+    <li>单独验证中位机 STOP、清列表、连续计划、列表计划、START、完成事件。</li>
+    <li>验证 3562 外触发缓存：清缓存、触发数量、<code>MEMory:DATA?</code> 返回数量。</li>
+    <li>验证 34461 外触发缓存：<code>READ?</code> 后 <code>ReadList</code> 返回数量。</li>
+    <li>测试 CH4-CH8，只覆盖 G1。</li>
+    <li>测试 CH151-CH152，只覆盖 G2。</li>
+    <li>测试 CH3、CH8、CH25、CH129 跨组零星通道。</li>
+    <li>测试 CH1-CH256 完整两遍交叉。</li>
+    <li>验证 NG 复测只覆盖 NG 点。</li>
+    <li>检查 CSV、数据库、MES 是否都使用最终覆盖后的数据。</li>
+  </ol>
+
+  <p class="small">保存位置：<code>docs/2026-08-01-system-overall-logic.html</code></p>
+</body>
+</html>
