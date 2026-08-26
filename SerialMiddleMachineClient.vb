@@ -1,4 +1,3 @@
-Imports System.IO
 Imports System.IO.Ports
 Imports System.Threading
 Imports System.Windows.Forms
@@ -30,6 +29,11 @@ Public Class SerialMiddleMachineClient
     Private Const StatusCompleted As UShort = &H6
     Private Const StatusError As UShort = &H64
     Private Const DefaultTimeoutMs As Integer = 30000
+    Private Const DefaultTestTimeoutMs As Integer = 300000
+    Private Const WriteResponseTimeoutMs As Integer = 3000
+    Private Const WriteRetryCount As Integer = 3
+    Private Const WriteRetryDelayMs As Integer = 150
+    Private Const StopSettleDelayMs As Integer = 250
 
     Private Const RegStartStop As UShort = &H30
     Private Const RegG1Start As UShort = &H31
@@ -54,26 +58,27 @@ Public Class SerialMiddleMachineClient
     Private Const RegBasicStatusCount As UShort = 7
 
     Private ReadOnly serialPort As SerialPort
+    Public Property TraceLogger As Action(Of String)
 
     Public Shared Sub LogMessage(message As String)
-        Try
-            Dim logDir As String = Path.Combine(Application.StartupPath, "logFile")
-            If Not Directory.Exists(logDir) Then
-                Directory.CreateDirectory(logDir)
-            End If
+        AppLog.Write("MiddleMachine", message)
+    End Sub
 
-            Dim logPath As String = Path.Combine(logDir, "MiddleMachine_" & DateTime.Now.ToString("yyyyMMdd") & ".log")
-            File.AppendAllText(logPath, DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff") & " " & message & Environment.NewLine, System.Text.Encoding.UTF8)
+    Private Sub TraceMessage(message As String)
+        LogMessage(message)
+        Try
+            If TraceLogger IsNot Nothing Then TraceLogger.Invoke("控制板协议 " & message)
         Catch
         End Try
     End Sub
 
-    Public Sub New(port As SerialPort)
+    Public Sub New(port As SerialPort, Optional traceLogger As Action(Of String) = Nothing)
         If port Is Nothing Then
             Throw New ArgumentNullException("port")
         End If
 
         serialPort = port
+        TraceLogger = traceLogger
         ConfigurePort()
     End Sub
 
@@ -88,7 +93,7 @@ Public Class SerialMiddleMachineClient
         serialPort.StopBits = StopBits.One
         serialPort.ReadTimeout = 1000
         serialPort.WriteTimeout = 1000
-        LogMessage(String.Format("Serial configured: {0}, {1}, 8N1", serialPort.PortName, serialPort.BaudRate))
+        TraceMessage(String.Format("Serial configured: {0}, {1}, 8N1", serialPort.PortName, serialPort.BaudRate))
     End Sub
 
     Public Sub EnsureOpen()
@@ -102,37 +107,79 @@ Public Class SerialMiddleMachineClient
         WriteRegister(RegStartStop, &H0)
     End Sub
 
+    Public Sub ResetToDefaults()
+        WriteRegister(RegStartStop, &H6)
+    End Sub
+
     Public Sub StopAndClearLists()
         Try
             StopTest()
+            Thread.Sleep(StopSettleDelayMs)
         Finally
             Try
                 ClearChannelLists()
             Catch ex As Exception
-                LogMessage("ClearChannelLists failed after STOP: " & ex.Message)
+                TraceMessage("ClearChannelLists failed after STOP: " & ex.Message)
             End Try
         End Try
     End Sub
 
     Public Sub ClearChannelLists()
-        WriteRegister(RegG1ListClear, &H1)
-        WriteRegister(RegG2ListClear, &H1)
+        Dim firstException As Exception = Nothing
+        Try
+            WriteRegister(RegG1ListClear, &H1)
+        Catch ex As Exception
+            firstException = ex
+            TraceMessage("Clear G1 list failed: " & ex.Message)
+        End Try
+        Try
+            WriteRegister(RegG2ListClear, &H1)
+        Catch ex As Exception
+            If firstException Is Nothing Then firstException = ex
+            TraceMessage("Clear G2 list failed: " & ex.Message)
+        End Try
+        If firstException IsNot Nothing Then Throw firstException
+    End Sub
+
+    Public Sub ResetToSafeState()
+        TraceMessage("Middle machine safe reset start")
+        Try
+            StopAndClearLists()
+        Catch ex As Exception
+            TraceMessage("Middle machine stop/clear during reset failed: " & ex.Message)
+        End Try
+
+        Dim safeWrites As UShort(,) = {
+            {RegSyncMode, &H0},
+            {RegGroupEnable, &H0},
+            {RegTwoPass, &H0},
+            {RegMeasureItems, &H0},
+            {RegSpeed, &H0}
+        }
+        For i As Integer = 0 To safeWrites.GetLength(0) - 1
+            Try
+                WriteRegister(safeWrites(i, 0), safeWrites(i, 1))
+            Catch ex As Exception
+                TraceMessage(String.Format("Middle machine safe write failed: 0x{0:X4}=0x{1:X4}: {2}", safeWrites(i, 0), safeWrites(i, 1), ex.Message))
+            End Try
+        Next
+        TraceMessage("Middle machine safe reset completed")
     End Sub
 
     Public Sub StartTest()
         WriteRegister(RegStartStop, &H1)
     End Sub
 
-    Public Function RunPlan(plan As MiddleMachineChannelPlan, Optional timeoutMs As Integer = DefaultTimeoutMs) As UShort
-        LogMessage("RunPlan: " & DescribePlan(plan))
+    Public Function RunPlan(plan As MiddleMachineChannelPlan, Optional timeoutMs As Integer = DefaultTestTimeoutMs) As UShort
+        TraceMessage("RunPlan: " & DescribePlan(plan))
         EnsureOpen()
         serialPort.DiscardInBuffer()
-        ConfigurePlan(plan, True)
+        ConfigurePlan(plan, CUShort(3))
         StartTest()
         Return WaitForCompletion(timeoutMs)
     End Function
 
-    Public Sub ConfigurePlan(plan As MiddleMachineChannelPlan, stableSpeed As Boolean)
+    Public Sub ConfigurePlan(plan As MiddleMachineChannelPlan, speedValue As UShort)
         If plan Is Nothing OrElse plan.ExecutionOrder Is Nothing OrElse plan.ExecutionOrder.Count = 0 Then
             Throw New InvalidOperationException("Channel plan is empty.")
         End If
@@ -143,14 +190,19 @@ Public Class SerialMiddleMachineClient
             Throw New InvalidOperationException("Channel plan has no enabled group.")
         End If
 
-        StopTest()
-        ClearChannelLists()
-        If hasG1 AndAlso Not hasG2 Then
+        If speedValue > 3 Then
+            Throw New ArgumentOutOfRangeException("speedValue", "Speed value must be between 0 and 3.")
+        End If
+
+        ResetToDefaults()
+        WriteRegister(RegSpeed, speedValue)
+
+        Dim synchronizedPlan As Boolean = IsSynchronizedPlan(plan)
+        If synchronizedPlan Then
             WriteRegister(RegSyncMode, &H0)
             ConfigureG1Channels(plan.G1PhysicalChannels)
         Else
             WriteRegister(RegSyncMode, &H1)
-            WriteRegister(RegGroupEnable, GetGroupEnableValue(hasG1, hasG2))
             If hasG1 Then
                 ConfigureG1Channels(plan.G1PhysicalChannels)
             End If
@@ -159,10 +211,8 @@ Public Class SerialMiddleMachineClient
             End If
         End If
 
-        WriteRegister(RegTwoPass, &H0)
-        WriteRegister(RegMeasureItems, &HF)
-        WriteRegister(RegSpeed, If(stableSpeed, CUShort(1), CUShort(0)))
-        VerifyPlan(plan, stableSpeed)
+        WriteRegister(RegGroupEnable, GetGroupEnableValue(hasG1, hasG2))
+        VerifyPlan(plan, speedValue)
     End Sub
 
     Public Sub ConfigureSingleRange(startChannel As Integer, endChannel As Integer)
@@ -176,7 +226,7 @@ Public Class SerialMiddleMachineClient
             End If
             plan.ExecutionOrder.Add(channel)
         Next
-        ConfigurePlan(plan, True)
+        ConfigurePlan(plan, CUShort(3))
     End Sub
 
     Public Sub ConfigureChannelList(channelNumbers As IList(Of Integer))
@@ -190,7 +240,7 @@ Public Class SerialMiddleMachineClient
             End If
             plan.ExecutionOrder.Add(channel)
         Next
-        ConfigurePlan(plan, True)
+        ConfigurePlan(plan, CUShort(3))
     End Sub
 
     Public Sub ConfigureTwoRanges(firstStartChannel As Integer,
@@ -208,16 +258,16 @@ Public Class SerialMiddleMachineClient
             plan.G2PhysicalChannels.Add(localChannel + 128)
             plan.ExecutionOrder.Add(localChannel + 128)
         Next
-        ConfigurePlan(plan, True)
+        ConfigurePlan(plan, CUShort(3))
     End Sub
 
-    Public Function RunSingleRange(startChannel As Integer, endChannel As Integer, Optional timeoutMs As Integer = DefaultTimeoutMs) As UShort
+    Public Function RunSingleRange(startChannel As Integer, endChannel As Integer, Optional timeoutMs As Integer = DefaultTestTimeoutMs) As UShort
         ConfigureSingleRange(startChannel, endChannel)
         StartTest()
         Return WaitForCompletion(timeoutMs)
     End Function
 
-    Public Function RunChannelList(channelNumbers As IList(Of Integer), Optional timeoutMs As Integer = DefaultTimeoutMs) As UShort
+    Public Function RunChannelList(channelNumbers As IList(Of Integer), Optional timeoutMs As Integer = DefaultTestTimeoutMs) As UShort
         ConfigureChannelList(channelNumbers)
         StartTest()
         Return WaitForCompletion(timeoutMs)
@@ -227,7 +277,7 @@ Public Class SerialMiddleMachineClient
                                  firstEndChannel As Integer,
                                  secondStartChannel As Integer,
                                  secondEndChannel As Integer,
-                                 Optional timeoutMs As Integer = DefaultTimeoutMs) As UShort
+                                 Optional timeoutMs As Integer = DefaultTestTimeoutMs) As UShort
         ConfigureTwoRanges(firstStartChannel, firstEndChannel, secondStartChannel, secondEndChannel)
         StartTest()
         Return WaitForCompletion(timeoutMs)
@@ -242,21 +292,38 @@ Public Class SerialMiddleMachineClient
     End Sub
 
     Private Sub WriteRegister(address As UShort, value As UShort, verifyWriteStatus As Boolean)
-        EnsureOpen()
         Dim request As Byte() = BuildWriteFrame(address, value)
-        serialPort.DiscardInBuffer()
-        LogMessage(String.Format("TX WRITE 0x{0:X4}=0x{1:X4}: {2}", address, value, BytesToHex(request)))
-        serialPort.Write(request, 0, request.Length)
+        Dim lastException As Exception = Nothing
+        For attempt As Integer = 1 To WriteRetryCount
+            Try
+                EnsureOpen()
+                serialPort.DiscardInBuffer()
+                TraceMessage(String.Format("TX WRITE 0x{0:X4}=0x{1:X4} attempt={2}/{3}: {4}", address, value, attempt, WriteRetryCount, BytesToHex(request)))
+                serialPort.Write(request, 0, request.Length)
 
-        Dim echo As Byte() = ReadSpecificResponse(CommandWrite, 8, DefaultTimeoutMs)
-        LogMessage("RX WRITE ECHO: " & BytesToHex(echo))
-        If Not BytesEqual(request, echo) Then
-            Throw New InvalidOperationException("Middle machine write echo mismatch.")
-        End If
+                Dim echo As Byte() = ReadSpecificResponse(CommandWrite, 8, WriteResponseTimeoutMs)
+                If echo Is Nothing Then
+                    TraceMessage(String.Format("RX WRITE TIMEOUT 0x{0:X4}=0x{1:X4} attempt={2}", address, value, attempt))
+                    Throw New TimeoutException(String.Format("Middle machine write response timeout: 0x{0:X4}=0x{1:X4}.", address, value))
+                End If
+                TraceMessage("RX WRITE ECHO: " & BytesToHex(echo))
+                If Not BytesEqual(request, echo) Then
+                    Throw New InvalidOperationException(String.Format("Middle machine write echo mismatch: 0x{0:X4}=0x{1:X4}.", address, value))
+                End If
 
-        If verifyWriteStatus Then
-            VerifyLastWriteStatus(address)
-        End If
+                If verifyWriteStatus Then
+                    VerifyLastWriteStatus(address)
+                End If
+                Return
+            Catch ex As Exception
+                lastException = ex
+                If attempt < WriteRetryCount Then
+                    TraceMessage(String.Format("WRITE retry scheduled 0x{0:X4}=0x{1:X4} after: {2}", address, value, ex.Message))
+                    Thread.Sleep(WriteRetryDelayMs)
+                End If
+            End Try
+        Next
+        Throw lastException
     End Sub
 
     Public Function ReadWriteStatusRegisters() As UShort()
@@ -280,7 +347,20 @@ Public Class SerialMiddleMachineClient
         Return ReadRegisters(RegBasicStatusStart, RegBasicStatusCount)
     End Function
 
-    Public Function ReadRegisters(startAddress As UShort, count As UShort) As UShort()
+    ''' <summary>
+    ''' 通过只读状态寄存器确认控制板正在响应 AA 协议。
+    ''' </summary>
+    Public Function CheckConnection(Optional timeoutMs As Integer = 3000) As Boolean
+        Try
+            Dim values As UShort() = ReadRegisters(RegBasicStatusStart, RegBasicStatusCount, timeoutMs)
+            Return values IsNot Nothing AndAlso values.Length = RegBasicStatusCount
+        Catch ex As Exception
+            TraceMessage("CheckConnection failed: " & ex.Message)
+            Return False
+        End Try
+    End Function
+
+    Public Function ReadRegisters(startAddress As UShort, count As UShort, Optional timeoutMs As Integer = DefaultTimeoutMs) As UShort()
         If count = 0 OrElse count > 24 Then
             Throw New ArgumentOutOfRangeException("count")
         End If
@@ -288,12 +368,13 @@ Public Class SerialMiddleMachineClient
         EnsureOpen()
         Dim request As Byte() = BuildReadFrame(startAddress, count)
         serialPort.DiscardInBuffer()
-        LogMessage(String.Format("TX READ 0x{0:X4}, count={1}: {2}", startAddress, count, BytesToHex(request)))
+        TraceMessage(String.Format("TX READ 0x{0:X4}, count={1}: {2}", startAddress, count, BytesToHex(request)))
         serialPort.Write(request, 0, request.Length)
 
         Dim responseLength As Integer = 3 + count * 2 + 2
-        Dim response As Byte() = ReadSpecificResponse(CommandRead, responseLength, DefaultTimeoutMs)
-        LogMessage("RX READ: " & BytesToHex(response))
+        Dim response As Byte() = ReadSpecificResponse(CommandRead, responseLength, timeoutMs)
+        If response Is Nothing Then TraceMessage(String.Format("RX READ TIMEOUT 0x{0:X4}, count={1}", startAddress, count))
+        TraceMessage("RX READ: " & BytesToHex(response))
         If response Is Nothing Then
             Throw New TimeoutException("Timed out reading middle machine registers.")
         End If
@@ -305,7 +386,7 @@ Public Class SerialMiddleMachineClient
         For i As Integer = 0 To count - 1
             values(i) = CUShort((CUShort(response(3 + i * 2)) << 8) Or response(4 + i * 2))
         Next
-        LogMessage(String.Format("READ VALUES 0x{0:X4}, count={1}: {2}", startAddress, count, RegistersToHex(values)))
+        TraceMessage(String.Format("READ VALUES 0x{0:X4}, count={1}: {2}", startAddress, count, RegistersToHex(values)))
         Return values
     End Function
 
@@ -315,17 +396,17 @@ Public Class SerialMiddleMachineClient
             Dim remaining As Integer = CInt(Math.Max(1, (deadline - DateTime.Now).TotalMilliseconds))
             Dim frame As Byte() = ReadSpecificResponse(CommandEvent, 8, Math.Min(remaining, 1000))
             If frame IsNot Nothing Then
-                LogMessage("RX EVENT: " & BytesToHex(frame))
+                TraceMessage("RX EVENT: " & BytesToHex(frame))
                 Dim registerAddress As UShort = CUShort((CUShort(frame(2)) << 8) Or frame(3))
                 Dim status As UShort = CUShort((CUShort(frame(4)) << 8) Or frame(5))
                 If registerAddress = StatusEventRegister Then
                     If status = StatusCompleted Then
                         ReadBasicStatusRegisters()
-                        LogMessage("EVENT STATUS COMPLETED 0x0006")
+                        TraceMessage("EVENT STATUS COMPLETED 0x0006")
                         Return status
                     End If
                     If status = StatusError Then
-                        LogMessage("EVENT STATUS ERROR 0x0064")
+                        TraceMessage("EVENT STATUS ERROR 0x0064")
                         Try
                             StopAndClearLists()
                         Catch
@@ -341,6 +422,7 @@ Public Class SerialMiddleMachineClient
             StopAndClearLists()
         Catch
         End Try
+        TraceMessage("RX EVENT TIMEOUT")
         Throw New TimeoutException("Timed out waiting for middle machine test completion.")
     End Function
 
@@ -351,7 +433,7 @@ Public Class SerialMiddleMachineClient
 
         Dim hasG1 As Boolean = plan.G1PhysicalChannels IsNot Nothing AndAlso plan.G1PhysicalChannels.Count > 0
         Dim hasG2 As Boolean = plan.G2PhysicalChannels IsNot Nothing AndAlso plan.G2PhysicalChannels.Count > 0
-        Dim mode As String = If(hasG1 AndAlso Not hasG2, "sync", "independent")
+        Dim mode As String = If(IsSynchronizedPlan(plan), "sync", "independent")
         Dim parts As New List(Of String)()
         parts.Add("mode=" & mode)
         parts.Add("count=" & If(plan.ExecutionOrder Is Nothing, 0, plan.ExecutionOrder.Count).ToString())
@@ -453,24 +535,24 @@ Public Class SerialMiddleMachineClient
         End If
     End Sub
 
-    Private Sub VerifyPlan(plan As MiddleMachineChannelPlan, stableSpeed As Boolean)
+    Private Sub VerifyPlan(plan As MiddleMachineChannelPlan, speedValue As UShort)
         Dim basic As UShort() = ReadRegisters(RegG1Start, 8)
         Dim advanced As UShort() = ReadRegisters(RegG1PlanMode, 13)
 
         Dim hasG1 As Boolean = plan.G1PhysicalChannels IsNot Nothing AndAlso plan.G1PhysicalChannels.Count > 0
         Dim hasG2 As Boolean = plan.G2PhysicalChannels IsNot Nothing AndAlso plan.G2PhysicalChannels.Count > 0
 
-        ExpectRegister(advanced, RegG1PlanMode, RegSyncMode, If(hasG1 AndAlso Not hasG2, CUShort(0), CUShort(1)))
-        ExpectRegister(basic, RegG1Start, RegTwoPass, &H0)
-        ExpectRegister(advanced, RegG1PlanMode, RegMeasureItems, &HF)
-        ExpectRegister(basic, RegG1Start, RegSpeed, If(stableSpeed, CUShort(1), CUShort(0)))
+        ExpectRegister(advanced, RegG1PlanMode, RegSyncMode, If(IsSynchronizedPlan(plan), CUShort(0), CUShort(1)))
+        ExpectRegister(basic, RegG1Start, RegSpeed, speedValue)
+        ExpectRegister(advanced, RegG1PlanMode, RegGroupEnable, GetGroupEnableValue(hasG1, hasG2))
 
         If hasG1 Then
             VerifyGroup(plan.G1PhysicalChannels, False, basic, advanced)
         End If
-        If hasG2 Then
+        If hasG2 AndAlso Not IsSynchronizedPlan(plan) Then
             VerifyGroup(ToG2LocalChannels(plan.G2PhysicalChannels), True, basic, advanced)
-            ExpectRegister(advanced, RegG1PlanMode, RegGroupEnable, GetGroupEnableValue(hasG1, hasG2))
+        ElseIf hasG2 Then
+            VerifyGroup(ToG2LocalChannels(plan.G2PhysicalChannels), True, basic, advanced)
         End If
     End Sub
 
@@ -507,6 +589,28 @@ Public Class SerialMiddleMachineClient
             Throw New InvalidOperationException(String.Format("Middle machine register 0x{0:X4} expected 0x{1:X4}, actual 0x{2:X4}.", address, expectedValue, values(offset)))
         End If
     End Sub
+
+    Private Shared Function IsSynchronizedPlan(plan As MiddleMachineChannelPlan) As Boolean
+        If plan Is Nothing Then Return False
+
+        Dim hasG1 As Boolean = plan.G1PhysicalChannels IsNot Nothing AndAlso plan.G1PhysicalChannels.Count > 0
+        Dim hasG2 As Boolean = plan.G2PhysicalChannels IsNot Nothing AndAlso plan.G2PhysicalChannels.Count > 0
+        If hasG1 AndAlso Not hasG2 Then Return True
+        If Not hasG1 OrElse Not hasG2 Then Return False
+
+        Dim g1 As New List(Of Integer)(plan.G1PhysicalChannels)
+        Dim g2 As List(Of Integer) = ToG2LocalChannels(plan.G2PhysicalChannels)
+        g1.Sort()
+        g2.Sort()
+        If Not IsContinuous(g1) OrElse Not IsContinuous(g2) OrElse g1.Count <> g2.Count Then
+            Return False
+        End If
+
+        For i As Integer = 0 To g1.Count - 1
+            If g1(i) <> g2(i) Then Return False
+        Next
+        Return True
+    End Function
 
     Private Shared Function GetGroupEnableValue(hasG1 As Boolean, hasG2 As Boolean) As UShort
         If hasG1 AndAlso hasG2 Then

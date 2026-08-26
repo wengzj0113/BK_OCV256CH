@@ -9,7 +9,7 @@ Public Class ChannelCalibrationResult
 End Class
 
 Public Class ChannelCalibrationRunner
-    Private Const MiddleMachineTimeoutMs As Integer = 30000
+    Private Const MiddleMachineTimeoutMs As Integer = 300000
 
     Private ReadOnly service As CalibrationService
     Private middleMachineClient As SerialMiddleMachineClient
@@ -44,6 +44,8 @@ Public Class ChannelCalibrationRunner
         Catch ex As Exception
             result.Success = False
             result.Message = ex.Message
+        Finally
+            ResetEnvironment()
         End Try
 
         Return result
@@ -54,34 +56,38 @@ Public Class ChannelCalibrationRunner
             Throw New InvalidOperationException("No channels selected.")
         End If
 
-        Dim plan As MiddleMachineChannelPlan = BuildChannelPlan(channelIndexes0)
-        GetMiddleMachineClient().RunPlan(plan, MiddleMachineTimeoutMs)
+        Try
+            Dim plan As MiddleMachineChannelPlan = BuildChannelPlan(channelIndexes0)
+            GetMiddleMachineClient().RunPlan(plan, MiddleMachineTimeoutMs)
 
-        Dim voltages As List(Of Single) = Nothing
-        Dim resistances As List(Of Single) = Nothing
-        Dim readFlag As Integer = Trans_ReadCachedData_3562(plan.ExecutionOrder.Count, voltages, resistances)
-        If readFlag <> 0 OrElse resistances Is Nothing OrElse resistances.Count < plan.ExecutionOrder.Count Then
-            Throw New InvalidOperationException("Read cached 3562 resistance data failed.")
-        End If
+            Dim voltages As List(Of Single) = Nothing
+            Dim resistances As List(Of Single) = Nothing
+            Dim readFlag As Integer = Trans_ReadCachedData_3562(plan.ExecutionOrder.Count, voltages, resistances)
+            If readFlag <> 0 OrElse resistances Is Nothing OrElse resistances.Count < plan.ExecutionOrder.Count Then
+                Throw New InvalidOperationException("Read cached 3562 resistance data failed.")
+            End If
 
-        Dim results As New List(Of ChannelCalibrationResult)()
-        For i As Integer = 0 To plan.ExecutionOrder.Count - 1
-            Dim channelIndex0 As Integer = plan.ExecutionOrder(i) - 1
-            Dim measuredResistance As Double = resistances(i)
-            Dim compensation As Double = service.CalculateCompensation(standardResistance, measuredResistance)
-            service.SetGlobalValue(channelIndex0, compensation)
-            results.Add(New ChannelCalibrationResult With {
-                .ChannelIndex0 = channelIndex0,
-                .MeasuredResistance = measuredResistance,
-                .StandardResistance = standardResistance,
-                .Compensation = compensation,
-                .Success = True,
-                .Message = "Calibration completed.",
-                .CalibratedAt = DateTime.Now
-            })
-        Next
+            Dim results As New List(Of ChannelCalibrationResult)()
+            For i As Integer = 0 To plan.ExecutionOrder.Count - 1
+                Dim channelIndex0 As Integer = plan.ExecutionOrder(i) - 1
+                Dim measuredResistance As Double = resistances(i)
+                Dim compensation As Double = service.CalculateCompensation(standardResistance, measuredResistance)
+                service.SetGlobalValue(channelIndex0, compensation)
+                results.Add(New ChannelCalibrationResult With {
+                    .ChannelIndex0 = channelIndex0,
+                    .MeasuredResistance = measuredResistance,
+                    .StandardResistance = standardResistance,
+                    .Compensation = compensation,
+                    .Success = True,
+                    .Message = "Calibration completed.",
+                    .CalibratedAt = DateTime.Now
+                })
+            Next
 
-        Return results
+            Return results
+        Finally
+            ResetEnvironment()
+        End Try
     End Function
 
     Public Sub CloseFixture()
@@ -91,7 +97,14 @@ Public Class ChannelCalibrationRunner
     End Sub
 
     Public Sub StopCurrentCalibration()
-        GetMiddleMachineClient().StopTest()
+        If middleMachineClient Is Nothing Then
+            middleMachineClient = GetMiddleMachineClient()
+        End If
+        ResetEnvironment()
+    End Sub
+
+    Private Sub ResetEnvironment()
+        TestEnvironmentResetService.ResetAll(middleMachineClient)
     End Sub
 
     Private Function GetMiddleMachineClient() As SerialMiddleMachineClient

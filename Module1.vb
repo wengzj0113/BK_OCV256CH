@@ -1,6 +1,5 @@
 Imports System.IO.Ports
 Imports System.Threading.Thread
-Imports System.Data.SqlClient
 Imports System.Net.Sockets
 Imports System.Net
 Imports System.Threading
@@ -19,14 +18,17 @@ Module Module1
     Public Com_3561 As SerialPort
     Public Com_scaner As SerialPort
     Public Com_IOCard As SerialPort
+    Public plcController As IPlcController
+    Public plcConnected As Boolean = False
     Public Const MAX_CHANNEL = 256
     Public CommunicationCounts As Integer
     Public FirstCom As Boolean
     Public blnOnLine As Boolean   '设备是否联机正常
+    Public controlBoardConnected As Boolean = False   '控制板串口已完成协议握手
+    Public databaseConnected As Boolean = False   'OCV_DATA 数据库连接状态
     Public RecieveData(MAX_CHANNEL - 1) As Bat_info
     Public Const intRow As Int16 = 16
     Public Const intCol As Int16 = 16
-    Public myConnection As New SqlConnection '定义一个SQL链接
     Public g_objLv As Dictionary(Of String, String)
     Public g_objCN As Dictionary(Of String, String)
     Public Data As DataCh() '每一个电池得信息
@@ -37,6 +39,7 @@ Module Module1
     Public ReturnValue34461 As String '接收仪表返回的读数值
     Dim ResourcePort As New Ivi.Visa.Interop.ResourceManager
     Dim visaSession As Ivi.Visa.Interop.FormattedIO488 = Nothing
+    Private Const VisaInstrumentIoTimeoutMs As Integer = 3000
     Public bytes_IODI As Byte() = {&H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0}
     Public bytes_IODO As Byte() = {&H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0}
     Public CalibrateR As Single = 0 '初始化内阻测试机校准值为0
@@ -59,10 +62,6 @@ Module Module1
     Public trayCodeSet As String
     Public processNumSet As String
     Public operatorName As String
-    '智能电表
-    Public master As IModbusSerialMaster
-    Public eMMconnected As Boolean
-    Public totalEnergyOfEmm As Long
 
     'Public Probelifespan As Integer '探针的可使用次数 初始值30000
     'Public ProbeUsedCount As Integer '探针已经使用的次数 初始值 0
@@ -86,10 +85,6 @@ Module Module1
         'IO控制卡参数  weng 20230514修改
         Dim IOPort As Integer
         Dim IORate As Integer
-
-        '智能电表参数  weng 20240718修改
-        Dim EmmPort As Integer
-        Dim EmmRate As Integer
 
         '数字万用表IP地址参数  weng 20230518修改
         Dim IpAddOf34461 As String
@@ -144,6 +139,15 @@ Module Module1
         '中位机串口参数
         Dim SCMComPort As Integer
         Dim SCMComRate As Integer
+        'PLC 独立通讯参数：0=Modbus RTU，1=Modbus TCP
+        Dim PLCMode As Integer
+        Dim PLCIP As String
+        Dim PLCTcpPort As Integer
+        Dim PLCComPort As Integer
+        Dim PLCComRate As Integer
+        'NG复测3562串口参数
+        Dim Retest3562Port As Integer
+        Dim Retest3562Rate As Integer
 
     End Structure
     Public Structure Bat_struct
@@ -186,6 +190,9 @@ Module Module1
             'frmTest.ResNgTxt = "内阻超出合格范围。"
         End If
     End Function
+    ' IO 板由控制板内部控制。保留历史函数实现仅用于源码兼容参考，编译时不启用，
+    ' 防止上位机继续打开、读写与控制板共用的 COM12。
+#If False Then
     ''' <summary>
     ''' 控制气缸 参数 OPType=1,压紧亮灯 OPType=2,松开灭灯,切换边电压的继电器松开Y5=0
     ''' </summary>
@@ -443,6 +450,38 @@ Module Module1
     End Function
 
     '***************************************************************
+#End If
+
+    ''' <summary>
+    ''' IO 板动作由控制板执行，上位机不再直接发送 IO 协议。
+    ''' 保留历史入口，避免旧调用方改变，但不访问任何串口。
+    ''' </summary>
+    Public Function IOCardSetOperation(ByVal OPType As Integer) As String
+        System.Diagnostics.Debug.WriteLine("IO板动作已旁路，由控制板执行。Operation=" & OPType.ToString())
+        Return "BYPASSED"
+    End Function
+
+    Public Function IOCardSetAcirOrOcv(ByVal OPType As String) As String
+        System.Diagnostics.Debug.WriteLine("IO板模式切换已旁路，由控制板执行。Mode=" & OPType)
+        Return "BYPASSED"
+    End Function
+
+    Public Function IOCardSetCh(ByVal channel As Byte, ByVal WorkStatus As Byte) As String
+        System.Diagnostics.Debug.WriteLine("IO板通道动作已旁路，由控制板执行。Channel=" & channel.ToString() & ", Status=" & WorkStatus.ToString())
+        Return "BYPASSED"
+    End Function
+
+    Public Function IOCard_ReadDoDi(dataType As String) As String
+        System.Diagnostics.Debug.WriteLine("IO板DI/DO读取已旁路，由控制板执行。Type=" & dataType)
+        Return "BYPASSED"
+    End Function
+
+    Public Function IOCard_ReadDi() As String
+        System.Diagnostics.Debug.WriteLine("IO板DI读取已旁路，由控制板执行。")
+        Return "BYPASSED"
+    End Function
+
+    '***************************************************************
     Public Function Communication(ByVal Buffer() As Byte, ByVal intCount As Int16) As Short
         '通讯失败返回-1;托盘未放好-2 ；接收数据错误-3;托盘闭合1；托盘开启2communicatio
         Dim sendBuf() As Byte
@@ -627,15 +666,12 @@ Loop_Begin:
     End Sub
 
     Public Sub main()
-        'R2-17 修复登录后程序终止:登录窗用 ShowDialog (模态,关闭不影响消息循环),
-        '登录成功后再 Application.Run 主窗 MDIForm,由主窗关闭决定程序退出
-        Dim login As New FrmLoginNew()
-        If login.ShowDialog() = DialogResult.OK Then
-            Dim mainWindow As New MDIForm()
-            mainWindow.operTypeNum = login.OperTypeNum
-            MainwindowsShowAsync(mainWindow)
-            Application.Run(mainWindow)
-        End If
+        '启动直接进入主窗体;登录作为一级菜单操作,默认使用 Admin 身份。
+        operatorName = "Admin"
+        Dim mainWindow As New MDIForm()
+        mainWindow.operTypeNum = 1
+        MainwindowsShowAsync(mainWindow)
+        Application.Run(mainWindow)
     End Sub
 
     Public Function MainwindowsShow(ByVal frmMDI1 As MDIForm) As Short
@@ -663,43 +699,48 @@ Loop_Begin:
         frmMDI.status_com.Text = "中位机: 检测中..."
         frmMDI.status_34461.Text = "万用表: 检测中..."
         frmMDI.status_3561.Text = "内阻仪: 检测中..."
+        frmMDI.status_IOcom.Text = "PLC: 检测中..."
         frmMDI.StatusMes.Text = "MES: 检测中..."
 
         Dim reflag_SCM As Short = 0
         Dim reflag_34461 As Short = 0
         Dim reflag_3561 As Short = 0
+        Dim reflag_PLC As Short = 0
         Dim reflag_MES As Short = 0
         Dim obj_frmInit As frmInit = Nothing
 
         System.Threading.ThreadPool.QueueUserWorkItem(Sub()
-            Try
-                reflag_SCM = CheckCom_SCM()
-                reflag_34461 = CheckCom_34461()
-                reflag_3561 = CheckCom_3561()
-                reflag_MES = CheckTcp_MES()
-            Catch ex As Exception
-                System.Diagnostics.Debug.WriteLine("MainwindowsShowAsync 后台异常: " & ex.Message)
-            End Try
+                                                          Try
+                                                              reflag_SCM = CheckCom_SCM()
+                                                              reflag_34461 = CheckCom_34461()
+                                                              reflag_3561 = CheckCom_3561()
+                                                              reflag_PLC = CheckPlc()
+                                                              reflag_MES = CheckTcp_MES()
+                                                          Catch ex As Exception
+                                                              System.Diagnostics.Debug.WriteLine("MainwindowsShowAsync 后台异常: " & ex.Message)
+                                                          End Try
 
-            Try
-                frmMDI1.BeginInvoke(New Action(Sub()
-                    ApplyCheckResultsToUi(frmMDI1, reflag_SCM, reflag_34461, reflag_3561, reflag_MES)
-                End Sub))
-            Catch ex As Exception
-                System.Diagnostics.Debug.WriteLine("BeginInvoke 失败: " & ex.Message)
-            End Try
-        End Sub)
+                                                          Try
+                                                              frmMDI1.BeginInvoke(New Action(Sub()
+                                                                                                 ApplyCheckResultsToUi(frmMDI1, reflag_SCM, reflag_34461, reflag_3561, reflag_PLC, reflag_MES)
+                                                                                             End Sub))
+                                                          Catch ex As Exception
+                                                              System.Diagnostics.Debug.WriteLine("BeginInvoke 失败: " & ex.Message)
+                                                          End Try
+                                                      End Sub)
     End Sub
 
     'R2-17 后台回调:在主线程统一更新状态栏,失败时汇总弹一个 MessageBox
     Private Sub ApplyCheckResultsToUi(ByVal frmMDI1 As MDIForm,
                                      ByVal reflag_SCM As Short,
-                                     ByVal reflag_34461 As Short,
-                                     ByVal reflag_3561 As Short,
-                                     ByVal reflag_MES As Short)
+                                      ByVal reflag_34461 As Short,
+                                      ByVal reflag_3561 As Short,
+                                      ByVal reflag_PLC As Short,
+                                      ByVal reflag_MES As Short)
         If frmMDI1 Is Nothing OrElse frmMDI1.IsDisposed Then Return
 
         '1、中位机
+        controlBoardConnected = (reflag_SCM = 1)
         If reflag_SCM = -1 Then
             frmMDI1.status_com.Text = "单片机端口不可用!" & Space(2)
             blnOnLine = False
@@ -735,6 +776,15 @@ Loop_Begin:
             End If
         End If
 
+        'PLC
+        plcConnected = (reflag_PLC = 1)
+        If plcConnected Then
+            frmMDI1.status_IOcom.Text = "PLC连接正常!"
+        Else
+            frmMDI1.status_IOcom.Text = "PLC连接异常！"
+            blnOnLine = False
+        End If
+
         '6、MES
         If reflag_MES = -1 Then
             frmMDI1.StatusMes.Text = "MES连接异常！"
@@ -748,6 +798,7 @@ Loop_Begin:
         If reflag_SCM = -1 Then failed.Add("中位机(SCM)")
         If reflag_34461 = -1 Then failed.Add("数字万用表(34461)")
         If reflag_3561 = -1 Then failed.Add("内阻仪(3561)")
+        If reflag_PLC = -1 Then failed.Add("PLC")
         If reflag_MES = -1 Then failed.Add("MES")
 
         If failed.Count > 0 Then
@@ -755,7 +806,25 @@ Loop_Begin:
                                 String.Join(vbCrLf, failed.ConvertAll(Function(s) "  • " & s).ToArray())
             MessageBox.Show(frmMDI1, msg, "设备连接检查", MessageBoxButtons.OK, MessageBoxIcon.Warning)
         End If
+
+        '底部状态栏使用统一的最终检查结果，避免仍显示旧 TCP mSock 状态。
+        frmMDI1.UpdateBottomStatusForDeviceCheck()
     End Sub
+
+    Public Function CheckPlc() As Short
+        plcConnected = False
+        Try
+            If plcController IsNot Nothing Then plcController.Disconnect()
+            plcController = PlcControllerFactory.Create(Initsetting)
+            If plcController Is Nothing OrElse Not plcController.Connect() Then Return -1
+            plcConnected = True
+            Return 1
+        Catch ex As Exception
+            System.Diagnostics.Debug.WriteLine("CheckPlc failed: " & ex.Message)
+            Return -1
+        End Try
+    End Function
+
     Private Function ConnectTCP1(ByVal mSocket As Socket, ByVal ipe As IPEndPoint) As String
         Try
             Dim connResult As IAsyncResult = mSocket.BeginConnect(ipe, Nothing, Nothing)
@@ -791,17 +860,21 @@ Loop_Begin:
     ''' </summary>
     ''' <returns>1 = 可达，-1 = 不可达</returns>
     Public Function CheckTcp_MES() As Short
-        Dim mesHost As String = "127.0.0.1"
+        Dim mesUrl As String = If(String.IsNullOrWhiteSpace(Initsetting.MesApiAddress),
+                                  "http://127.0.0.1/api/save",
+                                  Initsetting.MesApiAddress.Trim())
         Try
-            Using ping As New System.Net.NetworkInformation.Ping()
-                Dim reply As System.Net.NetworkInformation.PingReply = ping.Send(mesHost, 1000)
-                If reply.Status = System.Net.NetworkInformation.IPStatus.Success Then
-                    CheckTcp_MES = 1
-                Else
-                    CheckTcp_MES = -1
-                End If
+            Dim request As HttpWebRequest = CType(WebRequest.Create(mesUrl), HttpWebRequest)
+            request.Method = "GET"
+            request.Timeout = 3000
+            request.ReadWriteTimeout = 3000
+            Using response As HttpWebResponse = CType(request.GetResponse(), HttpWebResponse)
+                CheckTcp_MES = If(CInt(response.StatusCode) < 400, CType(1, Short), CType(-1, Short))
             End Using
-        Catch
+        Catch ex As WebException
+            'HTTP 4xx/5xx 说明服务可达,但接口不可用,不能显示为 MES 已连接。
+            CheckTcp_MES = -1
+        Catch ex As Exception
             CheckTcp_MES = -1
         End Try
         Return CheckTcp_MES
@@ -855,6 +928,7 @@ Loop_Begin:
         End With
     End Function
     Public Function CheckCom_SCM() As Short
+        controlBoardConnected = False
         Try
             Com_SCM = frmMDI.Com_SCM
             With frmMDI.Com_SCM
@@ -870,8 +944,21 @@ Loop_Begin:
                 .WriteTimeout = 1000
                 .Open()
             End With
+
+            '仅打开 COM 口不能证明控制板存在；发送只读状态寄存器请求并校验协议帧/CRC。
+            Dim client As New SerialMiddleMachineClient(frmMDI.Com_SCM)
+            If Not client.CheckConnection(3000) Then
+                Throw New System.IO.IOException("控制板未返回有效协议帧")
+            End If
             Return 1
         Catch ex As Exception
+            Try
+                If frmMDI IsNot Nothing AndAlso frmMDI.Com_SCM IsNot Nothing AndAlso frmMDI.Com_SCM.IsOpen Then
+                    frmMDI.Com_SCM.Close()
+                End If
+            Catch closeEx As Exception
+                System.Diagnostics.Debug.WriteLine("CheckCom_SCM close failed: " & closeEx.Message)
+            End Try
             'R2-17:启动期不再用 MsgBox 阻塞 (异常消息写到日志,UI 通过 frmMDI.status_* 显示)
             System.Diagnostics.Debug.WriteLine("CheckCom_SCM failed: " & ex.Message)
             Return -1
@@ -993,14 +1080,14 @@ Loop_Begin:
         BW.Write(Initsetting.ScanerPort)
         BW.Write(Initsetting.ScanerRate)
 
-        BW.Write(Initsetting.SCMIpAdd)
+        BW.Write(If(Initsetting.SCMIpAdd, String.Empty))
         BW.Write(Initsetting.SCM_port)
 
         BW.Write(Initsetting.IOPort)
         BW.Write(Initsetting.IORate)
 
-        BW.Write(Initsetting.ComRateMode)
-        BW.Write(Initsetting.IpAddOf34461)
+        BW.Write(If(Initsetting.ComRateMode, String.Empty))
+        BW.Write(If(Initsetting.IpAddOf34461, String.Empty))
 
         BW.Write(Initsetting.Recom)
         BW.Write(Initsetting.ReRate)
@@ -1014,38 +1101,47 @@ Loop_Begin:
         BW.Write(Initsetting.downVoltage)
         '数据库
         BW.Write(Initsetting.chkDatabase)
-        BW.Write(Initsetting.strDatabase)
+        BW.Write(If(Initsetting.strDatabase, String.Empty))
         '文件路径
-        BW.Write(Initsetting.sPath)
+        BW.Write(If(Initsetting.sPath, String.Empty))
         '电压B值；内阻B值
         BW.Write(Initsetting.sngV_B)
         BW.Write(Initsetting.sngR_B)
         BW.Write(Initsetting.txtCodeLenth)
         'DataBase UserID and Password
-        BW.Write(Initsetting.strUserID)
-        BW.Write(Initsetting.strpwd)
-        BW.Write(Initsetting.delayTime)
+        BW.Write(If(Initsetting.strUserID, String.Empty))
+        BW.Write(If(Initsetting.strpwd, String.Empty))
+        BW.Write(If(Initsetting.delayTime, String.Empty))
         '探针数据
         BW.Write(Initsetting.Probelifespan)
         BW.Write(Initsetting.ProbeUsedCount)
         '用户管理
-        BW.Write(Initsetting.PsdOfAdmin)
-        BW.Write(Initsetting.PsdOfOper)
-        BW.Write(Initsetting.PsdOfGuest)
+        BW.Write(If(Initsetting.PsdOfAdmin, String.Empty))
+        BW.Write(If(Initsetting.PsdOfOper, String.Empty))
+        BW.Write(If(Initsetting.PsdOfGuest, String.Empty))
         'MES api 地址
-        BW.Write(Initsetting.MesApiAddress)
+        BW.Write(If(Initsetting.MesApiAddress, String.Empty))
         '校准模块阻值
         BW.Write(Initsetting.cailibrateModelValue)
         '超温报警
         BW.Write(Initsetting.overTemperateValue)
-        '智能电表
-        BW.Write(Initsetting.EmmPort)
-        BW.Write(Initsetting.EmmRate)
+        '保留旧智能电表字段占位，确保旧 Initset.set 的二进制布局兼容；运行时不再使用。
+        BW.Write(0)
+        BW.Write(0)
         '工作站选择
         BW.Write(Initsetting.stationSelect)
         '中位机串口参数
         BW.Write(Initsetting.SCMComPort)
         BW.Write(Initsetting.SCMComRate)
+        'PLC 独立通讯参数
+        BW.Write(Initsetting.PLCMode)
+        BW.Write(If(Initsetting.PLCIP, String.Empty))
+        BW.Write(Initsetting.PLCTcpPort)
+        BW.Write(Initsetting.PLCComPort)
+        BW.Write(Initsetting.PLCComRate)
+        'NG复测3562串口参数（追加字段，兼容旧配置文件）
+        BW.Write(Initsetting.Retest3562Port)
+        BW.Write(Initsetting.Retest3562Rate)
 
         'close
         BW.Close()
@@ -1112,9 +1208,9 @@ Loop_Begin:
         Initsetting.cailibrateModelValue = BR.ReadSingle
         '超温报警
         Initsetting.overTemperateValue = BR.ReadInt32()
-        '智能电表
-        Initsetting.EmmPort = BR.ReadInt32()
-        Initsetting.EmmRate = BR.ReadInt32()
+        '跳过旧智能电表字段占位；智能电表已从运行代码中移除。
+        BR.ReadInt32()
+        BR.ReadInt32()
         '工作站选择
         Initsetting.stationSelect = BR.ReadInt32()
         '中位机串口参数，兼容旧 Initset.set
@@ -1127,6 +1223,41 @@ Loop_Begin:
             Initsetting.SCMComRate = BR.ReadInt32()
         Else
             Initsetting.SCMComRate = 115200
+        End If
+        If FS.Position < FS.Length Then
+            Initsetting.PLCMode = BR.ReadInt32()
+        Else
+            Initsetting.PLCMode = 0
+        End If
+        If FS.Position < FS.Length Then
+            Initsetting.PLCIP = BR.ReadString()
+        Else
+            Initsetting.PLCIP = String.Empty
+        End If
+        If FS.Position < FS.Length Then
+            Initsetting.PLCTcpPort = BR.ReadInt32()
+        Else
+            Initsetting.PLCTcpPort = 502
+        End If
+        If FS.Position < FS.Length Then
+            Initsetting.PLCComPort = BR.ReadInt32()
+        Else
+            Initsetting.PLCComPort = 0
+        End If
+        If FS.Position < FS.Length Then
+            Initsetting.PLCComRate = BR.ReadInt32()
+        Else
+            Initsetting.PLCComRate = 115200
+        End If
+        If FS.Position < FS.Length Then
+            Initsetting.Retest3562Port = BR.ReadInt32()
+        Else
+            Initsetting.Retest3562Port = 1
+        End If
+        If FS.Position < FS.Length Then
+            Initsetting.Retest3562Rate = BR.ReadInt32()
+        Else
+            Initsetting.Retest3562Rate = 9600
         End If
 exit_sub:
         BR.Close()
@@ -1421,6 +1552,28 @@ Loop_No:
         End Try
     End Sub
 
+    Public Sub ResetCachedData_3562()
+        Try
+            If Com_3561 Is Nothing OrElse Not Com_3561.IsOpen Then
+                SerialMiddleMachineClient.LogMessage("3562 reset skipped: port is not open")
+                Return
+            End If
+            SerialMiddleMachineClient.LogMessage("3562 reset start")
+            Com_3561.DiscardInBuffer()
+            Com_3561.DiscardOutBuffer()
+            Com_3561.WriteTimeout = 3000
+            Com_3561.Write("ABOR" & vbLf)
+            Com_3561.Write("INIT:CONT OFF" & vbLf)
+            Com_3561.Write("MEMory:CLEA" & vbLf)
+            Com_3561.Write(":SYST:LOC" & vbLf)
+            Com_3561.DiscardInBuffer()
+            Com_3561.DiscardOutBuffer()
+            SerialMiddleMachineClient.LogMessage("3562 reset completed")
+        Catch ex As Exception
+            SerialMiddleMachineClient.LogMessage("3562 reset exception: " & ex.Message)
+        End Try
+    End Sub
+
     Private Function HasEnough3562CacheData(text As String, expectedCount As Integer) As Boolean
         Return ExtractNumericValues(text).Count >= expectedCount * 2
     End Function
@@ -1459,18 +1612,23 @@ Loop_No:
             End If
 
             SerialMiddleMachineClient.LogMessage("34461 prepare cache, expectedCount=" & expectedCount.ToString())
+            SerialMiddleMachineClient.LogMessage("34461 SCPI prepare: IO.Clear; ABOR; CONF:VOLT:DC; SAMP:COUN 1; TRIG:COUN " & expectedCount.ToString() & "; TRIG:SOUR EXT; TRIG:SLOP POS; FORM:DATA ASCii; INIT")
             Try
                 visaSession.IO.Clear()
             Catch
             End Try
-            visaSession.IO.Timeout = Math.Max(10000, expectedCount * 1000)
+            '采用 INIT + FETC? 的分离式采集，避免 READ? 在触发未完成时长时间阻塞。
+            visaSession.IO.Timeout = 10000
             visaSession.WriteString("ABOR")
             visaSession.WriteString("CONF:VOLT:DC")
+            '每个中位机外部触发对应一个电压采样，全部读数写入 34461 reading memory。
+            visaSession.WriteString("SAMP:COUN 1")
             visaSession.WriteString("TRIG:COUN " & expectedCount.ToString())
             visaSession.WriteString("TRIG:SOUR EXT")
             visaSession.WriteString("TRIG:SLOP POS")
-            visaSession.WriteString("OUTP:TRIG:SLOP POS")
-            visaSession.WriteString("READ?")
+            visaSession.WriteString("FORM:DATA ASCii")
+            visaSession.WriteString("INIT")
+            SerialMiddleMachineClient.LogMessage("34461 acquisition initialized; waiting for external triggers.")
             Return 0
         Catch ex As Exception
             SerialMiddleMachineClient.LogMessage("34461 prepare exception: " & ex.Message)
@@ -1492,21 +1650,35 @@ Loop_No:
                 Return -1
             End If
 
-            SerialMiddleMachineClient.LogMessage("34461 cache read start, expectedCount=" & expectedCount.ToString())
-            Dim result As Object() = visaSession.ReadList(IEEEASCIIType.ASCIIType_Any)
-            If result Is Nothing OrElse result.Length < expectedCount Then
-                SerialMiddleMachineClient.LogMessage("34461 cache read failed: actualCount=" & If(result Is Nothing, 0, result.Length).ToString())
+            SerialMiddleMachineClient.LogMessage("34461 cache fetch start, expectedCount=" & expectedCount.ToString())
+            '中位机完成事件表示所有外部触发已经发出；FETC? 会等待仪表完成并一次性转移 reading memory。
+            visaSession.IO.Timeout = Math.Max(10000, expectedCount * 1000)
+            visaSession.WriteString("FETC?")
+            'ReadList 对不同 VISA 终止符格式的兼容性较差；先读取原始 ASCII 响应，再统一解析数值。
+            Dim rawResponse As String = visaSession.ReadString()
+            Dim values As List(Of Double) = ExtractNumericValues(rawResponse)
+            SerialMiddleMachineClient.LogMessage("34461 cache read rawLength=" & If(rawResponse, String.Empty).Length.ToString() & ", numericCount=" & values.Count.ToString())
+            If values.Count < expectedCount Then
+                SerialMiddleMachineClient.LogMessage("34461 cache read failed: actualCount=" & values.Count.ToString())
                 Return -1
             End If
 
             For i As Integer = 0 To expectedCount - 1
-                voltages.Add(CSng(Convert.ToDouble(result(i), System.Globalization.CultureInfo.InvariantCulture)))
+                voltages.Add(CSng(values(i)))
             Next
 
             SerialMiddleMachineClient.LogMessage("34461 cache read success, resultCount=" & voltages.Count.ToString())
             Return 0
         Catch ex As Exception
-            SerialMiddleMachineClient.LogMessage("34461 cache read exception: " & ex.Message)
+            Dim instrumentError As String = "未能读取仪表错误队列"
+            Try
+                visaSession.IO.Timeout = 1000
+                visaSession.WriteString("SYST:ERR?")
+                instrumentError = visaSession.ReadString()
+            Catch errorQueueException As Exception
+                instrumentError = "错误队列读取失败：" & errorQueueException.Message
+            End Try
+            SerialMiddleMachineClient.LogMessage("34461 cache read exception: " & ex.Message & "; SYST:ERR?=" & instrumentError)
             Return -1
         End Try
     End Function
@@ -1519,6 +1691,64 @@ Loop_No:
             End If
         Catch ex As Exception
             SerialMiddleMachineClient.LogMessage("34461 clear cache exception: " & ex.Message)
+        End Try
+    End Sub
+
+    Public Sub ResetCachedData_34461()
+        Try
+            If visaSession Is Nothing Then
+                SerialMiddleMachineClient.LogMessage("34461 reset skipped: session is not open")
+                Return
+            End If
+            SerialMiddleMachineClient.LogMessage("34461 reset start")
+            Try
+                '先清除 VISA 挂起的读写/触发状态，再发送 SCPI 中止命令。
+                '仪表处于外部触发等待时，直接 WriteString("ABOR") 可能被 VISA 阻塞。
+                visaSession.IO.Clear()
+            Catch ex As Exception
+                SerialMiddleMachineClient.LogMessage("34461 pre-clear failed: " & ex.Message)
+            End Try
+            Try
+                visaSession.WriteString("ABOR", True)
+            Catch ex As Exception
+                SerialMiddleMachineClient.LogMessage("34461 abort failed: " & ex.Message)
+            End Try
+            Try
+                visaSession.WriteString("*CLS", True)
+            Catch ex As Exception
+                SerialMiddleMachineClient.LogMessage("34461 clear status failed: " & ex.Message)
+            End Try
+            SerialMiddleMachineClient.LogMessage("34461 reset completed")
+        Catch ex As Exception
+            SerialMiddleMachineClient.LogMessage("34461 reset exception: " & ex.Message)
+        End Try
+    End Sub
+
+    Public Sub Close34461Session()
+        Try
+            If visaSession IsNot Nothing Then
+                Try
+                    visaSession.WriteString("ABOR")
+                Catch
+                End Try
+                Try
+                    visaSession.IO.Clear()
+                Catch
+                End Try
+                Try
+                    visaSession.IO.Close()
+                Catch
+                End Try
+                Try
+                    System.Runtime.InteropServices.Marshal.FinalReleaseComObject(visaSession)
+                Catch
+                End Try
+                visaSession = Nothing
+            End If
+        Catch ex As Exception
+            SerialMiddleMachineClient.LogMessage("34461 close exception: " & ex.Message)
+        Finally
+            ReFlag_34461 = -1
         End Try
     End Sub
 
@@ -1835,60 +2065,6 @@ Loop_No:
         GetBarCodeNum = start_num
     End Function
     ''' <summary>
-    ''' 读取智能电表的总电量
-    ''' </summary>
-    Public Function ReadEnergeriEMM3200() As Long
-        ' 配置串口参数M
-        Dim portName As String = "Com" & (Initsetting.EmmPort + 1).ToString
-        Dim serialPort As New SerialPort(portName)
-        'Dim totalEnergy As Long
-        serialPort.BaudRate = Initsetting.EmmRate
-        serialPort.Parity = Parity.Even
-        serialPort.DataBits = 8
-        serialPort.StopBits = StopBits.One
-        ' 使用本次调用的局部变量,避免异常路径返回全局 stale totalEnergyOfEmm (R2-03)
-        Dim totalEnergy As Long
-        Dim readOk As Boolean = False
-
-        Try
-            If serialPort.IsOpen = False Then
-                serialPort.Open()
-            End If
-            ' 创建Modbus RTU主站
-            Dim modbusMaster As IModbusSerialMaster = ModbusSerialMaster.CreateRtu(serialPort)
-
-            ' 读取寄存器
-            ' 0x0C83 是总有功电能输入的寄存器地址
-            Dim startAddress As UShort = &HC83
-            Dim numRegisters As UShort = 4 ' 读取64位的值，需要读取四个寄存器
-            Dim slaveId As Byte = 1 ' 根据实际情况设置
-
-            ' 读取寄存器
-            Dim registers() As UShort = modbusMaster.ReadHoldingRegisters(slaveId, startAddress, numRegisters)
-
-            ' 将寄存器值转换为64位整数
-            totalEnergy = CLng(registers(0)) << 48 Or CLng(registers(1)) << 32 Or CLng(registers(2)) << 16 Or registers(3)
-            readOk = True
-        Catch ex As Exception
-            Console.WriteLine("读取寄存器时出错: " & ex.Message)
-            ' 读取失败:不上报陈旧数据,而是返回 -1 让上游识别为异常
-            totalEnergy = -1
-        Finally
-            Try
-                If serialPort.IsOpen Then
-                    serialPort.Close()
-                End If
-            Catch
-            End Try
-        End Try
-
-        ' 仅在成功读取时才更新全局 totalEnergyOfEmm
-        If readOk Then
-            totalEnergyOfEmm = totalEnergy
-        End If
-        Return totalEnergy
-    End Function
-    ''' <summary>
     ''' 读取条码文件
     ''' </summary>
     Public Sub GetBarCodeFile()
@@ -1913,9 +2089,6 @@ Loop_No:
             GoTo exit_sub
         End If
 
-        'R2-15:从 OCV_DATA.GradeRule 读取,做反向映射输出旧格式表达式
-        '(CW_tblData_Info.Fld_VolA>=3.95 and CW_tblData_Info.Fld_VolA<4.05),
-        '确保 frmInquery 的 Replace 逻辑不用改。
         g_objLv.Add("LvName", strLvName)
         Try
             Using service As New OcvDataService()
@@ -1925,14 +2098,14 @@ Loop_No:
                     Dim fieldName As String = Convert.ToString(row("FieldName"))
                     Dim suffix As String = Convert.ToString(row("LegacyColumnSuffix"))
                     If String.IsNullOrEmpty(suffix) Then suffix = "A"
-                    Dim legacyName As String = MapFieldNameToLegacy(fieldName, suffix)
+                    Dim expressionFieldName As String = fieldName
                     Dim exprPart As String = ""
                     If row("LowerLimit") IsNot DBNull.Value Then
-                        exprPart = legacyName & ">=" & Convert.ToString(row("LowerLimit"))
+                        exprPart = expressionFieldName & ">=" & Convert.ToString(row("LowerLimit"))
                     End If
                     If row("UpperLimit") IsNot DBNull.Value Then
                         If exprPart <> "" Then exprPart = exprPart & " and "
-                        exprPart = exprPart & legacyName & "<" & Convert.ToString(row("UpperLimit"))
+                        exprPart = exprPart & expressionFieldName & "<" & Convert.ToString(row("UpperLimit"))
                     End If
                     If exprPart = "" Then Continue For
                     If g_objLv.TryGetValue(Temp_str, TempValue) = True Then
@@ -1944,26 +2117,10 @@ Loop_No:
                 Next
             End Using
         Catch ex As Exception
-            'OCV_DATA 不可用时,g_objLv 仅有 LvName 项,不影响旧库兜底路径
         End Try
 exit_sub:
 
     End Sub
-
-    ''' <summary>
-    ''' 将新库 GradeRule.FieldName 反向映射为旧表全限定列名,
-    ''' 以保持 frmInquery 的 Replace 逻辑兼容。
-    ''' </summary>
-    Private Function MapFieldNameToLegacy(fieldName As String, suffix As String) As String
-        Select Case fieldName
-            Case "VoltageVolt"
-                Return "CW_tblData_Info.Fld_Vol" & suffix
-            Case "FinalResistanceMilliohm"
-                Return "CW_tblData_Info.Fld_Resi" & suffix
-            Case Else
-                Return "CW_tblData_Info.Fld_" & fieldName & suffix
-        End Select
-    End Function
 
     Public Sub GetCN()
         g_objCN = New Dictionary(Of String, String)
@@ -2565,135 +2722,9 @@ Err:
         End If
     End Function
     Public Function CheckCom_IOCard() As Short
-        '**************************
-        '检查IO卡端口是否可用
-        'Com_IOCard = frmMDI.Com_IOCard  'IO卡
-        With frmMDI.Com_IOCard
-            If .IsOpen Then
-                .Close()
-            End If
-            .PortName = "Com" & (Initsetting.IOPort + 1).ToString
-            If Initsetting.IORate > 0 Then
-                .BaudRate = Initsetting.IORate
-            Else
-                .BaudRate = 115200
-            End If
-            .DataBits = 8
-            .StopBits = 1
-            .Parity = Parity.None
-            .ReadBufferSize = 100
-            .NewLine = vbCrLf
-            Try
-                If Not .IsOpen Then
-                    .Open()
-                End If
-            Catch e As Exception
-                'MsgBox(e.Message, vbOKOnly)
-                MsgBox("IO卡连接失败", vbOKOnly)
-                CheckCom_IOCard = -1
-                Exit Function
-            End Try
-        End With
+        'IO 板由控制板控制，上位机不再打开或检测 IO 串口。
         CheckCom_IOCard = 1
     End Function
-
-    Public Function CheckCom_EmmCard() As Short
-        '**************************
-        '检查IO卡端口是否可用
-        'Com_IOCard =   'IO卡
-        Dim serialEmmPort As SerialPort = frmMDI.Com_EmmCard
-        With serialEmmPort
-
-            .PortName = "Com" & (Initsetting.EmmPort + 1).ToString
-            If Initsetting.EmmRate > 0 Then
-                .BaudRate = Initsetting.EmmRate
-            Else
-                .BaudRate = 19200
-            End If
-            .DataBits = 8
-            .StopBits = 1
-            .Parity = Parity.Even
-            .ReadBufferSize = 100
-            .NewLine = vbCrLf
-            Try
-                If Not .IsOpen Then
-                    .Open()
-                End If
-                'ConnectToEMM(serialEmmPort)
-                GetTotalEnergeValue(serialEmmPort)
-            Catch e As Exception
-                MsgBox("智能电表连接失败", vbOKOnly)
-                CheckCom_EmmCard = -1
-                Exit Function
-            End Try
-        End With
-        CheckCom_EmmCard = 1
-
-    End Function
-    Sub GetTotalEnergeValue(SerialPort As SerialPort)
-        '配置串口
-        'Dim portName As String = "Com" & (Initsetting.EmmPort + 1).ToString() ' 根据实际情况设置
-        'Dim baudRate As Integer = 19200
-        'Dim parity As Parity = Parity.Even
-        'Dim dataBits As Integer = 8
-        'Dim stopBits As StopBits = StopBits.One
-
-        'If Initsetting.EmmRate > 0 Then
-        '    baudRate = Initsetting.IORate
-        'Else
-        '    baudRate = 19200
-        'End If
-        '' 创建和配置串口
-        'Dim SerialPort As New SerialPort(portName, baudRate, parity, dataBits, stopBits)
-        Using SerialPort
-            If Not SerialPort.IsOpen Then
-                SerialPort.Open()
-            End If
-            ' 创建Modbus主站
-            Dim master As IModbusSerialMaster = ModbusSerialMaster.CreateRtu(SerialPort)
-            master.Transport.ReadTimeout = 1000
-            master.Transport.WriteTimeout = 1000
-            ' Modbus从站地址（设备地址）
-            Dim slaveId As Byte = 1 ' 根据实际情况设置
-
-            ' 读取寄存器
-            ' 0x0C83 是总有功电能输入的寄存器地址
-            Dim startAddress As UShort = &HC83
-            Dim numRegisters As UShort = 4 ' 读取64位的值，需要读取四个寄存器
-
-            Try
-                ' 读取寄存器
-                Dim registers() As UShort = master.ReadHoldingRegisters(slaveId, startAddress, numRegisters)
-
-                ' 将寄存器值转换为64位整数
-                totalEnergyOfEmm = CLng(registers(0)) << 48 Or CLng(registers(1)) << 32 Or CLng(registers(2)) << 16 Or registers(3)
-
-                ' 输出总电能值
-                Console.WriteLine($"总有功电能输入: {totalEnergyOfEmm} Wh")
-            Catch ex As Exception
-                Console.WriteLine($"读取寄存器时出错: {ex.Message}")
-            End Try
-        End Using
-        'ReadEnergeriEMM3200()
-    End Sub
-    Private Sub ConnectToEMM(serialEmmPort As SerialPort)
-
-        ' 创建Modbus主站
-        If eMMconnected = False Then
-            Try
-                ' 打开串口
-                If serialEmmPort.IsOpen Then
-                    serialEmmPort.Close()
-                End If
-                serialEmmPort.Open()
-                master = ModbusSerialMaster.CreateRtu(serialEmmPort)
-                eMMconnected = True
-            Catch ex As Exception
-                eMMconnected = False
-            End Try
-        End If
-        Dim registers As UShort() = master.ReadHoldingRegisters(1, 3204, 4)
-    End Sub
 
     ''' <summary>
     ''' 检查34461数字万用表的链接与通信
@@ -2738,7 +2769,9 @@ Err:
         visaSession = New Ivi.Visa.Interop.FormattedIO488
         Try
             visaSession.IO = ResourcePort.Open(instr, Ivi.Visa.Interop.AccessMode.NO_LOCK, 5000, "")
+            visaSession.IO.Timeout = VisaInstrumentIoTimeoutMs
         Catch
+            visaSession = Nothing
             ConnectFor34461 = -1
             Exit Function
         End Try

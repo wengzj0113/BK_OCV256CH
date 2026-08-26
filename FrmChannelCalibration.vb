@@ -3,11 +3,13 @@ Imports System.Globalization
 Imports System.Text
 Imports System.Windows.Forms
 
-Public Class FrmChannelCalibration
+Partial Public Class FrmChannelCalibration
     Inherits Form
 
     Private ReadOnly service As New CalibrationService()
     Private ReadOnly runner As New ChannelCalibrationRunner(service)
+    ' 控件由 FrmChannelCalibration.Designer.vb 管理。
+#If False Then
     Private ReadOnly grid As New DataGridView()
     Private ReadOnly txtStandardResistance As New TextBox()
     Private ReadOnly txtStartChannel As New TextBox()
@@ -22,12 +24,14 @@ Public Class FrmChannelCalibration
     Private ReadOnly btnClearSelection As New Button()
     Private ReadOnly btnCalibrateSelected As New Button()
     Private ReadOnly btnStop As New Button()
+#End If
     Private stopRequested As Boolean = False
 
     Public Sub New()
-        InitializeCalibrationForm()
+        InitializeComponent()
     End Sub
 
+#If False Then
     Private Sub InitializeCalibrationForm()
         Text = T("256{0}{1}", W(&H901A, &H9053), W(&H6821, &H51C6))
         StartPosition = FormStartPosition.CenterParent
@@ -141,8 +145,9 @@ Public Class FrmChannelCalibration
         AddHandler btnCalibrateSelected.Click, AddressOf btnCalibrateSelected_Click
         AddHandler btnStop.Click, AddressOf btnStop_Click
     End Sub
+#End If
 
-    Private Sub FrmChannelCalibration_Load(sender As Object, e As EventArgs)
+    Private Sub FrmChannelCalibration_Load(sender As Object, e As EventArgs) Handles MyBase.Load
         LoadGrid()
     End Sub
 
@@ -258,11 +263,11 @@ Public Class FrmChannelCalibration
         service.SaveFromGlobalArray()
     End Sub
 
-    Private Sub btnReload_Click(sender As Object, e As EventArgs)
+    Private Sub btnReload_Click(sender As Object, e As EventArgs) Handles btnReload.Click
         LoadGrid()
     End Sub
 
-    Private Sub btnSave_Click(sender As Object, e As EventArgs)
+    Private Sub btnSave_Click(sender As Object, e As EventArgs) Handles btnSave.Click
         Try
             Dim standardResistance As Double = GetStandardResistance()
             SaveCalibrationState(standardResistance)
@@ -272,7 +277,7 @@ Public Class FrmChannelCalibration
         End Try
     End Sub
 
-    Private Sub btnClear_Click(sender As Object, e As EventArgs)
+    Private Sub btnClear_Click(sender As Object, e As EventArgs) Handles btnClear.Click
         If MessageBox.Show(T("{0}256{1}?", W(&H786E, &H5B9A, &H6E05, &H96F6), W(&H4E2A, &H901A, &H9053, &H7684, &H6821, &H51C6, &H8865, &H507F, &H503C)),
                            W(&H786E, &H8BA4, &H6E05, &H96F6),
                            MessageBoxButtons.YesNo,
@@ -291,7 +296,7 @@ Public Class FrmChannelCalibration
         lblStatus.Text = T("{0}{1}", W(&H5DF2, &H6E05, &H96F6), W(&HFF0C, &H70B9, &H51FB, &H4FDD, &H5B58, &H540E, &H751F, &H6548))
     End Sub
 
-    Private Sub btnSelectRange_Click(sender As Object, e As EventArgs)
+    Private Sub btnSelectRange_Click(sender As Object, e As EventArgs) Handles btnSelectRange.Click
         Try
             Dim startChannel As Integer = GetChannelNumber(txtStartChannel, W(&H8D77, &H59CB, &H901A, &H9053))
             Dim endChannel As Integer = GetChannelNumber(txtEndChannel, W(&H7ED3, &H675F, &H901A, &H9053))
@@ -308,21 +313,21 @@ Public Class FrmChannelCalibration
         End Try
     End Sub
 
-    Private Sub btnSelectAll_Click(sender As Object, e As EventArgs)
+    Private Sub btnSelectAll_Click(sender As Object, e As EventArgs) Handles btnSelectAll.Click
         For i As Integer = 0 To CalibrationService.ChannelCount - 1
             SetChannelChecked(i, True)
         Next
         lblStatus.Text = W(&H5DF2, &H5168, &H9009)
     End Sub
 
-    Private Sub btnClearSelection_Click(sender As Object, e As EventArgs)
+    Private Sub btnClearSelection_Click(sender As Object, e As EventArgs) Handles btnClearSelection.Click
         For i As Integer = 0 To CalibrationService.ChannelCount - 1
             SetChannelChecked(i, False)
         Next
         lblStatus.Text = W(&H5DF2, &H53D6, &H6D88, &H9009, &H62E9)
     End Sub
 
-    Private Sub btnCalibrateSelected_Click(sender As Object, e As EventArgs)
+    Private Sub btnCalibrateSelected_Click(sender As Object, e As EventArgs) Handles btnCalibrateSelected.Click
         Try
             Dim standardResistance As Double = GetStandardResistance()
             Dim channelIndexes As List(Of Integer) = GetCheckedChannelIndexes()
@@ -346,7 +351,7 @@ Public Class FrmChannelCalibration
         End Try
     End Sub
 
-    Private Sub btnStop_Click(sender As Object, e As EventArgs)
+    Private Sub btnStop_Click(sender As Object, e As EventArgs) Handles btnStop.Click
         stopRequested = True
         Try
             runner.StopCurrentCalibration()

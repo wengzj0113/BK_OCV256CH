@@ -7,6 +7,10 @@ Friend Class FormalTestRunner
         Me.New(New SerialMiddleMachineClient(Com_SCM), New TestChannelPlanService(), New TwoPassResultMapper())
     End Sub
 
+    Public Sub New(traceLogger As Action(Of String))
+        Me.New(New SerialMiddleMachineClient(Com_SCM, traceLogger), New TestChannelPlanService(), New TwoPassResultMapper())
+    End Sub
+
     Public Sub New(middleMachineClient As SerialMiddleMachineClient,
                    planService As TestChannelPlanService,
                    mapper As TwoPassResultMapper)
@@ -27,28 +31,28 @@ Friend Class FormalTestRunner
 
     Public Function RunRangeMeasurement(startChannel As Integer,
                                         endChannel As Integer,
-                                        Optional timeoutMs As Integer = 30000) As TestChannelSelection
+                                        Optional timeoutMs As Integer = 300000) As TestChannelSelection
         Dim selection As TestChannelSelection = channelPlanService.BuildRangeSelection(startChannel, endChannel)
         RunTwoPassMeasurement(selection, timeoutMs)
         Return selection
     End Function
 
     Public Function RunSparseMeasurement(channelNumbers As IEnumerable(Of Integer),
-                                         Optional timeoutMs As Integer = 30000) As TestChannelSelection
+                                         Optional timeoutMs As Integer = 300000) As TestChannelSelection
         Dim selection As TestChannelSelection = channelPlanService.BuildSparseSelection(channelNumbers)
         RunTwoPassMeasurement(selection, timeoutMs)
         Return selection
     End Function
 
     Public Function RunRetestMeasurement(retestFlags As Int16(),
-                                         Optional timeoutMs As Integer = 30000) As TestChannelSelection
+                                         Optional timeoutMs As Integer = 300000) As TestChannelSelection
         Dim selection As TestChannelSelection = channelPlanService.BuildRetestSelection(retestFlags)
         RunTwoPassMeasurement(selection, timeoutMs)
         Return selection
     End Function
 
     Public Sub RunTwoPassMeasurement(selection As TestChannelSelection,
-                                     Optional timeoutMs As Integer = 30000)
+                                     Optional timeoutMs As Integer = 300000)
         If selection Is Nothing Then
             Throw New ArgumentNullException("selection")
         End If
@@ -80,13 +84,14 @@ Friend Class FormalTestRunner
             resultMapper.Apply(selection, hiokiResistances, dmmVoltages, calibrateValueArray, RecieveData)
             SerialMiddleMachineClient.LogMessage("Formal test completed: " & SerialMiddleMachineClient.DescribePlan(selection.ToMiddleMachinePlan()))
         Catch
-            Try
-                middleMachine.StopAndClearLists()
-            Catch
-            End Try
-            ClearInstrumentCaches()
             Throw
+        Finally
+            ResetTestEnvironment()
         End Try
+    End Sub
+
+    Private Sub ResetTestEnvironment()
+        TestEnvironmentResetService.ResetAll(middleMachine)
     End Sub
 
     Private Shared Sub ClearInstrumentCaches()

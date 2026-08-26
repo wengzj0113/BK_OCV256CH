@@ -1,5 +1,9 @@
 # OCV_DATA SQL Scripts
 
+## 运行时数据库说明
+
+应用运行时已经不再访问 `CWSQL`，统一通过 `OcvDataService` 使用 `OCV_DATA`。旧库迁移脚本已移至 `docs/archive/legacy-cwsql`，仅作为历史记录保留，不属于正常启动或测试流程。
+
 ## 业务部署运行顺序(必须按顺序执行)
 
 1. `000_init_database.sql` — 创建 OCV_DATA 数据库,设置兼容级别(150 = SQL Server 2019)、恢复模式(SIMPLE)、启用 Query Store。需要 sysadmin 权限。幂等,已存在则跳过 CREATE DATABASE。

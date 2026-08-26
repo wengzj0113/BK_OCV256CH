@@ -4,7 +4,7 @@ Public Class frmInit
     Dim TempInitsetting As Initset
     Private Sub CmdOK_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles CmdOK.Click
         Dim Rebutton As Microsoft.VisualBasic.MsgBoxResult
-        Call TextToStruct()
+        If Not TextToStruct() Then Return
         Rebutton = MsgBox("新的设置将在下次启动时生效！如果想使设置马上生效，请退出本程序并重新进入，确定退出本程序吗？", vbYesNo)
         If Rebutton = vbYes Then
             Initsetting = TempInitsetting
@@ -21,16 +21,15 @@ Public Class frmInit
     End Sub
     Private Sub frmInit_Load(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles MyBase.Load
         Dim I As Int16
+        InitializeRetest3562Controls()
         CmbRecom.Items.Clear()
         cmb_ScanerPort.Items.Clear()
         CmbIORecom.Items.Clear()
-        CmbEmmRecom.Items.Clear()
         cmb_SCMPort.Items.Clear()
         ComRate.Items.Clear()
         cmbRerate.Items.Clear()
         cmb_SCMRate.Items.Clear()
         cmbIORerate.Items.Clear()
-        cmbEmmRerate.Items.Clear()
         cmb_ScanerRate.Items.Clear()
 
         For I = 0 To 19
@@ -46,15 +45,13 @@ Public Class frmInit
                 .Items.Add((I + 1).ToString)
                 .SelectedIndex = 0
             End With
-            With CmbEmmRecom
-                .Items.Add((I + 1).ToString)
-                .SelectedIndex = 0
-            End With
         Next
         For I = 0 To 63
             cmb_SCMPort.Items.Add((I + 1).ToString)
+            cmb_PlcPort.Items.Add((I + 1).ToString)
         Next
         cmb_SCMPort.SelectedIndex = 0
+        cmb_PlcPort.SelectedIndex = 0
         With ComRate
             '.Items.Clear()
             .Items.Add("低速")
@@ -65,10 +62,18 @@ Public Class frmInit
         End With
         With cmbRerate
             .Items.Add("9600")
+            .Items.Add("19200")
             .Items.Add("57600")
-            .SelectedIndex = 0
+            .SelectedIndex = 1
         End With
         With cmb_SCMRate
+            .Items.Add("9600")
+            .Items.Add("57600")
+            .Items.Add("115200")
+            .SelectedIndex = 2
+        End With
+        With cmb_PlcRate
+            .Items.Clear()
             .Items.Add("9600")
             .Items.Add("57600")
             .Items.Add("115200")
@@ -78,13 +83,7 @@ Public Class frmInit
             .Items.Add("9600")
             .Items.Add("57600")
             .Items.Add("115200")
-            .SelectedIndex = 0
-        End With
-        With cmbEmmRerate
-            .Items.Add("9600")
-            .Items.Add("57600")
-            .Items.Add("115200")
-            .SelectedIndex = 0
+            .SelectedIndex = 2
         End With
         With cmb_ScanerRate
             .Items.Add("9600")
@@ -92,9 +91,45 @@ Public Class frmInit
             .Items.Add("57600")
             .SelectedIndex = 0
         End With
+        With cmbRetestPort
+            .Items.Clear()
+            For I = 0 To 63
+                .Items.Add((I + 1).ToString())
+            Next
+        End With
+        With cmbRetestRate
+            .Items.Clear()
+            .Items.Add("9600")
+            .Items.Add("57600")
+            .Items.Add("115200")
+        End With
         Call structToText()
+        UpdatePlcTransportControls()
     End Sub
-    Private Sub TextToStruct()
+    Private Function TextToStruct() As Boolean
+        If Not ChbPLCIP.Checked AndAlso Not ChbPlcCom.Checked Then
+            ChbPlcCom.Checked = True
+        End If
+
+        If ChbPLCIP.Checked Then
+            Dim tcpPort As Integer
+            If String.IsNullOrWhiteSpace(Txt_PlcIP.Text) OrElse Not Integer.TryParse(txt_PlcPort.Text, tcpPort) OrElse tcpPort < 1 OrElse tcpPort > 65535 Then
+                MsgBox("PLC TCP 模式需要填写有效的 IP 地址和端口号。", vbOKOnly, "PLC 参数错误")
+                Return False
+            End If
+            TempInitsetting.PLCMode = 1
+            TempInitsetting.PLCIP = Txt_PlcIP.Text.Trim()
+            TempInitsetting.PLCTcpPort = tcpPort
+        Else
+            If cmb_PlcPort.SelectedIndex < 0 OrElse cmb_PlcRate.SelectedIndex < 0 Then
+                MsgBox("PLC COM 模式需要选择串口号和波特率。", vbOKOnly, "PLC 参数错误")
+                Return False
+            End If
+            TempInitsetting.PLCMode = 0
+            TempInitsetting.PLCComPort = cmb_PlcPort.SelectedIndex
+            TempInitsetting.PLCComRate = CInt(cmb_PlcRate.SelectedItem)
+        End If
+
         '通讯参数
         TempInitsetting.ScanerPort = cmb_ScanerPort.SelectedIndex
         TempInitsetting.ScanerRate = cmb_ScanerRate.Items.Item(cmb_ScanerRate.SelectedIndex)
@@ -106,17 +141,31 @@ Public Class frmInit
         TempInitsetting.SCMComPort = cmb_SCMPort.SelectedIndex
         TempInitsetting.SCMComRate = CInt(cmb_SCMRate.Items.Item(cmb_SCMRate.SelectedIndex))
 
+        If cmbRetestPort Is Nothing OrElse cmbRetestPort.SelectedIndex < 0 OrElse cmbRetestRate.SelectedIndex < 0 Then
+            MsgBox("NG复测3562需要选择串口号和波特率。", vbOKOnly, "复测3562配置错误")
+            Return False
+        End If
+        TempInitsetting.Retest3562Port = cmbRetestPort.SelectedIndex
+        TempInitsetting.Retest3562Rate = CInt(cmbRetestRate.SelectedItem)
+
         TempInitsetting.IpAddOf34461 = txt34461.Text
 
         TempInitsetting.IOPort = CmbIORecom.SelectedIndex
         TempInitsetting.IORate = cmbIORerate.Items.Item(cmbIORerate.SelectedIndex)
 
-        TempInitsetting.EmmPort = CmbEmmRecom.SelectedIndex
-        TempInitsetting.EmmRate = cmbEmmRerate.Items.Item(cmbEmmRerate.SelectedIndex)
 
         TempInitsetting.ComRateMode = ComRate.Text
         TempInitsetting.Recom = CmbRecom.SelectedIndex
         TempInitsetting.ReRate = cmbRerate.Items.Item(cmbRerate.SelectedIndex)
+        '所有通讯下拉框已经写入 TempInitsetting 后，再校验复测3562串口冲突。
+        If TempInitsetting.Retest3562Port = TempInitsetting.Recom OrElse
+           TempInitsetting.Retest3562Port = TempInitsetting.ScanerPort OrElse
+           TempInitsetting.Retest3562Port = TempInitsetting.SCMComPort OrElse
+           TempInitsetting.Retest3562Port = TempInitsetting.IOPort OrElse
+           (Not ChbPLCIP.Checked AndAlso TempInitsetting.Retest3562Port = TempInitsetting.PLCComPort) Then
+            MsgBox("NG复测3562串口不能与主3562、扫码枪、中位机、IO卡或PLC串口相同。", vbOKOnly, "复测3562配置错误")
+            Return False
+        End If
         '电压内阻合格范围
         If Val(txtRes1.Text) - Val(txtRes2.Text) >= 0 Then
             TempInitsetting.upResistance = Val(txtRes1.Text)
@@ -171,6 +220,43 @@ Public Class frmInit
         Else
             TempInitsetting.stationSelect = 2
         End If
+        Return True
+    End Function
+
+    Private Sub UpdatePlcTransportControls()
+        Dim tcpSelected As Boolean = ChbPLCIP.Checked
+        Dim comSelected As Boolean = ChbPlcCom.Checked
+        If Not tcpSelected AndAlso Not comSelected Then
+            ChbPlcCom.Checked = True
+            comSelected = True
+        End If
+
+        Txt_PlcIP.Visible = tcpSelected
+        txt_PlcPort.Visible = tcpSelected
+        Label46.Visible = tcpSelected
+        Label47.Visible = tcpSelected
+        cmb_PlcPort.Visible = comSelected
+        cmb_PlcRate.Visible = comSelected
+        Label45.Visible = comSelected
+        Label44.Visible = comSelected
+    End Sub
+
+    Private Sub ChbPLCIP_CheckedChanged(sender As Object, e As EventArgs) Handles ChbPLCIP.CheckedChanged
+        If ChbPLCIP.Checked Then
+            ChbPlcCom.Checked = False
+        ElseIf Not ChbPlcCom.Checked Then
+            ChbPlcCom.Checked = True
+        End If
+        UpdatePlcTransportControls()
+    End Sub
+
+    Private Sub ChbPlcCom_CheckedChanged(sender As Object, e As EventArgs) Handles ChbPlcCom.CheckedChanged
+        If ChbPlcCom.Checked Then
+            ChbPLCIP.Checked = False
+        ElseIf Not ChbPLCIP.Checked Then
+            ChbPLCIP.Checked = True
+        End If
+        UpdatePlcTransportControls()
     End Sub
     Private Sub structToText()
         Dim intLoop As Int16
@@ -189,13 +275,6 @@ Public Class frmInit
         For intLoop = 0 To cmbIORerate.Items.Count - 1
             If cmbIORerate.Items.Item(intLoop) = Initsetting.IORate Then
                 cmbIORerate.SelectedIndex = intLoop
-                Exit For
-            End If
-        Next
-        CmbEmmRecom.SelectedIndex = Initsetting.EmmPort
-        For intLoop = 0 To cmbEmmRerate.Items.Count - 1
-            If cmbEmmRerate.Items.Item(intLoop) = Initsetting.EmmRate Then
-                cmbEmmRerate.SelectedIndex = intLoop
                 Exit For
             End If
         Next
@@ -226,6 +305,29 @@ Public Class frmInit
         If cmb_SCMRate.SelectedIndex < 0 Then
             cmb_SCMRate.SelectedIndex = 2
         End If
+        cmbRetestPort.SelectedIndex = Math.Max(0, Math.Min(cmbRetestPort.Items.Count - 1, Initsetting.Retest3562Port))
+        For intLoop = 0 To cmbRetestRate.Items.Count - 1
+            If CInt(cmbRetestRate.Items(intLoop)) = If(Initsetting.Retest3562Rate > 0, Initsetting.Retest3562Rate, 9600) Then
+                cmbRetestRate.SelectedIndex = intLoop
+                Exit For
+            End If
+        Next
+        If cmbRetestRate.SelectedIndex < 0 Then cmbRetestRate.SelectedIndex = 0
+        Txt_PlcIP.Text = If(String.IsNullOrWhiteSpace(Initsetting.PLCIP), "127.0.0.1", Initsetting.PLCIP)
+        txt_PlcPort.Text = If(Initsetting.PLCTcpPort > 0, Initsetting.PLCTcpPort.ToString(), "502")
+        cmb_PlcPort.SelectedIndex = Math.Max(0, Math.Min(cmb_PlcPort.Items.Count - 1, Initsetting.PLCComPort))
+        For intLoop = 0 To cmb_PlcRate.Items.Count - 1
+            If CInt(cmb_PlcRate.Items.Item(intLoop)) = If(Initsetting.PLCComRate > 0, Initsetting.PLCComRate, 115200) Then
+                cmb_PlcRate.SelectedIndex = intLoop
+                Exit For
+            End If
+        Next
+        If Initsetting.PLCMode = 1 Then
+            ChbPLCIP.Checked = True
+        Else
+            ChbPlcCom.Checked = True
+        End If
+        UpdatePlcTransportControls()
         '*********************************
         '内阻电压上下限
         txtRes1.Text = Initsetting.downResistance
@@ -313,7 +415,45 @@ Public Class frmInit
     Public Sub New()
         ' 此调用是设计器所必需的。
         InitializeComponent()
+        InitializeRetest3562Controls()
         ' 在 InitializeComponent() 调用之后添加任何初始化。
+    End Sub
+
+    Private Sub InitializeRetest3562Controls()
+        If cmbRetestPort IsNot Nothing Then
+            AddHandler btnRetestConnect.Click, AddressOf RetestConnectClick
+            Return
+        End If
+        Dim group As New GroupBox() With {
+            .Name = "grpRetest3562",
+            .Text = "NG复测3562",
+            .Location = New Point(11, 409),
+            .Size = New Size(361, 60)
+        }
+        Dim portLabel As New Label() With {.Text = "串口", .AutoSize = True, .Location = New Point(8, 25)}
+        Dim rateLabel As New Label() With {.Text = "波特率", .AutoSize = True, .Location = New Point(122, 25)}
+        cmbRetestPort = New ComboBox() With {.Name = "cmbRetest3562Port", .DropDownStyle = ComboBoxStyle.DropDownList, .Location = New Point(42, 20), .Width = 72}
+        cmbRetestRate = New ComboBox() With {.Name = "cmbRetest3562Rate", .DropDownStyle = ComboBoxStyle.DropDownList, .Location = New Point(178, 20), .Width = 85}
+        btnRetestConnect = New Button() With {.Name = "btnRetest3562Connect", .Text = "测试连接", .Location = New Point(278, 19), .Size = New Size(82, 25)}
+        group.Controls.AddRange(New Control() {portLabel, rateLabel, cmbRetestPort, cmbRetestRate, btnRetestConnect})
+        AddHandler btnRetestConnect.Click, AddressOf RetestConnectClick
+        TabPage1.Controls.Add(group)
+    End Sub
+
+    Private Sub RetestConnectClick(ByVal sender As Object, ByVal e As EventArgs)
+        If cmbRetestPort Is Nothing OrElse cmbRetestPort.SelectedIndex < 0 OrElse cmbRetestRate.SelectedIndex < 0 Then
+            btnRetestConnect.Text = "参数无效"
+            Return
+        End If
+        Try
+            Using service As New Retest3562Service()
+                service.Connect("COM" & (cmbRetestPort.SelectedIndex + 1).ToString(), CInt(cmbRetestRate.SelectedItem))
+            End Using
+            btnRetestConnect.Text = "连接成功"
+        Catch ex As Exception
+            btnRetestConnect.Text = "连接失败"
+            MessageBox.Show(ex.Message, "NG复测3562连接失败", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+        End Try
     End Sub
     Private Sub txt_V_B_Validated(ByVal sender As Object, ByVal e As System.EventArgs) Handles txt_V_B.Validated
         If Not IsNumeric(txt_V_B.Text) Then

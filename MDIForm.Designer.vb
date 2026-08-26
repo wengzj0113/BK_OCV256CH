@@ -35,8 +35,10 @@ Partial Class MDIForm
         Me.TStripMenuCode = New System.Windows.Forms.ToolStripMenuItem()
         Me.OnLineTest = New System.Windows.Forms.ToolStripMenuItem()
         Me.ManualTestToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
+        Me.NgRetestToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
         Me.TStripMenuInQuery = New System.Windows.Forms.ToolStripMenuItem()
         Me.TlStripMenuG = New System.Windows.Forms.ToolStripMenuItem()
+        Me.TlStripMenuLog = New System.Windows.Forms.ToolStripMenuItem()
         Me.EMS上传ToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
         Me.ToolStrip = New System.Windows.Forms.ToolStrip()
         Me.btnInit = New System.Windows.Forms.ToolStripButton()
@@ -64,7 +66,6 @@ Partial Class MDIForm
         Me.Timer1 = New System.Windows.Forms.Timer(Me.components)
         Me.Com_IOCard = New System.IO.Ports.SerialPort(Me.components)
         Me.txtTesting = New System.Windows.Forms.Label()
-        Me.Com_EmmCard = New System.IO.Ports.SerialPort(Me.components)
         Me.MenuStrip.SuspendLayout()
         Me.ToolStrip.SuspendLayout()
         Me.StatusStrip.SuspendLayout()
@@ -124,7 +125,7 @@ Partial Class MDIForm
         '
         'EditMenu
         '
-        Me.EditMenu.DropDownItems.AddRange(New System.Windows.Forms.ToolStripItem() {Me.TStripMenuCode, Me.OnLineTest, Me.ManualTestToolStripMenuItem})
+        Me.EditMenu.DropDownItems.AddRange(New System.Windows.Forms.ToolStripItem() {Me.TStripMenuCode, Me.OnLineTest, Me.ManualTestToolStripMenuItem, Me.NgRetestToolStripMenuItem})
         Me.EditMenu.Name = "EditMenu"
         Me.EditMenu.ShortcutKeys = CType((System.Windows.Forms.Keys.Control Or System.Windows.Forms.Keys.T), System.Windows.Forms.Keys)
         Me.EditMenu.Size = New System.Drawing.Size(73, 25)
@@ -153,9 +154,15 @@ Partial Class MDIForm
         Me.ManualTestToolStripMenuItem.Size = New System.Drawing.Size(245, 26)
         Me.ManualTestToolStripMenuItem.Text = "手动测试"
         '
+        'NgRetestToolStripMenuItem
+        '
+        Me.NgRetestToolStripMenuItem.Name = "NgRetestToolStripMenuItem"
+        Me.NgRetestToolStripMenuItem.Size = New System.Drawing.Size(245, 26)
+        Me.NgRetestToolStripMenuItem.Text = "NG复测"
+        '
         'TStripMenuInQuery
         '
-        Me.TStripMenuInQuery.DropDownItems.AddRange(New System.Windows.Forms.ToolStripItem() {Me.TlStripMenuG})
+        Me.TStripMenuInQuery.DropDownItems.AddRange(New System.Windows.Forms.ToolStripItem() {Me.TlStripMenuG, Me.TlStripMenuLog})
         Me.TStripMenuInQuery.Name = "TStripMenuInQuery"
         Me.TStripMenuInQuery.Size = New System.Drawing.Size(54, 25)
         Me.TStripMenuInQuery.Text = "查询"
@@ -167,6 +174,12 @@ Partial Class MDIForm
         Me.TlStripMenuG.ShortcutKeys = CType((System.Windows.Forms.Keys.Control Or System.Windows.Forms.Keys.G), System.Windows.Forms.Keys)
         Me.TlStripMenuG.Size = New System.Drawing.Size(231, 26)
         Me.TlStripMenuG.Text = "查询统计(&G)"
+        '
+        'TlStripMenuLog
+        '
+        Me.TlStripMenuLog.Name = "TlStripMenuLog"
+        Me.TlStripMenuLog.Size = New System.Drawing.Size(231, 26)
+        Me.TlStripMenuLog.Text = "日志查询"
         '
         'EMS上传ToolStripMenuItem
         '
@@ -336,10 +349,9 @@ Partial Class MDIForm
         '
         Me.AutoScaleDimensions = New System.Drawing.SizeF(6.0!, 12.0!)
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
-        Me.AutoSize = True
+        Me.AutoSize = False
         Me.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Center
         Me.ClientSize = New System.Drawing.Size(1429, 761)
-        Me.Controls.Add(Me.txtTesting)
         Me.Controls.Add(Me.ToolStrip)
         Me.Controls.Add(Me.MenuStrip)
         Me.Controls.Add(Me.StatusStrip)
@@ -347,7 +359,7 @@ Partial Class MDIForm
         Me.IsMdiContainer = True
         Me.MainMenuStrip = Me.MenuStrip
         Me.Name = "MDIForm"
-        Me.Text = "圆柱形电池内阻电压测试系统"
+        Me.Text = "OCV电池电压/内阻测试系统  V1.0"
         Me.WindowState = System.Windows.Forms.FormWindowState.Maximized
         Me.MenuStrip.ResumeLayout(False)
         Me.MenuStrip.PerformLayout()
@@ -371,6 +383,7 @@ Partial Class MDIForm
     Friend WithEvents ExitTool As System.Windows.Forms.ToolStripMenuItem
     Friend WithEvents OnLineTest As System.Windows.Forms.ToolStripMenuItem
     Friend WithEvents ManualTestToolStripMenuItem As System.Windows.Forms.ToolStripMenuItem
+    Friend WithEvents NgRetestToolStripMenuItem As System.Windows.Forms.ToolStripMenuItem
     Friend WithEvents btnInit As System.Windows.Forms.ToolStripButton
     Friend WithEvents btnTest As System.Windows.Forms.ToolStripButton
     Friend WithEvents Com_SCM As System.IO.Ports.SerialPort
@@ -386,6 +399,7 @@ Partial Class MDIForm
     Friend WithEvents TStripbtnInQuery As System.Windows.Forms.ToolStripButton
     Friend WithEvents TStripMenuCode As System.Windows.Forms.ToolStripMenuItem
     Friend WithEvents TlStripMenuG As System.Windows.Forms.ToolStripMenuItem
+    Friend WithEvents TlStripMenuLog As System.Windows.Forms.ToolStripMenuItem
     Friend WithEvents OpenFileDialog1 As System.Windows.Forms.OpenFileDialog
     Friend WithEvents status_DataBase As System.Windows.Forms.ToolStripStatusLabel
     Friend WithEvents TStripbtn_Barcode As System.Windows.Forms.ToolStripButton
@@ -398,5 +412,4 @@ Partial Class MDIForm
     Friend WithEvents userMenage As ToolStripMenuItem
     Friend WithEvents txtTesting As Label
     Friend WithEvents EMS上传ToolStripMenuItem As ToolStripMenuItem
-    Friend WithEvents Com_EmmCard As IO.Ports.SerialPort
 End Class

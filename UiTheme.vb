@@ -16,20 +16,26 @@ Public NotInheritable Class UiTheme
         Neutral
     End Enum
 
-    Public Shared ReadOnly PageBackground As Color = ColorTranslator.FromHtml("#F5F7FA")
+    Public Shared ReadOnly PageBackground As Color = ColorTranslator.FromHtml("#F3F6FA")
     Public Shared ReadOnly CardBackground As Color = Color.White
-    Public Shared ReadOnly CardBorder As Color = ColorTranslator.FromHtml("#E5E7EB")
-    Public Shared ReadOnly HeaderBackground As Color = ColorTranslator.FromHtml("#0B2345")
-    Public Shared ReadOnly Primary As Color = ColorTranslator.FromHtml("#1677FF")
-    Public Shared ReadOnly Success As Color = ColorTranslator.FromHtml("#22C55E")
-    Public Shared ReadOnly Warning As Color = ColorTranslator.FromHtml("#F59E0B")
-    Public Shared ReadOnly Danger As Color = ColorTranslator.FromHtml("#EF4444")
-    Public Shared ReadOnly TextPrimary As Color = ColorTranslator.FromHtml("#1F2937")
-    Public Shared ReadOnly TextSecondary As Color = ColorTranslator.FromHtml("#6B7280")
+    Public Shared ReadOnly CardBorder As Color = ColorTranslator.FromHtml("#E7EBF0")
+    Public Shared ReadOnly HeaderBackground As Color = ColorTranslator.FromHtml("#061D3B")
+    Public Shared ReadOnly HeaderHighlight As Color = ColorTranslator.FromHtml("#0B2E5B")
+    Public Shared ReadOnly Primary As Color = ColorTranslator.FromHtml("#1769E8")
+    Public Shared ReadOnly Success As Color = ColorTranslator.FromHtml("#1FA463")
+    Public Shared ReadOnly SuccessBackground As Color = ColorTranslator.FromHtml("#D9F7C8")
+    Public Shared ReadOnly Warning As Color = ColorTranslator.FromHtml("#F3A400")
+    Public Shared ReadOnly Danger As Color = ColorTranslator.FromHtml("#EF3E3E")
+    Public Shared ReadOnly DangerBackground As Color = ColorTranslator.FromHtml("#FFE0DE")
+    Public Shared ReadOnly TestingBackground As Color = ColorTranslator.FromHtml("#78A9F4")
+    Public Shared ReadOnly IdleBackground As Color = ColorTranslator.FromHtml("#EEF0F3")
+    Public Shared ReadOnly TextPrimary As Color = ColorTranslator.FromHtml("#243142")
+    Public Shared ReadOnly TextSecondary As Color = ColorTranslator.FromHtml("#637084")
 
     Public Shared ReadOnly UiFont As New Font("Microsoft YaHei UI", 9.0F, FontStyle.Regular)
     Public Shared ReadOnly UiFontBold As New Font("Microsoft YaHei UI", 9.0F, FontStyle.Bold)
     Public Shared ReadOnly UiFontTitle As New Font("Microsoft YaHei UI", 14.0F, FontStyle.Bold)
+    Public Shared ReadOnly UiFontMetric As New Font("Microsoft YaHei UI", 20.0F, FontStyle.Regular)
 
     Public Shared Sub ApplyCardStyle(ByVal control As Control)
         If control Is Nothing Then Return
@@ -41,7 +47,9 @@ Public NotInheritable Class UiTheme
         Dim groupBox As GroupBox = TryCast(control, GroupBox)
         If groupBox IsNot Nothing Then
             groupBox.FlatStyle = FlatStyle.Flat
-            groupBox.ForeColor = TextPrimary
+            groupBox.ForeColor = Primary
+            groupBox.Font = UiFontBold
+            groupBox.Padding = New Padding(8, 16, 8, 8)
         End If
 
         Dim panel As Panel = TryCast(control, Panel)

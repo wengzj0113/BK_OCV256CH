@@ -12,7 +12,6 @@ Public Class frmInquery
     Private WithEvents chkHeartbeat As CheckBox
     Private WithEvents chkStateAndStopReason As CheckBox
     Private WithEvents chkAlarmUpload As CheckBox
-    Private WithEvents chkEnergyUpload As CheckBox
     Private WithEvents chkResultDataUploadAssembly As CheckBox
     Private WithEvents chkWIPInStationCheck As CheckBox
 

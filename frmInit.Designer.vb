@@ -24,11 +24,17 @@ Partial Class frmInit
     Private Sub InitializeComponent()
         Me.TabControl1 = New System.Windows.Forms.TabControl()
         Me.TabPage1 = New System.Windows.Forms.TabPage()
-        Me.GroupBox7 = New System.Windows.Forms.GroupBox()
-        Me.CmbEmmRecom = New System.Windows.Forms.ComboBox()
-        Me.Label42 = New System.Windows.Forms.Label()
-        Me.Label43 = New System.Windows.Forms.Label()
-        Me.cmbEmmRerate = New System.Windows.Forms.ComboBox()
+        Me.GroupBox9 = New System.Windows.Forms.GroupBox()
+        Me.ChbPlcCom = New System.Windows.Forms.CheckBox()
+        Me.ChbPLCIP = New System.Windows.Forms.CheckBox()
+        Me.cmb_PlcRate = New System.Windows.Forms.ComboBox()
+        Me.Label44 = New System.Windows.Forms.Label()
+        Me.cmb_PlcPort = New System.Windows.Forms.ComboBox()
+        Me.Label45 = New System.Windows.Forms.Label()
+        Me.txt_PlcPort = New System.Windows.Forms.TextBox()
+        Me.Label46 = New System.Windows.Forms.Label()
+        Me.Label47 = New System.Windows.Forms.Label()
+        Me.Txt_PlcIP = New System.Windows.Forms.TextBox()
         Me.GroupBox5 = New System.Windows.Forms.GroupBox()
         Me.CmbIORecom = New System.Windows.Forms.ComboBox()
         Me.Label26 = New System.Windows.Forms.Label()
@@ -38,6 +44,8 @@ Partial Class frmInit
         Me.Label4 = New System.Windows.Forms.Label()
         Me.txt34461 = New System.Windows.Forms.TextBox()
         Me.GroupBox3 = New System.Windows.Forms.GroupBox()
+        Me.ChbScmCom = New System.Windows.Forms.CheckBox()
+        Me.ChbSCMIP = New System.Windows.Forms.CheckBox()
         Me.cmb_SCMRate = New System.Windows.Forms.ComboBox()
         Me.lbl_SCMRate = New System.Windows.Forms.Label()
         Me.cmb_SCMPort = New System.Windows.Forms.ComboBox()
@@ -61,8 +69,15 @@ Partial Class frmInit
         Me.Label22 = New System.Windows.Forms.Label()
         Me.Label23 = New System.Windows.Forms.Label()
         Me.cmb_ScanerRate = New System.Windows.Forms.ComboBox()
+        Me.GroupBox10 = New System.Windows.Forms.GroupBox()
+        Me.btnRetestConnect = New System.Windows.Forms.Button()
+        Me.cmbRetestRate = New System.Windows.Forms.ComboBox()
+        Me.cmbRetestPort = New System.Windows.Forms.ComboBox()
+        Me.Label49 = New System.Windows.Forms.Label()
+        Me.Label48 = New System.Windows.Forms.Label()
         Me.TabPage2 = New System.Windows.Forms.TabPage()
         Me.GroupBox8 = New System.Windows.Forms.GroupBox()
+        Me.radioOCV0Set = New System.Windows.Forms.RadioButton()
         Me.radioOCV1Set = New System.Windows.Forms.RadioButton()
         Me.radioOCV2Set = New System.Windows.Forms.RadioButton()
         Me.GroupBox6 = New System.Windows.Forms.GroupBox()
@@ -120,15 +135,15 @@ Partial Class frmInit
         Me.Label32 = New System.Windows.Forms.Label()
         Me.CmdOK = New System.Windows.Forms.Button()
         Me.Button1 = New System.Windows.Forms.Button()
-        Me.radioOCV0Set = New System.Windows.Forms.RadioButton()
         Me.TabControl1.SuspendLayout()
         Me.TabPage1.SuspendLayout()
-        Me.GroupBox7.SuspendLayout()
+        Me.GroupBox9.SuspendLayout()
         Me.GroupBox5.SuspendLayout()
         Me.GroupBox4.SuspendLayout()
         Me.GroupBox3.SuspendLayout()
         Me.GroupBox2.SuspendLayout()
         Me.GroupBox1.SuspendLayout()
+        Me.GroupBox10.SuspendLayout()
         Me.TabPage2.SuspendLayout()
         Me.GroupBox8.SuspendLayout()
         Me.GroupBox6.SuspendLayout()
@@ -148,75 +163,140 @@ Partial Class frmInit
         Me.TabControl1.Multiline = True
         Me.TabControl1.Name = "TabControl1"
         Me.TabControl1.SelectedIndex = 0
-        Me.TabControl1.Size = New System.Drawing.Size(391, 434)
+        Me.TabControl1.Size = New System.Drawing.Size(391, 576)
         Me.TabControl1.TabIndex = 0
         '
         'TabPage1
         '
         Me.TabPage1.BackColor = System.Drawing.Color.LightBlue
-        Me.TabPage1.Controls.Add(Me.GroupBox7)
+        Me.TabPage1.Controls.Add(Me.GroupBox9)
         Me.TabPage1.Controls.Add(Me.GroupBox5)
         Me.TabPage1.Controls.Add(Me.GroupBox4)
         Me.TabPage1.Controls.Add(Me.GroupBox3)
         Me.TabPage1.Controls.Add(Me.GroupBox2)
         Me.TabPage1.Controls.Add(Me.GroupBox1)
+        Me.TabPage1.Controls.Add(Me.GroupBox10)
         Me.TabPage1.Location = New System.Drawing.Point(4, 22)
         Me.TabPage1.Name = "TabPage1"
         Me.TabPage1.Padding = New System.Windows.Forms.Padding(3)
-        Me.TabPage1.Size = New System.Drawing.Size(383, 408)
+        Me.TabPage1.Size = New System.Drawing.Size(383, 550)
         Me.TabPage1.TabIndex = 0
         Me.TabPage1.Text = "通讯设置"
         '
-        'GroupBox7
+        'GroupBox9
         '
-        Me.GroupBox7.BackColor = System.Drawing.Color.Cyan
-        Me.GroupBox7.Controls.Add(Me.CmbEmmRecom)
-        Me.GroupBox7.Controls.Add(Me.Label42)
-        Me.GroupBox7.Controls.Add(Me.Label43)
-        Me.GroupBox7.Controls.Add(Me.cmbEmmRerate)
-        Me.GroupBox7.Location = New System.Drawing.Point(11, 167)
-        Me.GroupBox7.Name = "GroupBox7"
-        Me.GroupBox7.Size = New System.Drawing.Size(361, 55)
-        Me.GroupBox7.TabIndex = 17
-        Me.GroupBox7.TabStop = False
-        Me.GroupBox7.Text = "智能电表通讯参数"
+        Me.GroupBox9.BackColor = System.Drawing.Color.Cyan
+        Me.GroupBox9.Controls.Add(Me.ChbPlcCom)
+        Me.GroupBox9.Controls.Add(Me.ChbPLCIP)
+        Me.GroupBox9.Controls.Add(Me.cmb_PlcRate)
+        Me.GroupBox9.Controls.Add(Me.Label44)
+        Me.GroupBox9.Controls.Add(Me.cmb_PlcPort)
+        Me.GroupBox9.Controls.Add(Me.Label45)
+        Me.GroupBox9.Controls.Add(Me.txt_PlcPort)
+        Me.GroupBox9.Controls.Add(Me.Label46)
+        Me.GroupBox9.Controls.Add(Me.Label47)
+        Me.GroupBox9.Controls.Add(Me.Txt_PlcIP)
+        Me.GroupBox9.FlatStyle = System.Windows.Forms.FlatStyle.System
+        Me.GroupBox9.Location = New System.Drawing.Point(11, 121)
+        Me.GroupBox9.Name = "GroupBox9"
+        Me.GroupBox9.Size = New System.Drawing.Size(361, 107)
+        Me.GroupBox9.TabIndex = 17
+        Me.GroupBox9.TabStop = False
+        Me.GroupBox9.Text = "PLC通讯参数"
         '
-        'CmbEmmRecom
+        'ChbPlcCom
         '
-        Me.CmbEmmRecom.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList
-        Me.CmbEmmRecom.FormattingEnabled = True
-        Me.CmbEmmRecom.Location = New System.Drawing.Point(80, 21)
-        Me.CmbEmmRecom.Name = "CmbEmmRecom"
-        Me.CmbEmmRecom.Size = New System.Drawing.Size(90, 20)
-        Me.CmbEmmRecom.TabIndex = 8
+        Me.ChbPlcCom.AutoSize = True
+        Me.ChbPlcCom.Checked = True
+        Me.ChbPlcCom.CheckState = System.Windows.Forms.CheckState.Checked
+        Me.ChbPlcCom.Location = New System.Drawing.Point(206, 85)
+        Me.ChbPlcCom.Name = "ChbPlcCom"
+        Me.ChbPlcCom.Size = New System.Drawing.Size(66, 16)
+        Me.ChbPlcCom.TabIndex = 17
+        Me.ChbPlcCom.Text = "Com接口"
+        Me.ChbPlcCom.UseVisualStyleBackColor = True
         '
-        'Label42
+        'ChbPLCIP
         '
-        Me.Label42.AutoSize = True
-        Me.Label42.Location = New System.Drawing.Point(13, 25)
-        Me.Label42.Name = "Label42"
-        Me.Label42.Size = New System.Drawing.Size(53, 12)
-        Me.Label42.TabIndex = 6
-        Me.Label42.Text = "通讯端口"
+        Me.ChbPLCIP.AutoSize = True
+        Me.ChbPLCIP.Location = New System.Drawing.Point(79, 85)
+        Me.ChbPLCIP.Name = "ChbPLCIP"
+        Me.ChbPLCIP.Size = New System.Drawing.Size(66, 16)
+        Me.ChbPLCIP.TabIndex = 17
+        Me.ChbPLCIP.Text = "Tcp接口"
+        Me.ChbPLCIP.UseVisualStyleBackColor = True
         '
-        'Label43
+        'cmb_PlcRate
         '
-        Me.Label43.AutoSize = True
-        Me.Label43.Location = New System.Drawing.Point(195, 25)
-        Me.Label43.Name = "Label43"
-        Me.Label43.Size = New System.Drawing.Size(41, 12)
-        Me.Label43.TabIndex = 7
-        Me.Label43.Text = "波特率"
+        Me.cmb_PlcRate.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList
+        Me.cmb_PlcRate.FormattingEnabled = True
+        Me.cmb_PlcRate.Location = New System.Drawing.Point(250, 49)
+        Me.cmb_PlcRate.Name = "cmb_PlcRate"
+        Me.cmb_PlcRate.Size = New System.Drawing.Size(90, 20)
+        Me.cmb_PlcRate.TabIndex = 16
         '
-        'cmbEmmRerate
+        'Label44
         '
-        Me.cmbEmmRerate.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList
-        Me.cmbEmmRerate.FormattingEnabled = True
-        Me.cmbEmmRerate.Items.AddRange(New Object() {"9600", "19200", "38400", "115200"})
-        Me.cmbEmmRerate.Location = New System.Drawing.Point(251, 21)
-        Me.cmbEmmRerate.Name = "cmbEmmRerate"
-        Me.cmbEmmRerate.Size = New System.Drawing.Size(90, 20)
-        Me.cmbEmmRerate.TabIndex = 9
+        Me.Label44.AutoSize = True
+        Me.Label44.Location = New System.Drawing.Point(203, 54)
+        Me.Label44.Name = "Label44"
+        Me.Label44.Size = New System.Drawing.Size(41, 12)
+        Me.Label44.TabIndex = 15
+        Me.Label44.Text = "波特率"
+        '
+        'cmb_PlcPort
+        '
+        Me.cmb_PlcPort.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList
+        Me.cmb_PlcPort.FormattingEnabled = True
+        Me.cmb_PlcPort.Location = New System.Drawing.Point(79, 49)
+        Me.cmb_PlcPort.Name = "cmb_PlcPort"
+        Me.cmb_PlcPort.Size = New System.Drawing.Size(100, 20)
+        Me.cmb_PlcPort.TabIndex = 14
+        '
+        'Label45
+        '
+        Me.Label45.AutoSize = True
+        Me.Label45.Location = New System.Drawing.Point(33, 54)
+        Me.Label45.Name = "Label45"
+        Me.Label45.Size = New System.Drawing.Size(41, 12)
+        Me.Label45.TabIndex = 13
+        Me.Label45.Text = "串口号"
+        '
+        'txt_PlcPort
+        '
+        Me.txt_PlcPort.Location = New System.Drawing.Point(251, 19)
+        Me.txt_PlcPort.Name = "txt_PlcPort"
+        Me.txt_PlcPort.Size = New System.Drawing.Size(90, 21)
+        Me.txt_PlcPort.TabIndex = 12
+        Me.txt_PlcPort.Visible = False
+        '
+        'Label46
+        '
+        Me.Label46.AutoSize = True
+        Me.Label46.Location = New System.Drawing.Point(34, 24)
+        Me.Label46.Name = "Label46"
+        Me.Label46.Size = New System.Drawing.Size(41, 12)
+        Me.Label46.TabIndex = 10
+        Me.Label46.Text = "Ip地址"
+        Me.Label46.Visible = False
+        '
+        'Label47
+        '
+        Me.Label47.AutoSize = True
+        Me.Label47.Location = New System.Drawing.Point(204, 24)
+        Me.Label47.Name = "Label47"
+        Me.Label47.Size = New System.Drawing.Size(41, 12)
+        Me.Label47.TabIndex = 10
+        Me.Label47.Text = "端口号"
+        Me.Label47.Visible = False
+        '
+        'Txt_PlcIP
+        '
+        Me.Txt_PlcIP.Location = New System.Drawing.Point(80, 19)
+        Me.Txt_PlcIP.Name = "Txt_PlcIP"
+        Me.Txt_PlcIP.Size = New System.Drawing.Size(100, 21)
+        Me.Txt_PlcIP.TabIndex = 11
+        Me.Txt_PlcIP.Visible = False
         '
         'GroupBox5
         '
@@ -225,9 +305,9 @@ Partial Class frmInit
         Me.GroupBox5.Controls.Add(Me.Label26)
         Me.GroupBox5.Controls.Add(Me.Label27)
         Me.GroupBox5.Controls.Add(Me.cmbIORerate)
-        Me.GroupBox5.Location = New System.Drawing.Point(10, 102)
+        Me.GroupBox5.Location = New System.Drawing.Point(361, 196)
         Me.GroupBox5.Name = "GroupBox5"
-        Me.GroupBox5.Size = New System.Drawing.Size(361, 55)
+        Me.GroupBox5.Size = New System.Drawing.Size(10, 13)
         Me.GroupBox5.TabIndex = 17
         Me.GroupBox5.TabStop = False
         Me.GroupBox5.Text = "IO控制卡通讯参数"
@@ -275,9 +355,9 @@ Partial Class frmInit
         Me.GroupBox4.Controls.Add(Me.Label4)
         Me.GroupBox4.Controls.Add(Me.txt34461)
         Me.GroupBox4.FlatStyle = System.Windows.Forms.FlatStyle.System
-        Me.GroupBox4.Location = New System.Drawing.Point(10, 232)
+        Me.GroupBox4.Location = New System.Drawing.Point(11, 236)
         Me.GroupBox4.Name = "GroupBox4"
-        Me.GroupBox4.Size = New System.Drawing.Size(361, 64)
+        Me.GroupBox4.Size = New System.Drawing.Size(361, 69)
         Me.GroupBox4.TabIndex = 16
         Me.GroupBox4.TabStop = False
         Me.GroupBox4.Text = "34461通讯参数"
@@ -286,7 +366,7 @@ Partial Class frmInit
         '
         Me.Label4.AutoSize = True
         Me.Label4.Font = New System.Drawing.Font("宋体", 9.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.Label4.Location = New System.Drawing.Point(7, 27)
+        Me.Label4.Location = New System.Drawing.Point(7, 32)
         Me.Label4.Name = "Label4"
         Me.Label4.Size = New System.Drawing.Size(65, 12)
         Me.Label4.TabIndex = 10
@@ -294,7 +374,7 @@ Partial Class frmInit
         '
         'txt34461
         '
-        Me.txt34461.Location = New System.Drawing.Point(80, 22)
+        Me.txt34461.Location = New System.Drawing.Point(80, 27)
         Me.txt34461.Name = "txt34461"
         Me.txt34461.Size = New System.Drawing.Size(255, 21)
         Me.txt34461.TabIndex = 11
@@ -303,6 +383,8 @@ Partial Class frmInit
         'GroupBox3
         '
         Me.GroupBox3.BackColor = System.Drawing.Color.Cyan
+        Me.GroupBox3.Controls.Add(Me.ChbScmCom)
+        Me.GroupBox3.Controls.Add(Me.ChbSCMIP)
         Me.GroupBox3.Controls.Add(Me.cmb_SCMRate)
         Me.GroupBox3.Controls.Add(Me.lbl_SCMRate)
         Me.GroupBox3.Controls.Add(Me.cmb_SCMPort)
@@ -314,16 +396,38 @@ Partial Class frmInit
         Me.GroupBox3.FlatStyle = System.Windows.Forms.FlatStyle.System
         Me.GroupBox3.Location = New System.Drawing.Point(11, 6)
         Me.GroupBox3.Name = "GroupBox3"
-        Me.GroupBox3.Size = New System.Drawing.Size(361, 86)
+        Me.GroupBox3.Size = New System.Drawing.Size(361, 107)
         Me.GroupBox3.TabIndex = 15
         Me.GroupBox3.TabStop = False
         Me.GroupBox3.Text = "中位机通讯参数"
+        '
+        'ChbScmCom
+        '
+        Me.ChbScmCom.AutoSize = True
+        Me.ChbScmCom.Checked = True
+        Me.ChbScmCom.CheckState = System.Windows.Forms.CheckState.Checked
+        Me.ChbScmCom.Location = New System.Drawing.Point(206, 85)
+        Me.ChbScmCom.Name = "ChbScmCom"
+        Me.ChbScmCom.Size = New System.Drawing.Size(66, 16)
+        Me.ChbScmCom.TabIndex = 17
+        Me.ChbScmCom.Text = "Com接口"
+        Me.ChbScmCom.UseVisualStyleBackColor = True
+        '
+        'ChbSCMIP
+        '
+        Me.ChbSCMIP.AutoSize = True
+        Me.ChbSCMIP.Location = New System.Drawing.Point(79, 85)
+        Me.ChbSCMIP.Name = "ChbSCMIP"
+        Me.ChbSCMIP.Size = New System.Drawing.Size(66, 16)
+        Me.ChbSCMIP.TabIndex = 17
+        Me.ChbSCMIP.Text = "Tcp接口"
+        Me.ChbSCMIP.UseVisualStyleBackColor = True
         '
         'cmb_SCMRate
         '
         Me.cmb_SCMRate.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList
         Me.cmb_SCMRate.FormattingEnabled = True
-        Me.cmb_SCMRate.Location = New System.Drawing.Point(251, 53)
+        Me.cmb_SCMRate.Location = New System.Drawing.Point(250, 49)
         Me.cmb_SCMRate.Name = "cmb_SCMRate"
         Me.cmb_SCMRate.Size = New System.Drawing.Size(90, 20)
         Me.cmb_SCMRate.TabIndex = 16
@@ -331,7 +435,7 @@ Partial Class frmInit
         'lbl_SCMRate
         '
         Me.lbl_SCMRate.AutoSize = True
-        Me.lbl_SCMRate.Location = New System.Drawing.Point(196, 58)
+        Me.lbl_SCMRate.Location = New System.Drawing.Point(203, 54)
         Me.lbl_SCMRate.Name = "lbl_SCMRate"
         Me.lbl_SCMRate.Size = New System.Drawing.Size(41, 12)
         Me.lbl_SCMRate.TabIndex = 15
@@ -341,7 +445,7 @@ Partial Class frmInit
         '
         Me.cmb_SCMPort.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList
         Me.cmb_SCMPort.FormattingEnabled = True
-        Me.cmb_SCMPort.Location = New System.Drawing.Point(80, 53)
+        Me.cmb_SCMPort.Location = New System.Drawing.Point(79, 49)
         Me.cmb_SCMPort.Name = "cmb_SCMPort"
         Me.cmb_SCMPort.Size = New System.Drawing.Size(100, 20)
         Me.cmb_SCMPort.TabIndex = 14
@@ -349,7 +453,7 @@ Partial Class frmInit
         'lbl_SCMPort
         '
         Me.lbl_SCMPort.AutoSize = True
-        Me.lbl_SCMPort.Location = New System.Drawing.Point(21, 58)
+        Me.lbl_SCMPort.Location = New System.Drawing.Point(33, 54)
         Me.lbl_SCMPort.Name = "lbl_SCMPort"
         Me.lbl_SCMPort.Size = New System.Drawing.Size(41, 12)
         Me.lbl_SCMPort.TabIndex = 13
@@ -361,24 +465,27 @@ Partial Class frmInit
         Me.txt_ScmPort.Name = "txt_ScmPort"
         Me.txt_ScmPort.Size = New System.Drawing.Size(90, 21)
         Me.txt_ScmPort.TabIndex = 12
+        Me.txt_ScmPort.Visible = False
         '
         'Label20
         '
         Me.Label20.AutoSize = True
-        Me.Label20.Location = New System.Drawing.Point(21, 24)
+        Me.Label20.Location = New System.Drawing.Point(34, 24)
         Me.Label20.Name = "Label20"
         Me.Label20.Size = New System.Drawing.Size(41, 12)
         Me.Label20.TabIndex = 10
         Me.Label20.Text = "Ip地址"
+        Me.Label20.Visible = False
         '
         'Label21
         '
         Me.Label21.AutoSize = True
-        Me.Label21.Location = New System.Drawing.Point(196, 24)
+        Me.Label21.Location = New System.Drawing.Point(204, 24)
         Me.Label21.Name = "Label21"
         Me.Label21.Size = New System.Drawing.Size(41, 12)
         Me.Label21.TabIndex = 10
         Me.Label21.Text = "端口号"
+        Me.Label21.Visible = False
         '
         'Txt_ScmIP
         '
@@ -386,6 +493,7 @@ Partial Class frmInit
         Me.Txt_ScmIP.Name = "Txt_ScmIP"
         Me.Txt_ScmIP.Size = New System.Drawing.Size(100, 21)
         Me.Txt_ScmIP.TabIndex = 11
+        Me.Txt_ScmIP.Visible = False
         '
         'GroupBox2
         '
@@ -399,12 +507,12 @@ Partial Class frmInit
         Me.GroupBox2.Controls.Add(Me.Label5)
         Me.GroupBox2.Controls.Add(Me.Label6)
         Me.GroupBox2.Controls.Add(Me.cmbRerate)
-        Me.GroupBox2.Location = New System.Drawing.Point(10, 306)
+        Me.GroupBox2.Location = New System.Drawing.Point(11, 313)
         Me.GroupBox2.Name = "GroupBox2"
-        Me.GroupBox2.Size = New System.Drawing.Size(361, 88)
+        Me.GroupBox2.Size = New System.Drawing.Size(361, 93)
         Me.GroupBox2.TabIndex = 14
         Me.GroupBox2.TabStop = False
-        Me.GroupBox2.Text = "3561通讯参数"
+        Me.GroupBox2.Text = "3562通讯参数"
         '
         'Txt_DelayTime
         '
@@ -493,7 +601,7 @@ Partial Class frmInit
         Me.GroupBox1.Controls.Add(Me.Label22)
         Me.GroupBox1.Controls.Add(Me.Label23)
         Me.GroupBox1.Controls.Add(Me.cmb_ScanerRate)
-        Me.GroupBox1.Location = New System.Drawing.Point(11, 409)
+        Me.GroupBox1.Location = New System.Drawing.Point(11, 482)
         Me.GroupBox1.Name = "GroupBox1"
         Me.GroupBox1.Size = New System.Drawing.Size(361, 64)
         Me.GroupBox1.TabIndex = 13
@@ -537,6 +645,66 @@ Partial Class frmInit
         Me.cmb_ScanerRate.Size = New System.Drawing.Size(90, 20)
         Me.cmb_ScanerRate.TabIndex = 9
         '
+        'GroupBox10
+        '
+        Me.GroupBox10.BackColor = System.Drawing.Color.Cyan
+        Me.GroupBox10.Controls.Add(Me.btnRetestConnect)
+        Me.GroupBox10.Controls.Add(Me.cmbRetestRate)
+        Me.GroupBox10.Controls.Add(Me.cmbRetestPort)
+        Me.GroupBox10.Controls.Add(Me.Label49)
+        Me.GroupBox10.Controls.Add(Me.Label48)
+        Me.GroupBox10.Location = New System.Drawing.Point(11, 414)
+        Me.GroupBox10.Name = "GroupBox10"
+        Me.GroupBox10.Size = New System.Drawing.Size(361, 60)
+        Me.GroupBox10.TabIndex = 18
+        Me.GroupBox10.TabStop = False
+        Me.GroupBox10.Text = "NG复测3562通讯参数"
+        '
+        'btnRetestConnect
+        '
+        Me.btnRetestConnect.Location = New System.Drawing.Point(278, 19)
+        Me.btnRetestConnect.Name = "btnRetestConnect"
+        Me.btnRetestConnect.Size = New System.Drawing.Size(82, 25)
+        Me.btnRetestConnect.TabIndex = 24
+        Me.btnRetestConnect.Text = "测试连接"
+        Me.btnRetestConnect.UseVisualStyleBackColor = True
+        '
+        'cmbRetestRate
+        '
+        Me.cmbRetestRate.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList
+        Me.cmbRetestRate.FormattingEnabled = True
+        Me.cmbRetestRate.Location = New System.Drawing.Point(178, 20)
+        Me.cmbRetestRate.Name = "cmbRetestRate"
+        Me.cmbRetestRate.Size = New System.Drawing.Size(85, 20)
+        Me.cmbRetestRate.TabIndex = 21
+        '
+        'cmbRetestPort
+        '
+        Me.cmbRetestPort.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList
+        Me.cmbRetestPort.FormattingEnabled = True
+        Me.cmbRetestPort.Location = New System.Drawing.Point(42, 20)
+        Me.cmbRetestPort.Name = "cmbRetestPort"
+        Me.cmbRetestPort.Size = New System.Drawing.Size(72, 20)
+        Me.cmbRetestPort.TabIndex = 20
+        '
+        'Label49
+        '
+        Me.Label49.AutoSize = True
+        Me.Label49.Location = New System.Drawing.Point(122, 25)
+        Me.Label49.Name = "Label49"
+        Me.Label49.Size = New System.Drawing.Size(41, 12)
+        Me.Label49.TabIndex = 23
+        Me.Label49.Text = "波特率"
+        '
+        'Label48
+        '
+        Me.Label48.AutoSize = True
+        Me.Label48.Location = New System.Drawing.Point(8, 25)
+        Me.Label48.Name = "Label48"
+        Me.Label48.Size = New System.Drawing.Size(29, 12)
+        Me.Label48.TabIndex = 22
+        Me.Label48.Text = "串口"
+        '
         'TabPage2
         '
         Me.TabPage2.BackColor = System.Drawing.Color.LightBlue
@@ -567,7 +735,7 @@ Partial Class frmInit
         Me.TabPage2.Location = New System.Drawing.Point(4, 22)
         Me.TabPage2.Name = "TabPage2"
         Me.TabPage2.Padding = New System.Windows.Forms.Padding(3)
-        Me.TabPage2.Size = New System.Drawing.Size(383, 408)
+        Me.TabPage2.Size = New System.Drawing.Size(383, 474)
         Me.TabPage2.TabIndex = 1
         Me.TabPage2.Text = "参数设置"
         '
@@ -582,6 +750,18 @@ Partial Class frmInit
         Me.GroupBox8.TabIndex = 28
         Me.GroupBox8.TabStop = False
         Me.GroupBox8.Text = "工作站选择"
+        '
+        'radioOCV0Set
+        '
+        Me.radioOCV0Set.AutoSize = True
+        Me.radioOCV0Set.Checked = True
+        Me.radioOCV0Set.Location = New System.Drawing.Point(51, 20)
+        Me.radioOCV0Set.Name = "radioOCV0Set"
+        Me.radioOCV0Set.Size = New System.Drawing.Size(47, 16)
+        Me.radioOCV0Set.TabIndex = 0
+        Me.radioOCV0Set.TabStop = True
+        Me.radioOCV0Set.Text = "OCV0"
+        Me.radioOCV0Set.UseVisualStyleBackColor = True
         '
         'radioOCV1Set
         '
@@ -940,7 +1120,7 @@ Partial Class frmInit
         Me.TabPage3.Controls.Add(Me.Label7)
         Me.TabPage3.Location = New System.Drawing.Point(4, 22)
         Me.TabPage3.Name = "TabPage3"
-        Me.TabPage3.Size = New System.Drawing.Size(383, 374)
+        Me.TabPage3.Size = New System.Drawing.Size(383, 474)
         Me.TabPage3.TabIndex = 2
         Me.TabPage3.Text = "数据库设置"
         '
@@ -1045,7 +1225,7 @@ Partial Class frmInit
         Me.TabPage4.Location = New System.Drawing.Point(4, 22)
         Me.TabPage4.Name = "TabPage4"
         Me.TabPage4.Padding = New System.Windows.Forms.Padding(3)
-        Me.TabPage4.Size = New System.Drawing.Size(383, 374)
+        Me.TabPage4.Size = New System.Drawing.Size(383, 474)
         Me.TabPage4.TabIndex = 3
         Me.TabPage4.Text = "用户管理"
         '
@@ -1102,7 +1282,7 @@ Partial Class frmInit
         '
         'CmdOK
         '
-        Me.CmdOK.Location = New System.Drawing.Point(96, 452)
+        Me.CmdOK.Location = New System.Drawing.Point(106, 621)
         Me.CmdOK.Name = "CmdOK"
         Me.CmdOK.Size = New System.Drawing.Size(79, 34)
         Me.CmdOK.TabIndex = 1
@@ -1112,23 +1292,12 @@ Partial Class frmInit
         'Button1
         '
         Me.Button1.DialogResult = System.Windows.Forms.DialogResult.Cancel
-        Me.Button1.Location = New System.Drawing.Point(225, 452)
+        Me.Button1.Location = New System.Drawing.Point(235, 621)
         Me.Button1.Name = "Button1"
         Me.Button1.Size = New System.Drawing.Size(75, 34)
         Me.Button1.TabIndex = 2
         Me.Button1.Text = "取消"
         Me.Button1.UseVisualStyleBackColor = True
-        '
-        'radioOCV0Set
-        '
-        Me.radioOCV0Set.AutoSize = True
-        Me.radioOCV0Set.Checked = True
-        Me.radioOCV0Set.Location = New System.Drawing.Point(51, 20)
-        Me.radioOCV0Set.Name = "radioOCV0Set"
-        Me.radioOCV0Set.Size = New System.Drawing.Size(47, 16)
-        Me.radioOCV0Set.TabIndex = 0
-        Me.radioOCV0Set.Text = "OCV0"
-        Me.radioOCV0Set.UseVisualStyleBackColor = True
         '
         'frmInit
         '
@@ -1136,7 +1305,7 @@ Partial Class frmInit
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.None
         Me.BackColor = System.Drawing.Color.FromArgb(CType(CType(224, Byte), Integer), CType(CType(224, Byte), Integer), CType(CType(224, Byte), Integer))
         Me.CancelButton = Me.Button1
-        Me.ClientSize = New System.Drawing.Size(413, 507)
+        Me.ClientSize = New System.Drawing.Size(413, 693)
         Me.Controls.Add(Me.Button1)
         Me.Controls.Add(Me.CmdOK)
         Me.Controls.Add(Me.TabControl1)
@@ -1148,8 +1317,8 @@ Partial Class frmInit
         Me.Text = "初始设置"
         Me.TabControl1.ResumeLayout(False)
         Me.TabPage1.ResumeLayout(False)
-        Me.GroupBox7.ResumeLayout(False)
-        Me.GroupBox7.PerformLayout()
+        Me.GroupBox9.ResumeLayout(False)
+        Me.GroupBox9.PerformLayout()
         Me.GroupBox5.ResumeLayout(False)
         Me.GroupBox5.PerformLayout()
         Me.GroupBox4.ResumeLayout(False)
@@ -1160,6 +1329,8 @@ Partial Class frmInit
         Me.GroupBox2.PerformLayout()
         Me.GroupBox1.ResumeLayout(False)
         Me.GroupBox1.PerformLayout()
+        Me.GroupBox10.ResumeLayout(False)
+        Me.GroupBox10.PerformLayout()
         Me.TabPage2.ResumeLayout(False)
         Me.TabPage2.PerformLayout()
         Me.GroupBox8.ResumeLayout(False)
@@ -1263,13 +1434,27 @@ Partial Class frmInit
     Friend WithEvents txtOverTemperate As TextBox
     Friend WithEvents Label40 As Label
     Friend WithEvents Label41 As Label
-    Friend WithEvents GroupBox7 As GroupBox
-    Friend WithEvents CmbEmmRecom As ComboBox
-    Friend WithEvents Label42 As Label
-    Friend WithEvents Label43 As Label
-    Friend WithEvents cmbEmmRerate As ComboBox
     Friend WithEvents GroupBox8 As GroupBox
     Friend WithEvents radioOCV1Set As RadioButton
     Friend WithEvents radioOCV2Set As RadioButton
     Friend WithEvents radioOCV0Set As RadioButton
+    Friend WithEvents GroupBox9 As GroupBox
+    Friend WithEvents cmb_PlcRate As ComboBox
+    Friend WithEvents Label44 As Label
+    Friend WithEvents cmb_PlcPort As ComboBox
+    Friend WithEvents Label45 As Label
+    Friend WithEvents txt_PlcPort As TextBox
+    Friend WithEvents Label46 As Label
+    Friend WithEvents Label47 As Label
+    Friend WithEvents Txt_PlcIP As TextBox
+    Friend WithEvents ChbScmCom As CheckBox
+    Friend WithEvents ChbSCMIP As CheckBox
+    Friend WithEvents ChbPlcCom As CheckBox
+    Friend WithEvents ChbPLCIP As CheckBox
+    Friend WithEvents cmbRetestPort As ComboBox
+    Friend WithEvents cmbRetestRate As ComboBox
+    Friend WithEvents btnRetestConnect As Button
+    Friend WithEvents GroupBox10 As GroupBox
+    Friend WithEvents Label48 As Label
+    Friend WithEvents Label49 As Label
 End Class

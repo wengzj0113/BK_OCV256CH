@@ -1,4 +1,5 @@
 Imports System.Data
+Imports System.Drawing
 Imports System.IO
 Imports System.Linq
 Imports System.Net
@@ -10,15 +11,6 @@ Imports MpFByteArrDLL
 Imports File = System.IO.File
 Imports Timer = System.Timers.Timer
 Public Class frmTest
-    Private Const HeaderHeight As Integer = 58
-    Private Const BottomStatusHeight As Integer = 36
-    Private Const LeftPanelWidth As Integer = 370
-    Private Const OuterMargin As Integer = 12
-    Private Const CardGap As Integer = 10
-    Private statisticsControl As StatisticsControl
-    Private channelGrid As ChannelGridControl
-    Private probeProgress As ProgressBar
-
     Dim PaintFlag As Boolean
     Dim objOLECommamd As OleDb.OleDbCommand
     Dim intNumber As Short
@@ -39,17 +31,19 @@ Public Class frmTest
     Private WithEvents timer3 As New Timer()
     '窗体是否已加载完成（用于屏蔽 Resize 期间重绘，避免初始化阶段空引用）
     Private _isLoaded As Boolean = False
+    Private responsiveLayout As ResponsiveTestLayout
     Private lastTestSelection As TestChannelSelection
     Private currentTestChannels As List(Of Integer)
+    Private ReadOnly testingChannelNumbers As New HashSet(Of Integer)()
     Public autoStartFlag As Boolean '自动测试标志
     Public haveNgPoint As Boolean '存在NG的点
     Public hjwd As String
     Public trayCode As String
-    '存放校准值的文件
-    Const filePath As String = "CalibrateArr.csv"
+    '存放校准值的文件：安装目录可能位于 WindowsApps，只读；改用当前用户可写目录。
+    Private ReadOnly filePath As String = GetCalibrationFilePath()
     Dim alarmStatus As Boolean = False
-    Dim logDirectory As String = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logFile")
-    Dim logFilePath As String = Path.Combine(logDirectory, "LogOfRun.txt")
+    Dim logDirectory As String = AppLog.LogDirectory
+    Dim logFilePath As String = Path.Combine(logDirectory, "Run.log")
 
     Public ReadOnly Property CurrentAlarmValue As Integer
         Get
@@ -70,15 +64,14 @@ Public Class frmTest
     End Property
 
     Private Sub frmTest_Load(ByVal sender As Object, ByVal e As System.EventArgs) Handles MyBase.Load
+        InitializeChannelSelectionControls()
         'R2-18:提前标记已加载完成,确保 frmTest_Resize 的布局调整始终执行
         '       (若 myConnection 未打开,后面 Exit Sub 会提前返回,原 _isLoaded=True 在末尾无法执行)
         _isLoaded = True
         'R2-18:Load 一开始就应用布局,避免 socketSR1 等阻塞期间 Pic_Bat 停留在初始 Dock=Right 969 宽导致初次留白
         ApplyFrmTestVisualStyle()
-        ApplyFrmTestLayout()
         '*******************************
         '显示相关信息
-        lblPath.Text = Initsetting.sPath
         txtDataServer.Text = Initsetting.strDatabase
         lblBarNum.Text = "*"
         '合格范围
@@ -92,8 +85,6 @@ Public Class frmTest
         txtTotle.Text = Initsetting.Probelifespan.ToString
         txtUsed.Text = Initsetting.ProbeUsedCount.ToString
         txtRemain.Text = (Initsetting.Probelifespan - Initsetting.ProbeUsedCount).ToString
-        If probeProgress IsNot Nothing Then EnsureProbeProgress()
-
         timer3.Interval = 1000 ' 设置定时器间隔为1秒
         timer3.Start() ' 开始定时器
         Timer4.Start()
@@ -106,21 +97,16 @@ Public Class frmTest
         '       (用户要求:窗体显示与设备连接分离,设备状态后续由 timer3 后台轮询)
         System.Threading.ThreadPool.QueueUserWorkItem(Sub()
                                                           Try
-                                                              Dim cl As New SocketClient
-                                                              Dim bytesToSend As Byte() = cl.GetSignalTrayTempertureAndIOStatus()
-                                                              socketSR1(bytesToSend)
-                                                              bytesToSend = cl.SetOverTempertureAndMesStatus(0, Initsetting.overTemperateValue * 10)
-                                                              socketSR1(bytesToSend)
+                                                              If Com_SCM IsNot Nothing AndAlso Com_SCM.IsOpen Then
+                                                                  Dim cl As New SerialControlBoardClient(Com_SCM)
+                                                                  cl.ReadTemperatureAndIoStatus()
+                                                                  cl.SetOverTemperatureAndMesStatus(0, CShort(Initsetting.overTemperateValue * 10))
+                                                              End If
                                                           Catch ex As Exception
-                                                              System.Diagnostics.Debug.WriteLine("后台连接中位机失败: " & ex.Message)
+                                                              System.Diagnostics.Debug.WriteLine("后台读取控制板温度/IO失败: " & ex.Message)
                                                           End Try
                                                       End Sub)
         '
-
-        ' 确保logFile目录存在
-        If Not Directory.Exists(logDirectory) Then
-            Directory.CreateDirectory(logDirectory)
-        End If
 
         For index = 1 To MAX_CHANNEL
             cmb_ChSelect.Items.Add(index)
@@ -156,9 +142,8 @@ Public Class frmTest
         '****************************
         '刷新界面
         FreshBat(0, 0, intNumber, RecieveData, 1)
-        If statisticsControl IsNot Nothing Then
-            statisticsControl.UpdateStatistics(BuildChannelStatistics())
-        End If
+        RefreshChannelOverview()
+        channelGrid.SelectAll()
         '****************************
         LabelAlarm.Visible = False
         LabelRun.Visible = True
@@ -186,23 +171,82 @@ Public Class frmTest
         Call GetCN()
         '加载完成后才允许 Resize 触发的重绘，避免初始化阶段空引用
         _isLoaded = True
+        'MDI 最大化完成后强制客户区跟随 mdiClient,防止矩阵底部被状态栏裁切
+        Me.BeginInvoke(New MethodInvoker(AddressOf FitToMdiClient))
+        '布局稳定后强制左侧滚动区回到顶部,保证首屏从工位选择/托盘信息开始
+        Me.BeginInvoke(New Action(Sub()
+                                      If Panel1 IsNot Nothing Then
+                                          Panel1.AutoScrollPosition = New Point(0, 0)
+                                      End If
+                                  End Sub))
+    End Sub
+
+    Private Sub InitializeChannelSelectionControls()
+        SetSelectionModeButton(btnChannelSelectSingle)
+        AddHandler channelGrid.SelectedChannelsChanged, AddressOf HandleSelectedChannelsChanged
+        HandleSelectedChannelsChanged(channelGrid, EventArgs.Empty)
+    End Sub
+
+    Private Sub HandleChannelSelectAll(ByVal sender As Object, ByVal e As EventArgs) Handles btnChannelSelectAll.Click
+        channelGrid.SelectAll()
+    End Sub
+
+    Private Sub HandleChannelClear(ByVal sender As Object, ByVal e As EventArgs) Handles btnChannelClear.Click
+        channelGrid.ClearSelection()
+    End Sub
+
+    Private Sub HandleChannelRectangle(ByVal sender As Object, ByVal e As EventArgs) Handles btnChannelRectangle.Click
+        channelGrid.SelectionMode = ChannelSelectionMode.Rectangle
+        SetSelectionModeButton(btnChannelRectangle)
+    End Sub
+
+    Private Sub HandleChannelSingle(ByVal sender As Object, ByVal e As EventArgs) Handles btnChannelSelectSingle.Click
+        channelGrid.SelectionMode = ChannelSelectionMode.SingleChannel
+        SetSelectionModeButton(btnChannelSelectSingle)
+    End Sub
+
+    Private Sub SetSelectionModeButton(ByVal activeButton As Button)
+        Dim buttons() As Button = {btnChannelSelectAll, btnChannelClear, btnChannelRectangle, btnChannelSelectSingle}
+        For Each button As Button In buttons
+            button.BackColor = If(button Is activeButton, UiTheme.Primary, SystemColors.Control)
+            button.ForeColor = If(button Is activeButton, Color.White, SystemColors.ControlText)
+        Next
+    End Sub
+
+    Private Sub HandleSelectedChannelsChanged(ByVal sender As Object, ByVal e As EventArgs)
+        If channelGrid Is Nothing Then Return
+        SelectedChannelNumbers = channelGrid.SelectedChannelNumbers
+        lblBarNum.Text = channelGrid.SelectedChannelCount.ToString()
+    End Sub
+
+    Private Sub SetSelectionControlsEnabled(ByVal enabled As Boolean)
+        Dim buttons() As Button = {btnChannelSelectAll, btnChannelClear, btnChannelRectangle, btnChannelSelectSingle}
+        For Each button As Button In buttons
+            button.Enabled = enabled
+        Next
+        channelGrid.Enabled = enabled
     End Sub
 
     Public Function GetSignalTrayStatus() As Boolean
-        Dim temp As Byte()
-        mSock = frmDebug.mSock
-
-        '---------------------------查询托盘的状态-------------------------------
-        temp = mSock.GetSignalTrayStatus '查询托盘的状态
-        Dim bytes(500) As Byte
-        bytes = socketSR(temp)
-        If bytes(4) = 1 Then
+        If Not plcConnected OrElse plcController Is Nothing Then
+            fixtureClose = False
+            SetTestStatus("PLC未连接，无法读取托盘状态")
+            Return False
+        End If
+        Try
+            fixtureClose = plcController.ReadTrayStatus()
+        Catch ex As Exception
+            fixtureClose = False
+            SetTestStatus("托盘状态读取失败")
+            Return False
+        End Try
+        If fixtureClose Then
             fixtureClose = True
             GetSignalTrayStatus = True
-            Me.txtInfo.Text = "托盘已关闭"
+            SetTestStatus("托盘已关闭")
         Else
             GetSignalTrayStatus = False
-            Me.txtInfo.Text = "托盘已打开"
+            SetTestStatus("托盘已打开")
         End If
         '----------------------------------------------------------
     End Function
@@ -230,18 +274,24 @@ Public Class frmTest
         Next
     End Sub
     Public Function TrayOpen() As Boolean
-        Dim temp As Byte()
-        Dim bytes(500) As Byte
-        temp = mSock.GetSignalFixtureUp '松开夹具（打开托盘）
-        bytes = socketSR(temp)
         Me.Cursor = Cursors.Default
-        If bytes(4) = 1 Then
-            fixtureClose = False
-            txtInfo.Text = "托盘已开启"
-        Else
-            txtInfo.Text = "操作托盘开启失败！"
+        If Not plcConnected OrElse plcController Is Nothing Then
+            SetTestStatus("PLC未连接，无法打开托盘")
+            Return False
         End If
-        TrayOpen = True
+        Try
+            If plcController.OpenTray() AndAlso Not plcController.ReadTrayStatus() Then
+                fixtureClose = False
+                SetTestStatus("托盘已开启")
+                Return True
+            Else
+                SetTestStatus("操作托盘开启失败！")
+                Return False
+            End If
+        Catch ex As Exception
+            SetTestStatus("操作托盘开启失败！")
+            Return False
+        End Try
     End Function
 
 
@@ -403,6 +453,10 @@ Public Class frmTest
             MessageBox.Show("目前处于报警状态，请先复位报警！", "提示", MessageBoxButtons.OK)
             Exit Sub
         End If
+        If SelectedChannelNumbers Is Nothing OrElse SelectedChannelNumbers.Count = 0 Then
+            MessageBox.Show("请先选择至少一个待测试通道！", "提示", MessageBoxButtons.OK)
+            Exit Sub
+        End If
         '启动测试
         Call StarTest(1)
     End Sub
@@ -413,6 +467,10 @@ Public Class frmTest
     ''' <returns></returns>
     Public Function StarTest(ByVal testType As Integer)
         StarTest = 0
+        If SelectedChannelNumbers Is Nothing OrElse SelectedChannelNumbers.Count = 0 Then
+            MessageBox.Show("请先选择至少一个待测试通道！", "提示", MessageBoxButtons.OK)
+            Return StarTest
+        End If
         'Dim intLoop As Int16
         Dim reFlag As Short
         Dim I As Int16
@@ -420,7 +478,6 @@ Public Class frmTest
         Dim strTrayNo As String
         Dim Buffer_SCM(5) As Byte
         Dim Buffer_Re(5) As Byte
-        Dim temp As Byte()
         Dim isOpenOk As Boolean
         Dim mesUP As New ResultDataUploadAssembly(FrmMesTask.listBoxOutput)
         '清空报警信息
@@ -436,6 +493,7 @@ Public Class frmTest
         frmMDI.Refresh()
         '设定为测试状态
         isRuning = True
+        SetSelectionControlsEnabled(False)
         '改变鼠标形状
         Me.Cursor = Cursors.WaitCursor
         '***********************************
@@ -458,21 +516,8 @@ Public Class frmTest
             Next
         End If
 
-        Dim logDirectory As String = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logFile")
-        Dim logFilePath As String = Path.Combine(logDirectory, "LogOfRun.txt")
-
-        ' 检查日志文件是否存在，如果不存在则创建文件
-        If Not File.Exists(logFilePath) Then
-            Dim fs As FileStream = File.Create(logFilePath)
-            fs.Close()
-        End If
-
         If strTrayNo = "" Then
             MsgBox("托盘号为空，请完成扫码！", vbOKOnly, "提示")
-            '启动扫码程序
-            My.Forms.frmInput.ShowDialog()
-            My.Forms.frmInput.Activate()
-
             GoTo exit_sub
 
         Else
@@ -532,17 +577,22 @@ Public Class frmTest
             MsgBox("单片机通讯失败！", vbOKOnly)
             GoTo exit_sub
         End If
-        '启动测试前的准备工作
-        '*****************1、检查托盘是否闭合******************
+        '启动测试前的准备工作：托盘由 PLC 控制
+        If Not plcConnected OrElse plcController Is Nothing Then
+            MsgBox("PLC通讯失败，禁止启动测试！", vbOKOnly, "提示")
+            GoTo exit_sub
+        End If
         GetSignalTrayStatus()
-        'If fixtureClose = True Then
-        'Else
-        '闭合夹具（关闭托盘）
-        temp = mSock.GetSignalFixtureDown
-        Dim bytes1(500) As Byte
-        bytes1 = socketSR(temp)
-        Sleep(9000)
-        GetSignalTrayStatus()
+        If Not fixtureClose Then
+            Try
+                If Not plcController.CloseTray() Then GoTo exit_sub
+                Sleep(9000)
+            Catch
+                MsgBox("PLC关闭托盘失败，测试停止！", vbOKOnly, "提示")
+                GoTo exit_sub
+            End Try
+            GetSignalTrayStatus()
+        End If
         If fixtureClose = True Then
         Else
             MsgBox("托盘未闭合！测试停止！", vbOKOnly, "提示")
@@ -555,7 +605,6 @@ Public Class frmTest
         Initsetting.ProbeUsedCount = Initsetting.ProbeUsedCount + 1
         txtUsed.Text = Initsetting.ProbeUsedCount.ToString
         txtRemain.Text = (Initsetting.Probelifespan - Initsetting.ProbeUsedCount).ToString
-        If probeProgress IsNot Nothing Then EnsureProbeProgress()
         If Initsetting.Probelifespan - Initsetting.ProbeUsedCount = 0 Then
             MsgBox("探针的使用次数以达到上限，请联系供应商更换探针！", vbOKOnly, "提示")
         End If
@@ -570,6 +619,7 @@ Public Class frmTest
         '本次测试必须从当前计划重新生成通道选择，不能沿用上一次 Runner 的结果。
         lastTestSelection = Nothing
         currentTestChannels = GetSelectedPhysicalChannels(testType)
+        MarkSelectedChannelsTesting()
         Dim ocvTestTaskId As Long? = Nothing
         Dim testTaskStatusFinalized As Boolean = False
         Try
@@ -606,9 +656,6 @@ Public Class frmTest
                 FreshBat(1, firstCellNumToTest, totalCellNumToTest, RecieveData, testType)
             End If
 
-            If statisticsControl IsNot Nothing Then
-                statisticsControl.UpdateStatistics(BuildChannelStatistics())
-            End If
             frmMDI.txtTesting.Text = "测试结束"
             Sleep(100)
             frmMDI.Refresh()
@@ -646,6 +693,8 @@ Public Class frmTest
                     End If
                 Next
             End If
+            testingChannelNumbers.Clear()
+            RefreshChannelOverview()
             SaveOcvDataTestResults(ocvTestTaskId, testType)
             CompleteOcvDataTestTaskSafely(ocvTestTaskId, "Completed", Nothing)
             testTaskStatusFinalized = True
@@ -686,6 +735,8 @@ Public Class frmTest
             End If
         End If
 exit_sub:
+        testingChannelNumbers.Clear()
+        RefreshChannelOverview()
         If fixtureDownForRun Then
             Try
                 TrayOpen()
@@ -699,6 +750,7 @@ exit_sub:
         btnOpen.Enabled = True
         btnTrayState.Enabled = True
         btnClose.Enabled = True
+        SetSelectionControlsEnabled(True)
         Me.Cursor = Cursors.Default
         isRuning = False
         Return 0
@@ -866,9 +918,7 @@ exit_sub:
     Sub LogRun(logFilePath As String, trayNo As String, status As String)
         Dim logEntry As String = $"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")} - 托盘号: {trayNo} - 状态: {status}"
         Try
-            Using writer As StreamWriter = New StreamWriter(logFilePath, True)
-                writer.WriteLine(logEntry)
-            End Using
+            AppLog.Write("Run", logEntry)
         Catch ex As Exception
             MsgBox("写入日志文件时出错: " & ex.Message, vbOKOnly, "错误")
         End Try
@@ -1174,12 +1224,7 @@ exit_sub:
                         txtAlarm.AppendText(alarmLog & Environment.NewLine)
                     End If
                     Try
-                        Dim logDir As String = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logFile")
-                        If Not System.IO.Directory.Exists(logDir) Then
-                            System.IO.Directory.CreateDirectory(logDir)
-                        End If
-                        Dim filePath As String = System.IO.Path.Combine(logDir, "AlarmLog.txt")
-                        System.IO.File.AppendAllText(filePath, DateTime.Now.ToString() & ": " & alarmLog & Environment.NewLine)
+                        AppLog.Write("Alarm", alarmLog)
                     Catch ex As Exception
                         System.Diagnostics.Debug.WriteLine("AlarmLog write failed: " & ex.Message)
                     End Try
@@ -1262,7 +1307,7 @@ exit_sub:
     Private Sub btnStop_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles btnStop.Click
         blstop = True
     End Sub
-    Private Sub txtLastNum_KeyDown(ByVal sender As Object, ByVal e As System.Windows.Forms.KeyEventArgs) Handles txtLastNum.KeyDown
+    Private Sub txtLastNum_KeyDown(ByVal sender As Object, ByVal e As System.Windows.Forms.KeyEventArgs) Handles txtLastNum.KeyDown, txtDataServer.KeyDown
         '        Dim intF, intL As Long
         '        Dim I As Short
         '        Dim intBarnum As Short
@@ -1835,6 +1880,14 @@ exit_sub:
         Timer1.Enabled = False
     End Sub
 
+    Private Shared Function GetCalibrationFilePath() As String
+        Dim dataDirectory As String = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "XL_OCV_256CH")
+        Directory.CreateDirectory(dataDirectory)
+        Return Path.Combine(dataDirectory, "CalibrateArr.csv")
+    End Function
+
     Private Sub Timer4_Tick(sender As Object, e As EventArgs) Handles Timer4.Tick
         If autoStartFlag = True Then
             If alarmStatus = True Then
@@ -1889,11 +1942,15 @@ exit_sub:
     End Sub
     ' 将Double类型数组保存为CSV文件
     Sub SaveCalibrateArrayToFile()
-        Using writer As StreamWriter = New StreamWriter(filePath)
-            For Each val As Double In calibrateValueArray
-                writer.WriteLine(val)
-            Next
-        End Using
+        Try
+            Using writer As StreamWriter = New StreamWriter(filePath)
+                For Each val As Double In calibrateValueArray
+                    writer.WriteLine(val)
+                Next
+            End Using
+        Catch ex As Exception
+            System.Diagnostics.Debug.WriteLine("保存校准数组失败: " & ex.Message)
+        End Try
     End Sub
 
     ' 从CSV文件中读取数据放入Double类型数组中
@@ -1936,7 +1993,7 @@ exit_sub:
     ''' </summary>
     ''' <param name="sender"></param>
     ''' <param name="e"></param>
-    Private Sub btn_ChCalibrate_Click(sender As Object, e As EventArgs) Handles btn_ChCalibrate.Click
+    Private Sub btn_ChCalibrate_Click(sender As Object, e As EventArgs)
         Dim ch As Integer = cmb_ChSelect.SelectedItem
         Dim temp As Byte()
         Dim reFlag As Short
@@ -2002,7 +2059,7 @@ exit_sub:
         bytes2 = socketSR(temp)
         'msg1 = mSock.Send(temp)
     End Sub
-    Private Sub cmb_ChSelect_SelectedIndexChanged(sender As Object, e As EventArgs) Handles cmb_ChSelect.SelectedIndexChanged
+    Private Sub cmb_ChSelect_SelectedIndexChanged(sender As Object, e As EventArgs)
         Dim selectCh As Integer
         selectCh = cmb_ChSelect.SelectedItem
         txtCaliR.Text = calibrateValueArray(selectCh - 1).ToString()
@@ -2027,12 +2084,8 @@ exit_sub:
         '显示首尾条形码
         txtFirstNum.Text = My.Forms.frmInput.txtFirst.Text
         txtLastNum.Text = My.Forms.frmInput.txtLast.Text
-        '显示电池总数
-        If intNumber > 0 Then
-            lblBarNum.Text = intNumber
-        Else
-            lblBarNum.Text = "*"
-        End If
+        '选择结果决定待测试通道数，扫码不会覆盖该数量。
+        HandleSelectedChannelsChanged(channelGrid, EventArgs.Empty)
     End Sub
     '通过检测温度变化，判读是否有超温报警。
     Private Sub t1_TextChanged(sender As Object, e As EventArgs) Handles t1.TextChanged
@@ -2173,7 +2226,7 @@ exit_sub:
         End Try
     End Sub
 
-    Private Sub txtLastNum_TextChanged(sender As Object, e As EventArgs) Handles txtLastNum.TextChanged
+    Private Sub txtLastNum_TextChanged(sender As Object, e As EventArgs) Handles txtLastNum.TextChanged, txtDataServer.TextChanged
         avalibleCount = Val(txtLastNum.Text)
     End Sub
 
@@ -2205,66 +2258,21 @@ exit_sub:
     End Sub
 
     '窗体尺寸变化时重绘电池矩阵，避免 MDI 最大化后位图仍停留在原始尺寸
-    'R2-18:统一走 ApplyFrmTestLayout,Load 开头与 Resize 都调用,确保初次显示即正确布局
     Private Sub frmTest_Resize(sender As Object, e As EventArgs) Handles Me.Resize
-        ApplyFrmTestLayout()
+        '最大化 MDI 子窗体在个别布局时序下会被留在比 mdiClient 更高的高度,
+        '导致矩阵底部(15/16 行)被底部状态栏裁切;这里强制跟随 mdiClient 客户区尺寸。
+        If _isLoaded Then FitToMdiClient()
     End Sub
 
-    'R2-18:布局自适应 - 动态调整 Panel1/Pic_Bat 大小位置,避免右侧留白。
-    '       Pic_Bat.Dock=None 强制手动布局,屏蔽 Designer/linter 的 Dock=Right 干扰
-    Private Sub ApplyFrmTestLayout()
-        If Pic_Bat Is Nothing OrElse Panel1 Is Nothing Then
-            Exit Sub
-        End If
-        Try
-            PaintFlag = True
-            ApplyFrmTestVisualStyle()
-            EnsureStatisticsControl()
-            EnsureChannelGrid()
-            Pic_Bat.Dock = DockStyle.None
-            Pic_Bat.Visible = False
-            With Panel1
-                .Left = OuterMargin
-                .Top = OuterMargin
-                .Width = LeftPanelWidth
-                .Height = Math.Max(0, Me.ClientSize.Height - OuterMargin * 2 - BottomStatusHeight)
-            End With
-            With Pic_Bat
-                .Left = Panel1.Right + OuterMargin
-                .Top = OuterMargin + statisticsControl.Height + CardGap
-                .Width = Math.Max(1, Me.ClientSize.Width - .Left - OuterMargin)
-                .Height = Math.Max(1, Me.ClientSize.Height - .Top - OuterMargin - BottomStatusHeight)
-            End With
-            channelGrid.Left = Pic_Bat.Left
-            channelGrid.Top = Pic_Bat.Top
-            channelGrid.Width = Pic_Bat.Width
-            channelGrid.Height = Pic_Bat.Height
-            statisticsControl.Left = channelGrid.Left
-            statisticsControl.Top = OuterMargin
-            statisticsControl.Width = channelGrid.Width
-            FreshBat(0, 0, intNumber, RecieveData, 1)
-            channelGrid.UpdateAll(BuildAllChannelDisplayData())
-        Catch
-            '静默忽略刷新异常，避免影响主流程
-        End Try
-    End Sub
-
-    Private Sub EnsureStatisticsControl()
-        If statisticsControl Is Nothing Then
-            statisticsControl = New StatisticsControl()
-            Controls.Add(statisticsControl)
-            statisticsControl.BringToFront()
-        End If
-        statisticsControl.UpdateStatistics(BuildChannelStatistics())
-    End Sub
-
-    Private Sub EnsureChannelGrid()
-        If channelGrid Is Nothing Then
-            channelGrid = New ChannelGridControl()
-            AddHandler channelGrid.ChannelSelected, AddressOf HandleChannelSelected
-            Controls.Add(channelGrid)
-            channelGrid.BringToFront()
-            If statisticsControl IsNot Nothing Then statisticsControl.BringToFront()
+    Private Sub FitToMdiClient()
+        If Me.MdiParent Is Nothing Then Return
+        '只在最大化时强制跟随 mdiClient,避免把用户手动还原的窗口硬拉满
+        If Me.WindowState <> FormWindowState.Maximized Then Return
+        Dim mdiClient As Control = Me.Parent
+        If mdiClient Is Nothing Then Return
+        Dim target As New Size(mdiClient.ClientSize.Width, mdiClient.ClientSize.Height)
+        If Me.ClientSize.Width <> target.Width OrElse Me.ClientSize.Height <> target.Height Then
+            Me.ClientSize = target
         End If
     End Sub
 
@@ -2276,18 +2284,33 @@ exit_sub:
         Return result
     End Function
 
+    Private Sub RefreshChannelOverview()
+        If IsDisposed OrElse Not IsHandleCreated Then Return
+        If InvokeRequired Then
+            BeginInvoke(New MethodInvoker(AddressOf RefreshChannelOverview))
+            Return
+        End If
+
+        If channelGrid IsNot Nothing AndAlso Not channelGrid.IsDisposed Then
+            channelGrid.UpdateAll(BuildAllChannelDisplayData())
+        End If
+        If statisticsControl IsNot Nothing AndAlso Not statisticsControl.IsDisposed Then
+            statisticsControl.UpdateStatistics(BuildChannelStatistics())
+        End If
+    End Sub
+
     Private Function BuildChannelDisplayData(ByVal channelNo As Integer) As ChannelDisplayData
         Dim index As Integer = channelNo - 1
         Dim row As Integer = (index Mod intRow) + 1
         Dim column As Integer = (index \ intRow) + 1
-        Dim resultText As String = Convert.ToString(RecieveData(index).Result).Trim()
+        Dim resultText As String = If(RecieveData(index).Result, String.Empty).Trim()
         Dim statusText As String
-        If String.Equals(resultText, "NG", StringComparison.OrdinalIgnoreCase) Then
+        If testingChannelNumbers.Contains(channelNo) Then
+            statusText = "TESTING"
+        ElseIf String.Equals(resultText, "NG", StringComparison.OrdinalIgnoreCase) Then
             statusText = "NG"
         ElseIf String.Equals(resultText, "OK", StringComparison.OrdinalIgnoreCase) OrElse String.Equals(resultText, "PASS", StringComparison.OrdinalIgnoreCase) Then
             statusText = "PASS"
-        ElseIf isRuning Then
-            statusText = "TESTING"
         ElseIf String.IsNullOrWhiteSpace(RecieveData(index).BatCode) Then
             statusText = "IDLE"
         Else
@@ -2306,21 +2329,21 @@ exit_sub:
         }
     End Function
 
-    Private Sub HandleChannelSelected(ByVal sender As Object, ByVal e As ChannelSelectedEventArgs)
+    Private Sub HandleChannelSelected(ByVal sender As Object, ByVal e As ChannelSelectedEventArgs) Handles channelGrid.ChannelSelected
         If e Is Nothing Then Return
         Dim data As ChannelDisplayData = e.Data
-        txtInfo.Text = String.Format("通道 {0}-{1}：{2}，OCV1 {3:0.00} mV，IR1 {4:0.000} mΩ", data.Row, data.Column, If(String.IsNullOrWhiteSpace(data.StatusText), "空闲", data.StatusText), If(data.Ocv1.HasValue, data.Ocv1.Value, 0.0F), If(data.Ir1.HasValue, data.Ir1.Value, 0.0F))
+        SetTestStatus(String.Format("通道 {0}-{1}：{2}，OCV1 {3:0.00} mV，IR1 {4:0.000} mΩ", data.Row, data.Column, If(String.IsNullOrWhiteSpace(data.StatusText), "空闲", data.StatusText), If(data.Ocv1.HasValue, data.Ocv1.Value, 0.0F), If(data.Ir1.HasValue, data.Ir1.Value, 0.0F)))
     End Sub
 
     Private Function BuildChannelStatistics() As ChannelStatistics
         Dim statistics As New ChannelStatistics With {.Total = MAX_CHANNEL}
         For channel As Integer = 0 To MAX_CHANNEL - 1
-            Dim resultText As String = Convert.ToString(RecieveData(channel).Result).Trim().ToUpperInvariant()
+            Dim resultText As String = If(RecieveData(channel).Result, String.Empty).Trim().ToUpperInvariant()
             If resultText = "NG" Then
                 statistics.NgCount += 1
             ElseIf resultText = "OK" OrElse resultText = "PASS" Then
                 statistics.PassCount += 1
-            ElseIf isRuning Then
+            ElseIf testingChannelNumbers.Contains(channel + 1) Then
                 statistics.TestingCount += 1
             Else
                 statistics.IdleCount += 1
@@ -2329,12 +2352,32 @@ exit_sub:
         Return statistics
     End Function
 
+    Private Sub MarkSelectedChannelsTesting()
+        testingChannelNumbers.Clear()
+        If currentTestChannels Is Nothing Then Return
+
+        For Each channelNo As Integer In currentTestChannels.Distinct().Where(Function(channel) channel >= 1 AndAlso channel <= MAX_CHANNEL)
+            testingChannelNumbers.Add(channelNo)
+            RecieveData(channelNo - 1).Result = String.Empty
+        Next
+
+        RefreshChannelOverview()
+        SetTestStatus(String.Format("正在测试 {0} 个通道...", testingChannelNumbers.Count))
+        Application.DoEvents()
+    End Sub
+
+
+
     ''' <summary>
     ''' Applies the visual layer to existing controls without changing their
     ''' event bindings or business behavior.
     ''' </summary>
     Private Sub ApplyFrmTestVisualStyle()
+        MinimumSize = New Size(0, 0)
         If Panel1 Is Nothing Then Return
+
+        If responsiveLayout Is Nothing Then responsiveLayout = New ResponsiveTestLayout()
+        responsiveLayout.Apply(Me, Panel1, statisticsControl, channelGrid, Pic_Bat)
 
         Me.BackColor = UiTheme.PageBackground
         Me.Font = UiTheme.UiFont
@@ -2348,7 +2391,6 @@ exit_sub:
         }
         For Each card As GroupBox In cards
             UiTheme.ApplyCardStyle(card)
-            card.Width = Math.Max(1, Panel1.ClientSize.Width - OuterMargin * 2)
         Next
 
         Dim inputs As TextBox() = {
@@ -2361,38 +2403,23 @@ exit_sub:
             UiTheme.ApplyTextBoxStyle(input)
         Next
 
-        EnsureProbeProgress()
-
         UiTheme.ApplyButtonStyle(CmdStart, UiTheme.ButtonRole.Primary)
         UiTheme.ApplyButtonStyle(btnStop, UiTheme.ButtonRole.Danger)
         UiTheme.ApplyButtonStyle(btnNGTest, UiTheme.ButtonRole.Warning)
         UiTheme.ApplyButtonStyle(btn_ZeroAdjustment, UiTheme.ButtonRole.Neutral)
         UiTheme.ApplyButtonStyle(btn_ChCalibrate, UiTheme.ButtonRole.Primary)
         UiTheme.ApplyButtonStyle(btnScanTray, UiTheme.ButtonRole.Neutral)
+        UiTheme.ApplyButtonStyle(btnChannelSelectAll, UiTheme.ButtonRole.Primary)
+        UiTheme.ApplyButtonStyle(btnChannelClear, UiTheme.ButtonRole.Neutral)
+        UiTheme.ApplyButtonStyle(btnChannelRectangle, UiTheme.ButtonRole.Neutral)
+        UiTheme.ApplyButtonStyle(btnChannelSelectSingle, UiTheme.ButtonRole.Neutral)
         UiTheme.ApplyButtonStyle(Button2, UiTheme.ButtonRole.Danger)
     End Sub
 
-    Private Sub EnsureProbeProgress()
-        If probeProgress Is Nothing Then
-            probeProgress = New ProgressBar With {
-                .Minimum = 0,
-                .Maximum = 100,
-                .Height = 8,
-                .Width = Math.Max(1, Panel1.ClientSize.Width - OuterMargin * 2),
-                .Left = OuterMargin,
-                .Top = GroupBox8.Bottom - 18,
-                .Style = ProgressBarStyle.Continuous
-            }
-            Panel1.Controls.Add(probeProgress)
-            probeProgress.BringToFront()
+    Private Sub SetTestStatus(ByVal message As String)
+        If frmMDI Is Nothing OrElse frmMDI.IsDisposed Then Return
+        If frmMDI.txtTesting IsNot Nothing Then
+            frmMDI.txtTesting.Text = If(message, String.Empty)
         End If
-
-        Dim total As Integer = 0
-        Dim used As Integer = 0
-        Integer.TryParse(txtTotle.Text, total)
-        Integer.TryParse(txtUsed.Text, used)
-        Dim percent As Integer = If(total <= 0, 0, CInt(Math.Truncate(Math.Min(100.0R, Math.Max(0.0R, used * 100.0R / total)))))
-        probeProgress.Value = percent
-        probeProgress.ForeColor = If(percent > 95, UiTheme.Danger, If(percent >= 80, UiTheme.Warning, UiTheme.Success))
     End Sub
 End Class

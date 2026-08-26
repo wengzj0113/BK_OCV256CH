@@ -20,6 +20,7 @@ BEGIN TRY
     DECLARE @TrayId bigint;
     DECLARE @TaskCode nvarchar(100) = CONCAT(N'TEST-TASK-', replace(CONVERT(nvarchar(36), NEWID()), N'-', N''));
     DECLARE @TaskId bigint;
+    DECLARE @UploadKey nvarchar(200) = CONCAT(N'UPLOAD-VERIFY-', replace(CONVERT(nvarchar(36), NEWID()), N'-', N''));
 
     PRINT N'Case 1: register tray';
     EXEC dbo.usp_RegisterTray
@@ -129,9 +130,10 @@ BEGIN TRY
         THROW 51005, 'Test task creation failed.', 1;
 
     DELETE FROM @TaskResult;
+    DECLARE @RepeatTaskCode nvarchar(100) = CONCAT(@TaskCode, N'-REPEAT');
     INSERT INTO @TaskResult
     EXEC dbo.usp_CreateTestTask
-        @TaskCode = CONCAT(@TaskCode, N'-REPEAT'),
+        @TaskCode = @RepeatTaskCode,
         @IdempotencyKey = N'VERIFY-IDEMPOTENCY-001',
         @TrayCode = @TrayCode,
         @OcvStageCode = N'OCV0',
@@ -201,25 +203,25 @@ BEGIN TRY
 
     PRINT N'Case 9: upload outbox idempotency and lock';
     EXEC dbo.usp_EnqueueUpload
-        @IdempotencyKey = N'UPLOAD-VERIFY-001',
+        @IdempotencyKey = @UploadKey,
         @UploadType = N'TestResult',
         @BusinessKey = @TrayCode,
         @TestTaskId = @TaskId,
         @PayloadJson = N'{"ok":true}';
 
     EXEC dbo.usp_EnqueueUpload
-        @IdempotencyKey = N'UPLOAD-VERIFY-001',
+        @IdempotencyKey = @UploadKey,
         @UploadType = N'TestResult',
         @BusinessKey = @TrayCode,
         @TestTaskId = @TaskId,
         @PayloadJson = N'{"ok":true}';
 
-    IF (SELECT COUNT(*) FROM dbo.UploadOutbox WHERE IdempotencyKey = N'UPLOAD-VERIFY-001') <> 1
+    IF (SELECT COUNT(*) FROM dbo.UploadOutbox WHERE IdempotencyKey = @UploadKey) <> 1
         THROW 51011, 'UploadOutbox idempotency failed.', 1;
 
     EXEC dbo.usp_GetPendingUploads @BatchSize = 10, @LockedBy = N'Verification', @LockSeconds = 120;
 
-    IF NOT EXISTS (SELECT 1 FROM dbo.UploadOutbox WHERE IdempotencyKey = N'UPLOAD-VERIFY-001' AND Status = N'Uploading')
+    IF NOT EXISTS (SELECT 1 FROM dbo.UploadOutbox WHERE IdempotencyKey = @UploadKey AND Status = N'Uploading')
         THROW 51012, 'UploadOutbox lock failed.', 1;
 
     PRINT N'Case 10: health check';

@@ -12,7 +12,11 @@ Public Class CalibrationService
 
     Public Sub New(Optional path As String = Nothing)
         If String.IsNullOrWhiteSpace(path) Then
-            filePath = IO.Path.Combine(Application.StartupPath, DefaultFileName)
+            Dim dataDirectory As String = IO.Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "XL_OCV_256CH")
+            IO.Directory.CreateDirectory(dataDirectory)
+            filePath = IO.Path.Combine(dataDirectory, DefaultFileName)
         Else
             filePath = path
         End If

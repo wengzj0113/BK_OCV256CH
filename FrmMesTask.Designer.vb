@@ -25,7 +25,6 @@ Partial Class FrmMesTask
         Me.GroupBox1 = New System.Windows.Forms.GroupBox()
         Me.chkResultDataUploadAssembly = New System.Windows.Forms.CheckBox()
         Me.chkWIPInStationCheck = New System.Windows.Forms.CheckBox()
-        Me.chkEnergyUpload = New System.Windows.Forms.CheckBox()
         Me.chkAlarmUpload = New System.Windows.Forms.CheckBox()
         Me.chkStateAndStopReason = New System.Windows.Forms.CheckBox()
         Me.chkHeartbeat = New System.Windows.Forms.CheckBox()
@@ -45,7 +44,6 @@ Partial Class FrmMesTask
         Me.GroupBox1.BackColor = System.Drawing.Color.Gainsboro
         Me.GroupBox1.Controls.Add(Me.chkResultDataUploadAssembly)
         Me.GroupBox1.Controls.Add(Me.chkWIPInStationCheck)
-        Me.GroupBox1.Controls.Add(Me.chkEnergyUpload)
         Me.GroupBox1.Controls.Add(Me.chkAlarmUpload)
         Me.GroupBox1.Controls.Add(Me.chkStateAndStopReason)
         Me.GroupBox1.Controls.Add(Me.chkHeartbeat)
@@ -80,17 +78,6 @@ Partial Class FrmMesTask
         Me.chkWIPInStationCheck.UseVisualStyleBackColor = True
         Me.chkWIPInStationCheck.Visible = False
         '
-        'chkEnergyUpload
-        '
-        Me.chkEnergyUpload.AutoSize = True
-        Me.chkEnergyUpload.Checked = True
-        Me.chkEnergyUpload.CheckState = System.Windows.Forms.CheckState.Checked
-        Me.chkEnergyUpload.Location = New System.Drawing.Point(39, 165)
-        Me.chkEnergyUpload.Name = "chkEnergyUpload"
-        Me.chkEnergyUpload.Size = New System.Drawing.Size(96, 16)
-        Me.chkEnergyUpload.TabIndex = 0
-        Me.chkEnergyUpload.Text = "能源数据上传"
-        Me.chkEnergyUpload.UseVisualStyleBackColor = True
         '
         'chkAlarmUpload
         '
@@ -230,7 +217,6 @@ Partial Class FrmMesTask
     Friend WithEvents GroupBox1 As GroupBox
     Friend WithEvents chkResultDataUploadAssembly As CheckBox
     Friend WithEvents chkWIPInStationCheck As CheckBox
-    Friend WithEvents chkEnergyUpload As CheckBox
     Friend WithEvents chkAlarmUpload As CheckBox
     Friend WithEvents chkStateAndStopReason As CheckBox
     Friend WithEvents chkHeartbeat As CheckBox

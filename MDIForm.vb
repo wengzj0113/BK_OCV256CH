@@ -12,12 +12,17 @@ Imports System.Reflection.Emit
 
 Public Class MDIForm
     Private bottomStatusControl As BottomStatusControl
+    Private ngRetestForm As FrmNgRetest
+    Private applyingMdiClientLayout As Boolean
+    Private resizeSyncPending As Boolean
+    Private loginMenu As ToolStripMenuItem
     'Dim adoCnn As SqlConnection
     Public mSock As SocketCtrolCmd
     Public FrmLink As New List(Of MDIForm)
     Public mSocket As Socket
     Public fixtureClose As Boolean
-    Public operTypeNum As Integer
+    Public operTypeNum As Integer = 1
+    Private environmentResetStarted As Boolean
 
     Private Sub OpenFile(ByVal sender As Object, ByVal e As EventArgs)
         '已删除的死代码占位 (R2-15)
@@ -85,7 +90,7 @@ Public Class MDIForm
         J = -1
         Try
             For I = 0 To UBound(Me.MdiChildren)
-                If Me.MdiChildren(I).Text.ToString = "娴嬭瘯" Then
+                If Me.MdiChildren(I).Text.ToString = "测试" Then
                     J = I
                     Exit For
                 End If
@@ -123,12 +128,68 @@ Public Class MDIForm
         End Using
     End Sub
 
+    Private Sub EnsureLoginMenu()
+        If loginMenu IsNot Nothing Then Return
+
+        loginMenu = New ToolStripMenuItem("登录") With {
+            .Name = "LoginToolStripMenuItem",
+            .ToolTipText = "登录或切换当前用户"
+        }
+        AddHandler loginMenu.Click, AddressOf LoginToolStripMenuItem_Click
+        MenuStrip.Items.Add(loginMenu)
+    End Sub
+
+    Private Sub NgRetestToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles NgRetestToolStripMenuItem.Click
+        If ngRetestForm Is Nothing OrElse ngRetestForm.IsDisposed Then
+            ngRetestForm = New FrmNgRetest()
+        End If
+        ngRetestForm.Show(Me)
+        ngRetestForm.Activate()
+    End Sub
+
+    Private Sub LoginToolStripMenuItem_Click(sender As Object, e As EventArgs)
+        Using login As New FrmLoginNew()
+            If login.ShowDialog(Me) <> DialogResult.OK Then Return
+
+            operTypeNum = login.OperTypeNum
+            operatorName = Initsetting.curOperator
+            ApplyOperatorPermissions()
+            UpdateBottomStatus()
+        End Using
+    End Sub
+
+    Private Sub ApplyOperatorPermissions()
+        Dim isAdmin As Boolean = (operTypeNum = 1)
+        btnInit.Enabled = isAdmin
+        ToolDebug.Enabled = isAdmin
+        init.Enabled = isAdmin
+        btnDebug.Enabled = isAdmin
+        userMenage.Enabled = isAdmin
+    End Sub
+
     Private Sub btnExit_Click(ByVal sender As System.Object, ByVal e As System.EventArgs)
         Me.Close()
     End Sub
 
+    Private Sub MDIForm_FormClosing(sender As Object, e As FormClosingEventArgs) Handles Me.FormClosing
+        If environmentResetStarted Then Return
+        environmentResetStarted = True
+        Try
+            Dim middleMachine As SerialMiddleMachineClient = Nothing
+            If Com_SCM IsNot Nothing AndAlso Com_SCM.IsOpen Then
+                middleMachine = New SerialMiddleMachineClient(Com_SCM)
+            End If
+            TestEnvironmentResetService.ResetAll(middleMachine, True)
+        Catch ex As Exception
+            SerialMiddleMachineClient.LogMessage("Application exit reset exception: " & ex.Message)
+        End Try
+    End Sub
+
     Private Sub MDIForm_Disposed(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Disposed
         On Error Resume Next
+        If ngRetestForm IsNot Nothing AndAlso Not ngRetestForm.IsDisposed Then
+            ngRetestForm.Close()
+        End If
         '鍏抽棴绔彛鍐呴樆浠拰鍗曠墖鏈轰笌PC鐨勯€氳绔彛
         If Com_3561.IsOpen Then
             Com_3561.Close()
@@ -144,25 +205,113 @@ Public Class MDIForm
         txtTesting.Text = newValue
     End Sub
     Private Sub MDIForm_Load(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Load
+        ApplyReferenceChrome()
         EnsureCalibrationMenu()
+        EnsureLoginMenu()
         EnsureBottomStatusControl()
+        ApplyMdiClientLayout()
 
         'R2-17:数据库检查改成异步 (在 Shown 事件里 Task.Run),Load 阶段只显示占位状态
         Me.status_DataBase.Text = "数据库：检查中"
         blnOnLine = False
 
-        If operTypeNum <> 1 Then
-            btnInit.Enabled = False
-            ToolDebug.Enabled = False
-            init.Enabled = False
-            btnDebug.Enabled = False
-            userMenage.Enabled = False
-        End If
-        txtTesting.Location = New Point(Me.Size.Width - 200, txtTesting.Location.Y)
+        ApplyOperatorPermissions()
 
         'R2-15: myClsDB 已随 clsDB 一起淘汰,Dispose 死代码删除 (数据库生命周期由 OcvDataService 每次 Using 管理)
         mSock = frmDebug.mSock
         mSocket = frmDebug.mSocket
+    End Sub
+
+    Private Sub MDIForm_Layout(ByVal sender As Object, ByVal e As LayoutEventArgs) Handles Me.Layout
+        ApplyMdiClientLayout()
+    End Sub
+
+    Private Sub MDIForm_Resize(ByVal sender As Object, ByVal e As EventArgs) Handles Me.Resize
+        ApplyMdiClientLayout()
+        QueueMaximizedMdiChildSync()
+    End Sub
+
+    Private Sub QueueMaximizedMdiChildSync()
+        If resizeSyncPending OrElse IsDisposed OrElse Not IsHandleCreated Then Return
+        resizeSyncPending = True
+        Try
+            BeginInvoke(New MethodInvoker(AddressOf SyncMaximizedMdiChildren))
+        Catch ex As InvalidOperationException
+            resizeSyncPending = False
+        End Try
+    End Sub
+
+    Private Sub SyncMaximizedMdiChildren()
+        resizeSyncPending = False
+        If IsDisposed Then Return
+
+        ApplyMdiClientLayout()
+        For Each child As Form In MdiChildren
+            If child.WindowState = FormWindowState.Maximized Then
+                child.WindowState = FormWindowState.Normal
+                child.WindowState = FormWindowState.Maximized
+            End If
+        Next
+        ApplyMdiClientLayout()
+    End Sub
+
+    Private Sub ApplyMdiClientLayout()
+        If bottomStatusControl Is Nothing OrElse applyingMdiClientLayout Then Return
+
+        Dim mdiClient As MdiClient = Nothing
+        For Each child As Control In Controls
+            If TypeOf child Is MdiClient Then
+                mdiClient = DirectCast(child, MdiClient)
+                Exit For
+            End If
+        Next
+        If mdiClient Is Nothing Then Return
+
+        '底部状态控件是运行时新增的。首次最大化时 WinForms 可能在它完成 Dock
+        '布局前就创建 MDI 子窗体，导致 MdiClient 临时占满整个客户区，矩阵底部被裁切。
+        '这里显式使用两个固定边界，保证首次显示与后续 Resize 使用同一套几何关系。
+        applyingMdiClientLayout = True
+        Try
+            MenuStrip.Dock = DockStyle.Top
+            bottomStatusControl.Dock = DockStyle.Bottom
+            mdiClient.Dock = DockStyle.None
+
+            Dim top As Integer = Math.Max(0, MenuStrip.Bottom)
+            Dim bottom As Integer = Math.Min(ClientSize.Height, bottomStatusControl.Top)
+            Dim height As Integer = Math.Max(0, bottom - top)
+            Dim target As New Rectangle(0, top, ClientSize.Width, height)
+            If mdiClient.Bounds <> target Then
+                mdiClient.SetBounds(target.X, target.Y, target.Width, target.Height)
+            End If
+
+            MenuStrip.BringToFront()
+            bottomStatusControl.BringToFront()
+        Finally
+            applyingMdiClientLayout = False
+        End Try
+    End Sub
+
+    Private Sub ApplyReferenceChrome()
+        Me.BackColor = UiTheme.PageBackground
+        Me.IsMdiContainer = True
+        Me.AutoSize = False
+
+        MenuStrip.BackColor = UiTheme.HeaderBackground
+        MenuStrip.ForeColor = Color.White
+        MenuStrip.Renderer = New HeaderMenuRenderer()
+        MenuStrip.Font = New Font("Microsoft YaHei UI", 10.0F, FontStyle.Regular)
+        MenuStrip.AutoSize = False
+        MenuStrip.Padding = New Padding(16, 0, 0, 0)
+        MenuStrip.Height = 46
+        For Each item As ToolStripMenuItem In MenuStrip.Items.OfType(Of ToolStripMenuItem)()
+            item.ForeColor = Color.White
+            item.Margin = New Padding(8, 0, 8, 0)
+        Next
+
+        ' The reference UI uses one compact navigation band. The existing
+        ' toolbar actions remain available through the menu and events.
+        ToolStrip.Visible = False
+        StatusStrip.Visible = False
     End Sub
 
     Private Sub EnsureBottomStatusControl()
@@ -176,15 +325,21 @@ Public Class MDIForm
 
     Private Sub UpdateBottomStatus()
         If bottomStatusControl Is Nothing Then Return
-        bottomStatusControl.UpdateStatus(
-            "OCV1",
-            If(mSock Is Nothing, "未连接", "已连接"),
-            If(status_34461 Is Nothing OrElse status_34461.Text = "——", "未连接", "已连接"),
-            If(Com_3561 Is Nothing OrElse Not Com_3561.IsOpen, "未连接", "已连接"),
-            If(blnOnLine, "已连接", "未连接"),
-            If(StatusMes Is Nothing OrElse StatusMes.Text = "——", "未连接", "已连接"),
-            If(String.IsNullOrWhiteSpace(operatorName), "Admin", operatorName),
+        bottomStatusControl.UpdateStatus( _
+            "OCV1", _
+            If(controlBoardConnected, "已连接", "未连接"), _
+            If(plcConnected, "已连接", "未连接"), _
+            If(status_34461 Is Nothing OrElse status_34461.Text = "——", "未连接", "已连接"), _
+            If(Com_3561 Is Nothing OrElse Not Com_3561.IsOpen, "未连接", "已连接"), _
+            If(databaseConnected, "已连接", "未连接"), _
+            If(StatusMes Is Nothing OrElse StatusMes.Text = "——", "未连接", "已连接"), _
+            If(String.IsNullOrWhiteSpace(operatorName), "Admin", operatorName), _
             DateTime.Now)
+    End Sub
+
+    '供启动期后台设备检查完成后刷新底部状态栏。
+    Public Sub UpdateBottomStatusForDeviceCheck()
+        UpdateBottomStatus()
     End Sub
 
     'R2-17 Shown 后无条件显示 frmTest (用户要求 frmTest 正常显示,不受数据库状态影响),
@@ -204,6 +359,7 @@ Public Class MDIForm
 
             Try
                 Me.BeginInvoke(New Action(Sub()
+                    databaseConnected = ready AndAlso String.IsNullOrEmpty(failMsg)
                     If String.IsNullOrEmpty(failMsg) Then
                         Me.status_DataBase.Text = If(ready, "数据库：已连接", "数据库：未连接")
                         UpdateBottomStatus()
@@ -222,11 +378,30 @@ Public Class MDIForm
         Try
             Me.BeginInvoke(New Action(Sub()
                 OnLineTest_Click(sender, e)
+                'frmTest 在此回调中才真正创建并最大化;再排队一次,确保它读取到
+                'Shown 完成后的最终 MdiClient 客户区,而不是创建瞬间的旧尺寸。
+                Me.BeginInvoke(New MethodInvoker(AddressOf NormalizeInitialMdiChildLayout))
             End Sub))
         Catch ex As Exception
             System.Diagnostics.Debug.WriteLine("OnLineTest BeginInvoke 失败: " & ex.Message)
         End Try
     End Sub
+
+    Private Sub NormalizeInitialMdiChildLayout()
+        If IsDisposed Then Return
+
+        ApplyMdiClientLayout()
+        For Each child As Form In MdiChildren
+            If child.WindowState = FormWindowState.Maximized Then
+                'WinForms 的 MDI 最大化缓存了创建时的客户区尺寸。还原/最大化
+                '一次会让它重新读取当前 MdiClient.Bounds,避免首次启动被裁切。
+                child.WindowState = FormWindowState.Normal
+                child.WindowState = FormWindowState.Maximized
+            End If
+        Next
+        ApplyMdiClientLayout()
+    End Sub
+
     Private Function MakeSock()
         Dim mClientTCP = New TcpClient()
         Return mClientTCP.Client     ' New Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp)
@@ -239,16 +414,19 @@ Public Class MDIForm
             Dim service As New OcvDataService()
             Dim health As OcvDatabaseHealthResult = service.CheckDatabaseHealth()
             If health.IsSuccess Then
+                databaseConnected = True
                 UpdateDbStatusSafe("OCV_DATA connected")
                 Return True
             End If
 
+            databaseConnected = False
             blnOnLine = False
             UpdateDbStatusSafe("OCV_DATA disconnected")
             SetTestEntryEnabledSafe(False)
             System.Diagnostics.Debug.WriteLine("OCV_DATA 健康检查未通过: " & health.Message)
             Return False
         Catch ex As Exception
+            databaseConnected = False
             blnOnLine = False
             UpdateDbStatusSafe("OCV_DATA disconnected")
             SetTestEntryEnabledSafe(False)
@@ -281,6 +459,28 @@ Public Class MDIForm
         btnTest.Enabled = enabled
         ManualTestToolStripMenuItem.Enabled = enabled
     End Sub
+
+    Private Class HeaderMenuRenderer
+        Inherits ToolStripProfessionalRenderer
+
+        Protected Overrides Sub OnRenderItemText(ByVal e As ToolStripItemTextRenderEventArgs)
+            If TypeOf e.Item.Owner Is MenuStrip Then
+                e.TextColor = Color.White
+            End If
+            MyBase.OnRenderItemText(e)
+        End Sub
+
+        Protected Overrides Sub OnRenderMenuItemBackground(ByVal e As ToolStripItemRenderEventArgs)
+            If TypeOf e.Item.Owner Is MenuStrip Then
+                Dim background As Color = If(e.Item.Selected, UiTheme.HeaderHighlight, UiTheme.HeaderBackground)
+                Using brush As New SolidBrush(background)
+                    e.Graphics.FillRectangle(brush, e.Item.ContentRectangle)
+                End Using
+                Return
+            End If
+            MyBase.OnRenderMenuItemBackground(e)
+        End Sub
+    End Class
 
     Private Function GetRomteEndPoint() As IPEndPoint
         Dim myIP As IPAddress = IPAddress.Parse(Initsetting.SCMIpAdd)
@@ -335,6 +535,12 @@ Public Class MDIForm
         Me.Cursor = Cursors.Default
     End Sub
 
+    Private Sub TlStripMenuLog_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles TlStripMenuLog.Click
+        Using logQuery As New FrmLogQuery()
+            logQuery.ShowDialog(Me)
+        End Using
+    End Sub
+
     Private Sub TStripbtn_Barcode_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles TStripbtn_Barcode.Click
         Me.Cursor = Cursors.WaitCursor
         If Not My.Forms.frmInput.IsDisposed Then
@@ -376,12 +582,12 @@ Public Class MDIForm
             Dim msg = ConnectTCP(sock, ipe)
             If msg <> "" Then
                 ' 杩炴帴澶辫触涓嶅脊妗?閬垮厤瀹氭椂鍣ㄥ埛灞?,浠呰褰曞埌鐘舵€佹爮
-                status_com.Text = "鍗曠墖鏈洪噸杩炰腑..."
+            status_com.Text = "单片机重连中..."
                 Return
             End If
             mSock = New SocketCtrolCmd(sock, AddressOf ParseBuffer, Initsetting.SCM_port, ipe)
             mSocket = sock
-            status_com.Text = "鍗曠墖鏈虹鍙ｆ甯?  "
+            status_com.Text = "单片机端口正常"
             Return
         End If
 
@@ -410,9 +616,9 @@ Public Class MDIForm
 
         If bytesRec > 4 AndAlso bytes(4) = 1 Then
             fixtureClose = True
-            frmTest.txtInfo.Text = ChrW(&H6258) & ChrW(&H76D8) & ChrW(&H5DF2) & ChrW(&H5173) & ChrW(&H95ED)
+            txtTesting.Text = ChrW(&H6258) & ChrW(&H76D8) & ChrW(&H5DF2) & ChrW(&H5173) & ChrW(&H95ED)
         Else
-            frmTest.txtInfo.Text = ChrW(&H6258) & ChrW(&H76D8) & ChrW(&H5DF2) & ChrW(&H6253) & ChrW(&H5F00)
+            txtTesting.Text = ChrW(&H6258) & ChrW(&H76D8) & ChrW(&H5DF2) & ChrW(&H6253) & ChrW(&H5F00)
         End If
 
         ' 3. 鏌ヨ澶氶€氶亾瀹屾垚浣?

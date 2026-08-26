@@ -5,7 +5,6 @@ Public Class FrmMesTask
     Private WithEvents timer1 As New Timer()
     Private heartbeat As Heartbeat
     Private alarmUpload As AlarmUpload
-    Private energyUpload As EnergyUpload
     Private stateAndStopReasonUpload As StateAndStopReasonUpload
     Private wipInStationCheck As WIPInStationCheck
     Private resultDataUploadAssembly As ResultDataUploadAssembly
@@ -16,7 +15,6 @@ Public Class FrmMesTask
             Function() frmTest.CurrentAlarmValue,
             Function() frmTest.CurrentAlarmCodeValue,
             Function() frmTest.CurrentAlarmStartTimeValue)
-        energyUpload = New EnergyUpload(listBoxOutput)
         stateAndStopReasonUpload = New StateAndStopReasonUpload(listBoxOutput)
         wipInStationCheck = New WIPInStationCheck(listBoxOutput)
         resultDataUploadAssembly = New ResultDataUploadAssembly(listBoxOutput)
@@ -29,9 +27,6 @@ Public Class FrmMesTask
         End If
         If chkStateAndStopReason.Checked Then
             stateAndStopReasonUpload.StartTimer()
-        End If
-        If chkEnergyUpload.Checked Then
-            energyUpload.StartTimer()
         End If
         'If chkWIPInStationCheck.Checked Then
         '    wipInStationCheck.StartTimer()
@@ -63,9 +58,6 @@ Public Class FrmMesTask
         If chkStateAndStopReason.Checked Then
             RestartTimerSafe(AddressOf stateAndStopReasonUpload.StopTimer, AddressOf stateAndStopReasonUpload.StartTimer)
         End If
-        If chkEnergyUpload.Checked Then
-            RestartTimerSafe(AddressOf energyUpload.StopTimer, AddressOf energyUpload.StartTimer)
-        End If
         If chkResultDataUploadAssembly.Checked Then
             RestartTimerSafe(AddressOf resultDataUploadAssembly.StopTimer, AddressOf resultDataUploadAssembly.StartTimer)
         End If
@@ -84,7 +76,6 @@ Public Class FrmMesTask
         timer1.Stop()
         heartbeat.StopTimer()
         alarmUpload.StopTimer()
-        energyUpload.StopTimer()
         stateAndStopReasonUpload.StopTimer()
         'wipInStationCheck.StopTimer()
         resultDataUploadAssembly.StopTimer()
@@ -97,7 +88,6 @@ Public Class FrmMesTask
     Private Sub FrmMesTask_FormClosed(sender As Object, e As FormClosedEventArgs) Handles MyBase.FormClosed
         heartbeat.StopTimer()
         alarmUpload.StopTimer()
-        energyUpload.StopTimer()
         stateAndStopReasonUpload.StopTimer()
         wipInStationCheck.StopTimer()
         resultDataUploadAssembly.StopTimer()

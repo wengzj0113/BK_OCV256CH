@@ -19,6 +19,8 @@ Public Class FrmManualTest
     Private txtChannelList As TextBox
     Private btnStart As Button
     Private btnClose As Button
+    Private btnClampClose As Button
+    Private btnClampOpen As Button
     Private isManualTesting As Boolean
 
     Public Sub New()
@@ -63,6 +65,11 @@ Public Class FrmManualTest
         commandPanel.Controls.Add(CreateButton("G1全选", AddressOf SelectG1Channels))
         commandPanel.Controls.Add(CreateButton("G2全选", AddressOf SelectG2Channels))
 
+        btnClampClose = CreateButton("夹具压合", AddressOf ClampClose)
+        btnClampOpen = CreateButton("夹具松开", AddressOf ClampOpen)
+        commandPanel.Controls.Add(btnClampClose)
+        commandPanel.Controls.Add(btnClampOpen)
+
         commandPanel.Controls.Add(New Label() With {.Text = "起始", .AutoSize = True, .Padding = New Padding(10, 8, 0, 0)})
         txtRangeStart = New TextBox() With {.Width = 56}
         commandPanel.Controls.Add(txtRangeStart)
@@ -81,6 +88,44 @@ Public Class FrmManualTest
 
         Return commandPanel
     End Function
+
+    Private Sub ClampClose(sender As Object, e As EventArgs)
+        OperateClamp(True)
+    End Sub
+
+    Private Sub ClampOpen(sender As Object, e As EventArgs)
+        OperateClamp(False)
+    End Sub
+
+    Private Sub OperateClamp(closeClamp As Boolean)
+        If isManualTesting OrElse isRuning Then
+            MsgBox("测试进行中，暂不能操作夹具。", vbOKOnly, "提示")
+            Return
+        End If
+
+        If Not plcConnected OrElse plcController Is Nothing Then
+            lblStatus.Text = "PLC未连接"
+            MsgBox("PLC未连接，无法控制夹具。", vbOKOnly, "夹具控制")
+            Return
+        End If
+
+        Try
+            Dim commandAccepted As Boolean = If(closeClamp, plcController.CloseTray(), plcController.OpenTray())
+            Dim actualClosed As Boolean = plcController.ReadTrayStatus()
+            Dim expectedClosed As Boolean = closeClamp
+            If commandAccepted AndAlso actualClosed = expectedClosed Then
+                lblStatus.Text = If(closeClamp, "夹具已压合", "夹具已松开")
+                Return
+            End If
+
+            lblStatus.Text = "夹具动作失败"
+            MsgBox(If(closeClamp, "夹具压合失败，请检查 PLC 和气缸。", "夹具松开失败，请检查 PLC 和气缸。"), vbOKOnly, "夹具控制")
+        Catch ex As Exception
+            lblStatus.Text = "夹具通讯失败"
+            WriteManualLog("夹具控制失败：" & ex.Message)
+            MsgBox("夹具控制失败：" & ex.Message, vbOKOnly, "夹具控制")
+        End Try
+    End Sub
 
     Private Function CreateButton(text As String, handler As EventHandler) As Button
         Dim button As New Button()
@@ -343,7 +388,7 @@ Public Class FrmManualTest
             SetTestingState(True, "测试中...")
             WriteManualLog("开始手动测试：" & String.Join(",", channels))
 
-            Dim formalRunner As New FormalTestRunner()
+            Dim formalRunner As New FormalTestRunner(AddressOf WriteManualLog)
             formalRunner.RunSparseMeasurement(channels)
 
             DisplayManualTestResult(channels)
@@ -396,16 +441,7 @@ Public Class FrmManualTest
     End Sub
 
     Private Sub WriteManualLog(message As String)
-        Try
-            Dim logDirectory As String = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logFile")
-            If Not Directory.Exists(logDirectory) Then
-                Directory.CreateDirectory(logDirectory)
-            End If
-
-            Dim logFile As String = Path.Combine(logDirectory, "ManualTest_" & DateTime.Now.ToString("yyyyMMdd") & ".log")
-            File.AppendAllText(logFile, DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff") & " " & message & Environment.NewLine)
-        Catch
-        End Try
+        AppLog.Write("ManualTest", message)
     End Sub
 
     Protected Overrides Sub OnFormClosing(e As FormClosingEventArgs)

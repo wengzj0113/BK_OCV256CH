@@ -81,10 +81,10 @@
     <ApplicationIcon>logo.ico</ApplicationIcon>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestCertificateThumbprint>BA474594048B283AE886325795B797ED0DD2108E</ManifestCertificateThumbprint>
+    <ManifestCertificateThumbprint>8B1583CD6EB18960B7EEE82BB284BA1BB8CF9332</ManifestCertificateThumbprint>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestKeyFile>MP-60A-RV-64Mem_5_TemporaryKey.pfx</ManifestKeyFile>
+    <ManifestKeyFile>MP-60A-RV-64Mem_7_TemporaryKey.pfx</ManifestKeyFile>
   </PropertyGroup>
   <PropertyGroup>
     <GenerateManifests>true</GenerateManifests>
@@ -96,6 +96,8 @@
     <SignManifests>true</SignManifests>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="PlcController.vb" />
+    <Compile Include="SerialControlBoardClient.vb" />
     <Reference Include="CmdMemberDLL, Version=1.0.0.0, Culture=neutral, processorArchitecture=x86">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>bin\Debug\CmdMemberDLL.dll</HintPath>
@@ -309,10 +311,16 @@
     <Compile Include="CalibrationService.vb" />
     <Compile Include="ChannelCalibrationRunner.vb" />
     <Compile Include="FormalTestRunner.vb" />
+    <Compile Include="RetestModels.vb" />
+    <Compile Include="Retest3562Service.vb" />
+    <Compile Include="NgRetestDataService.vb" />
+    <Compile Include="FrmNgRetest.vb">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="SerialMiddleMachineClient.vb" />
+    <Compile Include="TestEnvironmentResetService.vb" />
     <Compile Include="TestChannelPlanService.vb" />
     <Compile Include="TwoPassResultMapper.vb" />
-    <Compile Include="EnergyUpload.vb" />
     <Compile Include="FrmLoginNew.Designer.vb">
       <DependentUpon>FrmLoginNew.vb</DependentUpon>
     </Compile>
@@ -328,6 +336,16 @@
     <Compile Include="FrmManualTest.vb">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="FrmChannelCalibration.Designer.vb">
+      <DependentUpon>FrmChannelCalibration.vb</DependentUpon>
+    </Compile>
+    <Compile Include="FrmLogQuery.Designer.vb">
+      <DependentUpon>FrmLogQuery.vb</DependentUpon>
+    </Compile>
+    <Compile Include="FrmLogQuery.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="AppLog.vb" />
     <Compile Include="FrmChannelCalibration.vb">
       <SubType>Form</SubType>
     </Compile>
@@ -417,10 +435,18 @@
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="UiTheme.vb" />
-    <Compile Include="StatisticsControl.vb" />
+    <Compile Include="ResponsiveTestLayout.vb" />
+    <Compile Include="StatisticsControl.vb">
+      <SubType>UserControl</SubType>
+    </Compile>
     <Compile Include="ChannelTileControl.vb" />
-    <Compile Include="ChannelGridControl.vb" />
-    <Compile Include="BottomStatusControl.vb" />
+    <Compile Include="ChannelGridControl.vb">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="BottomStatusControl.vb">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UiUpdateService.vb" />
     <Compile Include="frmUserManage.Designer.vb">
       <DependentUpon>frmUserManage.vb</DependentUpon>
     </Compile>
@@ -428,7 +454,6 @@
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Heartbeat.vb" />
-    <Compile Include="Heartbeat1.vb" />
     <Compile Include="Keysight34461ACtrl.vb" />
     <Compile Include="MDIForm.Designer.vb">
       <DependentUpon>MDIForm.vb</DependentUpon>
@@ -541,6 +566,7 @@
     <None Include="MP-60A-RV-64Mem_3_TemporaryKey.pfx" />
     <None Include="MP-60A-RV-64Mem_4_TemporaryKey.pfx" />
     <None Include="MP-60A-RV-64Mem_5_TemporaryKey.pfx" />
+    <None Include="MP-60A-RV-64Mem_7_TemporaryKey.pfx" />
     <None Include="MP-60A-RV-64Mem_TemporaryKey.pfx" />
     <None Include="My Project\app.manifest">
       <SubType>Designer</SubType>
