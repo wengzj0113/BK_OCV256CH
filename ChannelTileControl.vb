@@ -29,9 +29,8 @@ Public Class ChannelHoverEventArgs
 End Class
 
 Public Class ChannelTileControl
-    Inherits UserControl
+    Inherits Control
 
-    Private ReadOnly channelLabel As ChannelValueLabel
     Private currentData As ChannelDisplayData
     Private hasDisplayData As Boolean
     Private selected As Boolean
@@ -49,28 +48,14 @@ Public Class ChannelTileControl
         Padding = New Padding(2)
         MinimumSize = New Size(0, 0)
         BackColor = UiTheme.CardBackground
+        ForeColor = UiTheme.TextPrimary
         Cursor = Cursors.Hand
-        channelLabel = New ChannelValueLabel With {
-            .Dock = DockStyle.Fill,
-            .AutoSize = False,
-            .TextAlign = ContentAlignment.MiddleCenter,
-            .Font = UiTheme.UiFont,
-            .ForeColor = UiTheme.TextPrimary,
-            .AutoEllipsis = True
-        }
-        Controls.Add(channelLabel)
         AddHandler Me.Click, AddressOf HandleSelected
-        AddHandler channelLabel.Click, AddressOf HandleSelected
         AddHandler Me.MouseEnter, AddressOf HandleMouseEnter
-        AddHandler channelLabel.MouseEnter, AddressOf HandleMouseEnter
         AddHandler Me.MouseLeave, AddressOf HandleMouseLeave
-        AddHandler channelLabel.MouseLeave, AddressOf HandleMouseLeave
         AddHandler Me.MouseDown, AddressOf HandleTileMouseDown
-        AddHandler channelLabel.MouseDown, AddressOf HandleTileMouseDown
         AddHandler Me.MouseMove, AddressOf HandleTileMouseMove
-        AddHandler channelLabel.MouseMove, AddressOf HandleTileMouseMove
         AddHandler Me.MouseUp, AddressOf HandleTileMouseUp
-        AddHandler channelLabel.MouseUp, AddressOf HandleTileMouseUp
     End Sub
 
     Public ReadOnly Property ChannelNumber As Integer
@@ -86,7 +71,6 @@ Public Class ChannelTileControl
         Set(ByVal value As Boolean)
             If selected = value Then Return
             selected = value
-            channelLabel.IsSelected = value
             Invalidate()
         End Set
     End Property
@@ -94,13 +78,13 @@ Public Class ChannelTileControl
     Public Sub UpdateDisplay(ByVal data As ChannelDisplayData)
         currentData = data
         hasDisplayData = True
-        channelLabel.Text = data.Row.ToString() & "-" & data.Column.ToString()
+        Text = data.Row.ToString() & "-" & data.Column.ToString()
         Dim background As Color
         Dim foreground As Color
         GetStatusColors(data.StatusText, background, foreground)
         BackColor = background
-        channelLabel.BackColor = background
-        channelLabel.ForeColor = foreground
+        ForeColor = foreground
+        Invalidate()
     End Sub
 
     Private Sub HandleSelected(ByVal sender As Object, ByVal e As EventArgs)
@@ -121,7 +105,21 @@ Public Class ChannelTileControl
     End Sub
 
     Protected Overrides Sub OnPaint(ByVal e As PaintEventArgs)
-        MyBase.OnPaint(e)
+        Using backgroundBrush As New SolidBrush(BackColor)
+            e.Graphics.FillRectangle(backgroundBrush, ClientRectangle)
+        End Using
+        If Not String.IsNullOrWhiteSpace(Text) Then
+            TextRenderer.DrawText(e.Graphics, Text, UiTheme.UiFont, ClientRectangle, ForeColor,
+                                  TextFormatFlags.HorizontalCenter Or TextFormatFlags.VerticalCenter Or TextFormatFlags.EndEllipsis)
+        End If
+        If selected Then
+            Using pen As New Pen(UiTheme.Primary, 2.0F)
+                Dim bounds As Rectangle = ClientRectangle
+                bounds.Width -= 1
+                bounds.Height -= 1
+                e.Graphics.DrawRectangle(pen, bounds)
+            End Using
+        End If
     End Sub
 
     Private Sub HandleTileMouseDown(ByVal sender As Object, ByVal e As MouseEventArgs)
@@ -164,33 +162,5 @@ Public Class ChannelTileControl
                 foreground = UiTheme.TextPrimary
         End Select
     End Sub
-
-    Private NotInheritable Class ChannelValueLabel
-        Inherits Label
-
-        Private selectedValue As Boolean
-
-        Public Property IsSelected As Boolean
-            Get
-                Return selectedValue
-            End Get
-            Set(ByVal value As Boolean)
-                If selectedValue = value Then Return
-                selectedValue = value
-                Invalidate()
-            End Set
-        End Property
-
-        Protected Overrides Sub OnPaint(ByVal e As PaintEventArgs)
-            MyBase.OnPaint(e)
-            If Not selectedValue Then Return
-            Using pen As New Pen(UiTheme.Primary, 2.0F)
-                Dim bounds As Rectangle = ClientRectangle
-                bounds.Width -= 1
-                bounds.Height -= 1
-                e.Graphics.DrawRectangle(pen, bounds)
-            End Using
-        End Sub
-    End Class
 
 End Class

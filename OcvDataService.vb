@@ -377,7 +377,7 @@ Public Class OcvDataService
             connection.Open()
             Using command As New SqlCommand(sql, connection)
                 command.CommandType = CommandType.Text
-                command.CommandTimeout = 30
+                command.CommandTimeout = 3
                 Return ExecuteDataTable(command)
             End Using
         End Using

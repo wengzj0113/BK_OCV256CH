@@ -15,8 +15,11 @@ if (-not $shown.Success -or $shown.Value -notmatch 'NormalizeInitialMdiChildLayo
 }
 
 $method = [regex]::Match($source, 'Private Sub NormalizeInitialMdiChildLayout\(\).*?\n    End Sub', [System.Text.RegularExpressions.RegexOptions]::Singleline)
-if (-not $method.Success -or $method.Value -notmatch 'ApplyMdiClientLayout' -or $method.Value -notmatch 'WindowState\s*=\s*FormWindowState\.Maximized') {
-    throw 'Post-Shown synchronization must relayout the MDI client and reapply maximized child bounds.'
+if (-not $method.Success -or $method.Value -notmatch 'ApplyMdiClientLayout') {
+    throw 'Post-Shown synchronization must relayout the MDI client.'
+}
+if ($method.Value -match 'WindowState\s*=\s*FormWindowState\.(Normal|Maximized)') {
+    throw 'Post-Shown synchronization must not force a maximize toggle.'
 }
 
 Write-Host 'PASS: MDI child layout is resynchronized after the initial Shown cycle.'

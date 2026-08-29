@@ -1,9 +1,9 @@
-﻿<Global.Microsoft.VisualBasic.CompilerServices.DesignerGenerated()> _
+﻿<Global.Microsoft.VisualBasic.CompilerServices.DesignerGenerated()>
 Partial Class frmInit
     Inherits System.Windows.Forms.Form
 
     'Form 重写 Dispose，以清理组件列表。
-    <System.Diagnostics.DebuggerNonUserCode()> _
+    <System.Diagnostics.DebuggerNonUserCode()>
     Protected Overrides Sub Dispose(ByVal disposing As Boolean)
         Try
             If disposing AndAlso components IsNot Nothing Then
@@ -20,7 +20,7 @@ Partial Class frmInit
     '注意: 以下过程是 Windows 窗体设计器所必需的
     '可以使用 Windows 窗体设计器修改它。
     '不要使用代码编辑器修改它。
-    <System.Diagnostics.DebuggerStepThrough()> _
+    <System.Diagnostics.DebuggerStepThrough()>
     Private Sub InitializeComponent()
         Me.TabControl1 = New System.Windows.Forms.TabControl()
         Me.TabPage1 = New System.Windows.Forms.TabPage()
@@ -133,8 +133,37 @@ Partial Class frmInit
         Me.Label34 = New System.Windows.Forms.Label()
         Me.Label33 = New System.Windows.Forms.Label()
         Me.Label32 = New System.Windows.Forms.Label()
+        Me.TabScmSet = New System.Windows.Forms.TabPage()
+        Me.lblScmStatus = New System.Windows.Forms.Label()
+        Me.btnScmApply = New System.Windows.Forms.Button()
+        Me.btnScmRead = New System.Windows.Forms.Button()
+        Me.lblScmPhaseGuardUnit = New System.Windows.Forms.Label()
+        Me.txtScmPhaseGuardMs = New System.Windows.Forms.TextBox()
+        Me.lblScmPhaseGuardMs = New System.Windows.Forms.Label()
+        Me.lblScmTriggerUnit = New System.Windows.Forms.Label()
+        Me.txtScmTriggerPulseMs = New System.Windows.Forms.TextBox()
+        Me.lblScmTriggerPulseMs = New System.Windows.Forms.Label()
+        Me.lblScmAutoStepUnit = New System.Windows.Forms.Label()
+        Me.txtScmAutoStepMs = New System.Windows.Forms.TextBox()
+        Me.lblScmAutoStepMs = New System.Windows.Forms.Label()
+        Me.lblScmChannelUnit = New System.Windows.Forms.Label()
+        Me.txtScmChannelSettleMs = New System.Windows.Forms.TextBox()
+        Me.lblScmChannelSettleMs = New System.Windows.Forms.Label()
+        Me.lblScmRelayUnit = New System.Windows.Forms.Label()
+        Me.txtScmRelaySettleMs = New System.Windows.Forms.TextBox()
+        Me.lblScmRelaySettleMs = New System.Windows.Forms.Label()
         Me.CmdOK = New System.Windows.Forms.Button()
         Me.Button1 = New System.Windows.Forms.Button()
+        Me.GroupBox7 = New System.Windows.Forms.GroupBox()
+        Me.GB_MesDataBase = New System.Windows.Forms.GroupBox()
+        Me.TxtMesBaseUser = New System.Windows.Forms.TextBox()
+        Me.TxtMesBasePsw = New System.Windows.Forms.TextBox()
+        Me.Label42 = New System.Windows.Forms.Label()
+        Me.Label43 = New System.Windows.Forms.Label()
+        Me.txtMesDatabaseServerIP = New System.Windows.Forms.TextBox()
+        Me.Label50 = New System.Windows.Forms.Label()
+        Me.Label52 = New System.Windows.Forms.Label()
+        Me.TxtMesDatabaseName = New System.Windows.Forms.TextBox()
         Me.TabControl1.SuspendLayout()
         Me.TabPage1.SuspendLayout()
         Me.GroupBox9.SuspendLayout()
@@ -149,6 +178,9 @@ Partial Class frmInit
         Me.GroupBox6.SuspendLayout()
         Me.TabPage3.SuspendLayout()
         Me.TabPage4.SuspendLayout()
+        Me.TabScmSet.SuspendLayout()
+        Me.GroupBox7.SuspendLayout()
+        Me.GB_MesDataBase.SuspendLayout()
         Me.SuspendLayout()
         '
         'TabControl1
@@ -157,6 +189,7 @@ Partial Class frmInit
         Me.TabControl1.Controls.Add(Me.TabPage2)
         Me.TabControl1.Controls.Add(Me.TabPage3)
         Me.TabControl1.Controls.Add(Me.TabPage4)
+        Me.TabControl1.Controls.Add(Me.TabScmSet)
         Me.TabControl1.HotTrack = True
         Me.TabControl1.ImeMode = System.Windows.Forms.ImeMode.NoControl
         Me.TabControl1.Location = New System.Drawing.Point(12, 12)
@@ -735,7 +768,7 @@ Partial Class frmInit
         Me.TabPage2.Location = New System.Drawing.Point(4, 22)
         Me.TabPage2.Name = "TabPage2"
         Me.TabPage2.Padding = New System.Windows.Forms.Padding(3)
-        Me.TabPage2.Size = New System.Drawing.Size(383, 474)
+        Me.TabPage2.Size = New System.Drawing.Size(383, 550)
         Me.TabPage2.TabIndex = 1
         Me.TabPage2.Text = "参数设置"
         '
@@ -1108,34 +1141,30 @@ Partial Class frmInit
         'TabPage3
         '
         Me.TabPage3.BackColor = System.Drawing.Color.LightBlue
-        Me.TabPage3.Controls.Add(Me.txtpwd)
-        Me.TabPage3.Controls.Add(Me.Label19)
-        Me.TabPage3.Controls.Add(Me.txtUser)
-        Me.TabPage3.Controls.Add(Me.Label18)
+        Me.TabPage3.Controls.Add(Me.GB_MesDataBase)
+        Me.TabPage3.Controls.Add(Me.GroupBox7)
         Me.TabPage3.Controls.Add(Me.CheckBox1)
         Me.TabPage3.Controls.Add(Me.chkAuto)
         Me.TabPage3.Controls.Add(Me.txtMesApiAddress)
         Me.TabPage3.Controls.Add(Me.Label35)
-        Me.TabPage3.Controls.Add(Me.txtDatabase)
-        Me.TabPage3.Controls.Add(Me.Label7)
         Me.TabPage3.Location = New System.Drawing.Point(4, 22)
         Me.TabPage3.Name = "TabPage3"
-        Me.TabPage3.Size = New System.Drawing.Size(383, 474)
+        Me.TabPage3.Size = New System.Drawing.Size(383, 550)
         Me.TabPage3.TabIndex = 2
         Me.TabPage3.Text = "数据库设置"
         '
         'txtpwd
         '
-        Me.txtpwd.Location = New System.Drawing.Point(90, 144)
+        Me.txtpwd.Location = New System.Drawing.Point(100, 85)
         Me.txtpwd.Name = "txtpwd"
-        Me.txtpwd.Size = New System.Drawing.Size(274, 21)
+        Me.txtpwd.Size = New System.Drawing.Size(206, 21)
         Me.txtpwd.TabIndex = 7
         Me.txtpwd.UseSystemPasswordChar = True
         '
         'Label19
         '
         Me.Label19.AutoSize = True
-        Me.Label19.Location = New System.Drawing.Point(14, 153)
+        Me.Label19.Location = New System.Drawing.Point(67, 89)
         Me.Label19.Name = "Label19"
         Me.Label19.Size = New System.Drawing.Size(29, 12)
         Me.Label19.TabIndex = 6
@@ -1143,15 +1172,15 @@ Partial Class frmInit
         '
         'txtUser
         '
-        Me.txtUser.Location = New System.Drawing.Point(90, 111)
+        Me.txtUser.Location = New System.Drawing.Point(100, 56)
         Me.txtUser.Name = "txtUser"
-        Me.txtUser.Size = New System.Drawing.Size(274, 21)
+        Me.txtUser.Size = New System.Drawing.Size(206, 21)
         Me.txtUser.TabIndex = 5
         '
         'Label18
         '
         Me.Label18.AutoSize = True
-        Me.Label18.Location = New System.Drawing.Point(14, 120)
+        Me.Label18.Location = New System.Drawing.Point(55, 60)
         Me.Label18.Name = "Label18"
         Me.Label18.Size = New System.Drawing.Size(41, 12)
         Me.Label18.TabIndex = 4
@@ -1162,7 +1191,7 @@ Partial Class frmInit
         Me.CheckBox1.AutoSize = True
         Me.CheckBox1.Checked = True
         Me.CheckBox1.CheckState = System.Windows.Forms.CheckState.Checked
-        Me.CheckBox1.Location = New System.Drawing.Point(12, 194)
+        Me.CheckBox1.Location = New System.Drawing.Point(12, 365)
         Me.CheckBox1.Name = "CheckBox1"
         Me.CheckBox1.Size = New System.Drawing.Size(198, 16)
         Me.CheckBox1.TabIndex = 3
@@ -1183,15 +1212,15 @@ Partial Class frmInit
         '
         'txtMesApiAddress
         '
-        Me.txtMesApiAddress.Location = New System.Drawing.Point(90, 224)
+        Me.txtMesApiAddress.Location = New System.Drawing.Point(112, 397)
         Me.txtMesApiAddress.Name = "txtMesApiAddress"
-        Me.txtMesApiAddress.Size = New System.Drawing.Size(274, 21)
+        Me.txtMesApiAddress.Size = New System.Drawing.Size(228, 21)
         Me.txtMesApiAddress.TabIndex = 2
         '
         'Label35
         '
         Me.Label35.AutoSize = True
-        Me.Label35.Location = New System.Drawing.Point(5, 229)
+        Me.Label35.Location = New System.Drawing.Point(31, 400)
         Me.Label35.Name = "Label35"
         Me.Label35.Size = New System.Drawing.Size(65, 12)
         Me.Label35.TabIndex = 1
@@ -1199,19 +1228,19 @@ Partial Class frmInit
         '
         'txtDatabase
         '
-        Me.txtDatabase.Location = New System.Drawing.Point(90, 78)
+        Me.txtDatabase.Location = New System.Drawing.Point(100, 25)
         Me.txtDatabase.Name = "txtDatabase"
-        Me.txtDatabase.Size = New System.Drawing.Size(274, 21)
+        Me.txtDatabase.Size = New System.Drawing.Size(206, 21)
         Me.txtDatabase.TabIndex = 2
         '
         'Label7
         '
         Me.Label7.AutoSize = True
-        Me.Label7.Location = New System.Drawing.Point(14, 87)
+        Me.Label7.Location = New System.Drawing.Point(43, 29)
         Me.Label7.Name = "Label7"
         Me.Label7.Size = New System.Drawing.Size(53, 12)
         Me.Label7.TabIndex = 1
-        Me.Label7.Text = "数据库IP"
+        Me.Label7.Text = "服务器IP"
         '
         'TabPage4
         '
@@ -1225,7 +1254,7 @@ Partial Class frmInit
         Me.TabPage4.Location = New System.Drawing.Point(4, 22)
         Me.TabPage4.Name = "TabPage4"
         Me.TabPage4.Padding = New System.Windows.Forms.Padding(3)
-        Me.TabPage4.Size = New System.Drawing.Size(383, 474)
+        Me.TabPage4.Size = New System.Drawing.Size(383, 550)
         Me.TabPage4.TabIndex = 3
         Me.TabPage4.Text = "用户管理"
         '
@@ -1280,6 +1309,185 @@ Partial Class frmInit
         Me.Label32.TabIndex = 4
         Me.Label32.Text = "系统管理员密码"
         '
+        'TabScmSet
+        '
+        Me.TabScmSet.BackColor = System.Drawing.Color.LightBlue
+        Me.TabScmSet.Controls.Add(Me.lblScmStatus)
+        Me.TabScmSet.Controls.Add(Me.btnScmApply)
+        Me.TabScmSet.Controls.Add(Me.btnScmRead)
+        Me.TabScmSet.Controls.Add(Me.lblScmPhaseGuardUnit)
+        Me.TabScmSet.Controls.Add(Me.txtScmPhaseGuardMs)
+        Me.TabScmSet.Controls.Add(Me.lblScmPhaseGuardMs)
+        Me.TabScmSet.Controls.Add(Me.lblScmTriggerUnit)
+        Me.TabScmSet.Controls.Add(Me.txtScmTriggerPulseMs)
+        Me.TabScmSet.Controls.Add(Me.lblScmTriggerPulseMs)
+        Me.TabScmSet.Controls.Add(Me.lblScmAutoStepUnit)
+        Me.TabScmSet.Controls.Add(Me.txtScmAutoStepMs)
+        Me.TabScmSet.Controls.Add(Me.lblScmAutoStepMs)
+        Me.TabScmSet.Controls.Add(Me.lblScmChannelUnit)
+        Me.TabScmSet.Controls.Add(Me.txtScmChannelSettleMs)
+        Me.TabScmSet.Controls.Add(Me.lblScmChannelSettleMs)
+        Me.TabScmSet.Controls.Add(Me.lblScmRelayUnit)
+        Me.TabScmSet.Controls.Add(Me.txtScmRelaySettleMs)
+        Me.TabScmSet.Controls.Add(Me.lblScmRelaySettleMs)
+        Me.TabScmSet.Location = New System.Drawing.Point(4, 22)
+        Me.TabScmSet.Name = "TabScmSet"
+        Me.TabScmSet.Padding = New System.Windows.Forms.Padding(3)
+        Me.TabScmSet.Size = New System.Drawing.Size(383, 550)
+        Me.TabScmSet.TabIndex = 4
+        Me.TabScmSet.Text = "控制板设置"
+        '
+        'lblScmStatus
+        '
+        Me.lblScmStatus.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D
+        Me.lblScmStatus.Location = New System.Drawing.Point(20, 290)
+        Me.lblScmStatus.Name = "lblScmStatus"
+        Me.lblScmStatus.Size = New System.Drawing.Size(310, 90)
+        Me.lblScmStatus.TabIndex = 17
+        '
+        'btnScmApply
+        '
+        Me.btnScmApply.Location = New System.Drawing.Point(185, 235)
+        Me.btnScmApply.Name = "btnScmApply"
+        Me.btnScmApply.Size = New System.Drawing.Size(145, 32)
+        Me.btnScmApply.TabIndex = 16
+        Me.btnScmApply.Text = "应用到 SCM 并保存"
+        Me.btnScmApply.UseVisualStyleBackColor = True
+        '
+        'btnScmRead
+        '
+        Me.btnScmRead.Location = New System.Drawing.Point(20, 235)
+        Me.btnScmRead.Name = "btnScmRead"
+        Me.btnScmRead.Size = New System.Drawing.Size(145, 32)
+        Me.btnScmRead.TabIndex = 15
+        Me.btnScmRead.Text = "读取 SCM 当前值"
+        Me.btnScmRead.UseVisualStyleBackColor = True
+        '
+        'lblScmPhaseGuardUnit
+        '
+        Me.lblScmPhaseGuardUnit.AutoSize = True
+        Me.lblScmPhaseGuardUnit.Location = New System.Drawing.Point(278, 193)
+        Me.lblScmPhaseGuardUnit.Name = "lblScmPhaseGuardUnit"
+        Me.lblScmPhaseGuardUnit.Size = New System.Drawing.Size(17, 12)
+        Me.lblScmPhaseGuardUnit.TabIndex = 14
+        Me.lblScmPhaseGuardUnit.Text = "ms"
+        '
+        'txtScmPhaseGuardMs
+        '
+        Me.txtScmPhaseGuardMs.Location = New System.Drawing.Point(165, 185)
+        Me.txtScmPhaseGuardMs.Name = "txtScmPhaseGuardMs"
+        Me.txtScmPhaseGuardMs.Size = New System.Drawing.Size(100, 21)
+        Me.txtScmPhaseGuardMs.TabIndex = 13
+        '
+        'lblScmPhaseGuardMs
+        '
+        Me.lblScmPhaseGuardMs.AutoSize = True
+        Me.lblScmPhaseGuardMs.Location = New System.Drawing.Point(23, 193)
+        Me.lblScmPhaseGuardMs.Name = "lblScmPhaseGuardMs"
+        Me.lblScmPhaseGuardMs.Size = New System.Drawing.Size(77, 12)
+        Me.lblScmPhaseGuardMs.TabIndex = 12
+        Me.lblScmPhaseGuardMs.Text = "遍末保护时间"
+        '
+        'lblScmTriggerUnit
+        '
+        Me.lblScmTriggerUnit.AutoSize = True
+        Me.lblScmTriggerUnit.Location = New System.Drawing.Point(278, 153)
+        Me.lblScmTriggerUnit.Name = "lblScmTriggerUnit"
+        Me.lblScmTriggerUnit.Size = New System.Drawing.Size(17, 12)
+        Me.lblScmTriggerUnit.TabIndex = 11
+        Me.lblScmTriggerUnit.Text = "ms"
+        '
+        'txtScmTriggerPulseMs
+        '
+        Me.txtScmTriggerPulseMs.Location = New System.Drawing.Point(165, 145)
+        Me.txtScmTriggerPulseMs.Name = "txtScmTriggerPulseMs"
+        Me.txtScmTriggerPulseMs.Size = New System.Drawing.Size(100, 21)
+        Me.txtScmTriggerPulseMs.TabIndex = 10
+        '
+        'lblScmTriggerPulseMs
+        '
+        Me.lblScmTriggerPulseMs.AutoSize = True
+        Me.lblScmTriggerPulseMs.Location = New System.Drawing.Point(23, 153)
+        Me.lblScmTriggerPulseMs.Name = "lblScmTriggerPulseMs"
+        Me.lblScmTriggerPulseMs.Size = New System.Drawing.Size(77, 12)
+        Me.lblScmTriggerPulseMs.TabIndex = 9
+        Me.lblScmTriggerPulseMs.Text = "触发脉宽时间"
+        '
+        'lblScmAutoStepUnit
+        '
+        Me.lblScmAutoStepUnit.AutoSize = True
+        Me.lblScmAutoStepUnit.Location = New System.Drawing.Point(278, 113)
+        Me.lblScmAutoStepUnit.Name = "lblScmAutoStepUnit"
+        Me.lblScmAutoStepUnit.Size = New System.Drawing.Size(17, 12)
+        Me.lblScmAutoStepUnit.TabIndex = 8
+        Me.lblScmAutoStepUnit.Text = "ms"
+        '
+        'txtScmAutoStepMs
+        '
+        Me.txtScmAutoStepMs.Location = New System.Drawing.Point(165, 105)
+        Me.txtScmAutoStepMs.Name = "txtScmAutoStepMs"
+        Me.txtScmAutoStepMs.Size = New System.Drawing.Size(100, 21)
+        Me.txtScmAutoStepMs.TabIndex = 7
+        '
+        'lblScmAutoStepMs
+        '
+        Me.lblScmAutoStepMs.AutoSize = True
+        Me.lblScmAutoStepMs.Location = New System.Drawing.Point(23, 113)
+        Me.lblScmAutoStepMs.Name = "lblScmAutoStepMs"
+        Me.lblScmAutoStepMs.Size = New System.Drawing.Size(77, 12)
+        Me.lblScmAutoStepMs.TabIndex = 6
+        Me.lblScmAutoStepMs.Text = "仪表等待时间"
+        '
+        'lblScmChannelUnit
+        '
+        Me.lblScmChannelUnit.AutoSize = True
+        Me.lblScmChannelUnit.Location = New System.Drawing.Point(278, 73)
+        Me.lblScmChannelUnit.Name = "lblScmChannelUnit"
+        Me.lblScmChannelUnit.Size = New System.Drawing.Size(17, 12)
+        Me.lblScmChannelUnit.TabIndex = 5
+        Me.lblScmChannelUnit.Text = "ms"
+        '
+        'txtScmChannelSettleMs
+        '
+        Me.txtScmChannelSettleMs.Location = New System.Drawing.Point(165, 65)
+        Me.txtScmChannelSettleMs.Name = "txtScmChannelSettleMs"
+        Me.txtScmChannelSettleMs.Size = New System.Drawing.Size(100, 21)
+        Me.txtScmChannelSettleMs.TabIndex = 4
+        '
+        'lblScmChannelSettleMs
+        '
+        Me.lblScmChannelSettleMs.AutoSize = True
+        Me.lblScmChannelSettleMs.Location = New System.Drawing.Point(23, 73)
+        Me.lblScmChannelSettleMs.Name = "lblScmChannelSettleMs"
+        Me.lblScmChannelSettleMs.Size = New System.Drawing.Size(77, 12)
+        Me.lblScmChannelSettleMs.TabIndex = 3
+        Me.lblScmChannelSettleMs.Text = "通道稳定时间"
+        '
+        'lblScmRelayUnit
+        '
+        Me.lblScmRelayUnit.AutoSize = True
+        Me.lblScmRelayUnit.Location = New System.Drawing.Point(278, 33)
+        Me.lblScmRelayUnit.Name = "lblScmRelayUnit"
+        Me.lblScmRelayUnit.Size = New System.Drawing.Size(17, 12)
+        Me.lblScmRelayUnit.TabIndex = 2
+        Me.lblScmRelayUnit.Text = "ms"
+        '
+        'txtScmRelaySettleMs
+        '
+        Me.txtScmRelaySettleMs.Location = New System.Drawing.Point(165, 25)
+        Me.txtScmRelaySettleMs.Name = "txtScmRelaySettleMs"
+        Me.txtScmRelaySettleMs.Size = New System.Drawing.Size(100, 21)
+        Me.txtScmRelaySettleMs.TabIndex = 1
+        '
+        'lblScmRelaySettleMs
+        '
+        Me.lblScmRelaySettleMs.AutoSize = True
+        Me.lblScmRelaySettleMs.Location = New System.Drawing.Point(23, 33)
+        Me.lblScmRelaySettleMs.Name = "lblScmRelaySettleMs"
+        Me.lblScmRelaySettleMs.Size = New System.Drawing.Size(89, 12)
+        Me.lblScmRelaySettleMs.TabIndex = 0
+        Me.lblScmRelaySettleMs.Text = "继电器稳定时间"
+        '
         'CmdOK
         '
         Me.CmdOK.Location = New System.Drawing.Point(106, 621)
@@ -1298,6 +1506,103 @@ Partial Class frmInit
         Me.Button1.TabIndex = 2
         Me.Button1.Text = "取消"
         Me.Button1.UseVisualStyleBackColor = True
+        '
+        'GroupBox7
+        '
+        Me.GroupBox7.Controls.Add(Me.txtUser)
+        Me.GroupBox7.Controls.Add(Me.txtpwd)
+        Me.GroupBox7.Controls.Add(Me.Label7)
+        Me.GroupBox7.Controls.Add(Me.Label19)
+        Me.GroupBox7.Controls.Add(Me.txtDatabase)
+        Me.GroupBox7.Controls.Add(Me.Label18)
+        Me.GroupBox7.Location = New System.Drawing.Point(12, 70)
+        Me.GroupBox7.Name = "GroupBox7"
+        Me.GroupBox7.Size = New System.Drawing.Size(352, 141)
+        Me.GroupBox7.TabIndex = 8
+        Me.GroupBox7.TabStop = False
+        Me.GroupBox7.Text = "本地数据库设置"
+        '
+        'GB_MesDataBase
+        '
+        Me.GB_MesDataBase.Controls.Add(Me.TxtMesDatabaseName)
+        Me.GB_MesDataBase.Controls.Add(Me.TxtMesBaseUser)
+        Me.GB_MesDataBase.Controls.Add(Me.TxtMesBasePsw)
+        Me.GB_MesDataBase.Controls.Add(Me.Label42)
+        Me.GB_MesDataBase.Controls.Add(Me.Label43)
+        Me.GB_MesDataBase.Controls.Add(Me.Label52)
+        Me.GB_MesDataBase.Controls.Add(Me.txtMesDatabaseServerIP)
+        Me.GB_MesDataBase.Controls.Add(Me.Label50)
+        Me.GB_MesDataBase.Location = New System.Drawing.Point(12, 217)
+        Me.GB_MesDataBase.Name = "GB_MesDataBase"
+        Me.GB_MesDataBase.Size = New System.Drawing.Size(352, 142)
+        Me.GB_MesDataBase.TabIndex = 8
+        Me.GB_MesDataBase.TabStop = False
+        Me.GB_MesDataBase.Text = "Mes数据库设置"
+        '
+        'TxtMesBaseUser
+        '
+        Me.TxtMesBaseUser.Location = New System.Drawing.Point(100, 81)
+        Me.TxtMesBaseUser.Name = "TxtMesBaseUser"
+        Me.TxtMesBaseUser.Size = New System.Drawing.Size(206, 21)
+        Me.TxtMesBaseUser.TabIndex = 5
+        '
+        'TxtMesBasePsw
+        '
+        Me.TxtMesBasePsw.Location = New System.Drawing.Point(100, 109)
+        Me.TxtMesBasePsw.Name = "TxtMesBasePsw"
+        Me.TxtMesBasePsw.Size = New System.Drawing.Size(206, 21)
+        Me.TxtMesBasePsw.TabIndex = 7
+        Me.TxtMesBasePsw.UseSystemPasswordChar = True
+        '
+        'Label42
+        '
+        Me.Label42.AutoSize = True
+        Me.Label42.Location = New System.Drawing.Point(43, 29)
+        Me.Label42.Name = "Label42"
+        Me.Label42.Size = New System.Drawing.Size(53, 12)
+        Me.Label42.TabIndex = 1
+        Me.Label42.Text = "服务器IP"
+        '
+        'Label43
+        '
+        Me.Label43.AutoSize = True
+        Me.Label43.Location = New System.Drawing.Point(67, 113)
+        Me.Label43.Name = "Label43"
+        Me.Label43.Size = New System.Drawing.Size(29, 12)
+        Me.Label43.TabIndex = 6
+        Me.Label43.Text = "密码"
+        '
+        'txtMesDatabaseServerIP
+        '
+        Me.txtMesDatabaseServerIP.Location = New System.Drawing.Point(100, 25)
+        Me.txtMesDatabaseServerIP.Name = "txtMesDatabaseServerIP"
+        Me.txtMesDatabaseServerIP.Size = New System.Drawing.Size(206, 21)
+        Me.txtMesDatabaseServerIP.TabIndex = 2
+        '
+        'Label50
+        '
+        Me.Label50.AutoSize = True
+        Me.Label50.Location = New System.Drawing.Point(55, 85)
+        Me.Label50.Name = "Label50"
+        Me.Label50.Size = New System.Drawing.Size(41, 12)
+        Me.Label50.TabIndex = 4
+        Me.Label50.Text = "用户名"
+        '
+        'Label52
+        '
+        Me.Label52.AutoSize = True
+        Me.Label52.Location = New System.Drawing.Point(55, 57)
+        Me.Label52.Name = "Label52"
+        Me.Label52.Size = New System.Drawing.Size(41, 12)
+        Me.Label52.TabIndex = 4
+        Me.Label52.Text = "数据库"
+        '
+        'TxtMesDatabaseName
+        '
+        Me.TxtMesDatabaseName.Location = New System.Drawing.Point(100, 53)
+        Me.TxtMesDatabaseName.Name = "TxtMesDatabaseName"
+        Me.TxtMesDatabaseName.Size = New System.Drawing.Size(206, 21)
+        Me.TxtMesDatabaseName.TabIndex = 5
         '
         'frmInit
         '
@@ -1341,6 +1646,12 @@ Partial Class frmInit
         Me.TabPage3.PerformLayout()
         Me.TabPage4.ResumeLayout(False)
         Me.TabPage4.PerformLayout()
+        Me.TabScmSet.ResumeLayout(False)
+        Me.TabScmSet.PerformLayout()
+        Me.GroupBox7.ResumeLayout(False)
+        Me.GroupBox7.PerformLayout()
+        Me.GB_MesDataBase.ResumeLayout(False)
+        Me.GB_MesDataBase.PerformLayout()
         Me.ResumeLayout(False)
 
     End Sub
@@ -1457,4 +1768,33 @@ Partial Class frmInit
     Friend WithEvents GroupBox10 As GroupBox
     Friend WithEvents Label48 As Label
     Friend WithEvents Label49 As Label
+    Friend WithEvents lblScmRelaySettleMs As Label
+    Friend WithEvents txtScmRelaySettleMs As TextBox
+    Friend WithEvents lblScmRelayUnit As Label
+    Friend WithEvents lblScmChannelSettleMs As Label
+    Friend WithEvents txtScmChannelSettleMs As TextBox
+    Friend WithEvents lblScmChannelUnit As Label
+    Friend WithEvents lblScmAutoStepMs As Label
+    Friend WithEvents txtScmAutoStepMs As TextBox
+    Friend WithEvents lblScmAutoStepUnit As Label
+    Friend WithEvents lblScmTriggerPulseMs As Label
+    Friend WithEvents txtScmTriggerPulseMs As TextBox
+    Friend WithEvents lblScmTriggerUnit As Label
+    Friend WithEvents lblScmPhaseGuardMs As Label
+    Friend WithEvents txtScmPhaseGuardMs As TextBox
+    Friend WithEvents lblScmPhaseGuardUnit As Label
+    Friend WithEvents btnScmRead As Button
+    Friend WithEvents btnScmApply As Button
+    Friend WithEvents lblScmStatus As Label
+    Friend WithEvents TabScmSet As TabPage
+    Friend WithEvents GB_MesDataBase As GroupBox
+    Friend WithEvents TxtMesBaseUser As TextBox
+    Friend WithEvents TxtMesBasePsw As TextBox
+    Friend WithEvents Label42 As Label
+    Friend WithEvents Label43 As Label
+    Friend WithEvents txtMesDatabaseServerIP As TextBox
+    Friend WithEvents Label50 As Label
+    Friend WithEvents GroupBox7 As GroupBox
+    Friend WithEvents TxtMesDatabaseName As TextBox
+    Friend WithEvents Label52 As Label
 End Class

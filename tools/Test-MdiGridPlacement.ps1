@@ -22,7 +22,7 @@ $form.Size = New-Object System.Drawing.Size(1920, 1080)
 $form.Show()
 try {
     # frmTest Load blocks on socket/db timeouts; allow up to 30s to appear
-    $deadline = [System.DateTime]::Now.AddSeconds(30)
+    $deadline = [System.DateTime]::Now.AddSeconds(35)
     $frmTest = $null
     while ([System.DateTime]::Now -lt $deadline) {
         [System.Windows.Forms.Application]::DoEvents()
@@ -50,24 +50,23 @@ try {
 
     $grid = Find-Control $frmTest 'channelGrid'
     if (-not $grid) { throw 'channelGrid not found.' }
-    $gridLayout = $null
-    foreach ($c in $grid.Controls) {
-        if ($c -is [System.Windows.Forms.TableLayoutPanel]) {
-            foreach ($n in $c.Controls) {
-                if ($n -is [System.Windows.Forms.TableLayoutPanel] -and $n.RowCount -eq 16 -and $n.ColumnCount -eq 16) { $gridLayout = $n }
-            }
-        }
+    $gridSurface = $null
+    $pending = New-Object System.Collections.Queue
+    foreach ($child in $grid.Controls) { $pending.Enqueue($child) }
+    while ($pending.Count -gt 0 -and $null -eq $gridSurface) {
+        $candidate = $pending.Dequeue()
+        if ($candidate.GetType().Name -eq 'ChannelGridSurface') { $gridSurface = $candidate; break }
+        foreach ($nested in $candidate.Controls) { $pending.Enqueue($nested) }
     }
-    if (-not $gridLayout) { throw '16x16 matrix layout not found.' }
-    $lastTile = $gridLayout.GetControlFromPosition(15, 15)
-    $lastRect = $lastTile.RectangleToScreen($lastTile.ClientRectangle)
+    if (-not $gridSurface) { throw 'Virtual channel surface not found.' }
+    $lastRect = $gridSurface.RectangleToScreen($gridSurface.ClientRectangle)
     $statusTopScreen = $status.PointToScreen([System.Drawing.Point]::Empty).Y
     if ($lastRect.Bottom -gt ($statusTopScreen + 1)) {
-        throw 'matrix last row bottom exceeds the status bar top; rows 15/16 would be clipped.'
+        throw ('virtual channel surface bottom exceeds the status bar top; grid=({0},{1},{2},{3}), statusTop={4}, mdi=({5},{6},{7},{8}), frmTestClient={9}x{10}.' -f $lastRect.X, $lastRect.Y, $lastRect.Width, $lastRect.Height, $statusTopScreen, $mdi.Left, $mdi.Top, $mdi.Width, $mdi.Height, $frmTest.ClientSize.Width, $frmTest.ClientSize.Height)
     }
 
     $statusBottom = $status.Top + $status.Height
-    Write-Output ('PASS: menu=[0..' + $menu.Bottom + '] mdi=[' + $mdi.Top + '..' + $mdi.Bottom + '] status=[' + $status.Top + '..' + $statusBottom + ']; frmTest.client=' + $frmTest.ClientSize.Width + 'x' + $frmTest.ClientSize.Height + '; last tile bottom=' + $lastRect.Bottom + ' <= status top=' + $statusTopScreen)
+    Write-Output ('PASS: menu=[0..' + $menu.Bottom + '] mdi=[' + $mdi.Top + '..' + $mdi.Bottom + '] status=[' + $status.Top + '..' + $statusBottom + ']; frmTest.client=' + $frmTest.ClientSize.Width + 'x' + $frmTest.ClientSize.Height + '; grid bottom=' + $lastRect.Bottom + ' <= status top=' + $statusTopScreen)
 }
 finally {
     $form.Close()

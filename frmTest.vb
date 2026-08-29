@@ -31,7 +31,12 @@ Public Class frmTest
     Private WithEvents timer3 As New Timer()
     '窗体是否已加载完成（用于屏蔽 Resize 期间重绘，避免初始化阶段空引用）
     Private _isLoaded As Boolean = False
+    Private shutdownPrepared As Boolean = False
     Private responsiveLayout As ResponsiveTestLayout
+    Private grpTestMode As GroupBox
+    Private chkAutoTest As CheckBox
+    Private chkManualTest As CheckBox
+    Private modeChangeInProgress As Boolean
     Private lastTestSelection As TestChannelSelection
     Private currentTestChannels As List(Of Integer)
     Private ReadOnly testingChannelNumbers As New HashSet(Of Integer)()
@@ -68,11 +73,10 @@ Public Class frmTest
         'R2-18:提前标记已加载完成,确保 frmTest_Resize 的布局调整始终执行
         '       (若 myConnection 未打开,后面 Exit Sub 会提前返回,原 _isLoaded=True 在末尾无法执行)
         _isLoaded = True
-        'R2-18:Load 一开始就应用布局,避免 socketSR1 等阻塞期间 Pic_Bat 停留在初始 Dock=Right 969 宽导致初次留白
         ApplyFrmTestVisualStyle()
         '*******************************
         '显示相关信息
-        txtDataServer.Text = Initsetting.strDatabase
+        '数据服务器字段已从主测试页移除。
         lblBarNum.Text = "*"
         '合格范围
         txtMaxV.Text = Initsetting.upVoltage
@@ -81,32 +85,25 @@ Public Class frmTest
         txtMinR.Text = Initsetting.downResistance
         '**************************************
         ReadInitFile()
+        ConfigureStationControls()
         '探针相关
         txtTotle.Text = Initsetting.Probelifespan.ToString
         txtUsed.Text = Initsetting.ProbeUsedCount.ToString
         txtRemain.Text = (Initsetting.Probelifespan - Initsetting.ProbeUsedCount).ToString
-        timer3.Interval = 1000 ' 设置定时器间隔为1秒
-        timer3.Start() ' 开始定时器
+        timer3.Interval = 1000
+        timer3.Start()
         Timer4.Start()
         '设置ocv次数确认标志初始值为false，表示一次都没有跟客户确认过。
         isAskOcvNum = False
 
-
-        frmMDI.txtTesting.Text = ""
-        'R2-18:设备连接检查(温度和IO)移到后台线程,不阻塞 frmTest 窗体显示
-        '       (用户要求:窗体显示与设备连接分离,设备状态后续由 timer3 后台轮询)
+        '分档字段查询保留在后台，不阻塞窗体消息循环。
         System.Threading.ThreadPool.QueueUserWorkItem(Sub()
                                                           Try
-                                                              If Com_SCM IsNot Nothing AndAlso Com_SCM.IsOpen Then
-                                                                  Dim cl As New SerialControlBoardClient(Com_SCM)
-                                                                  cl.ReadTemperatureAndIoStatus()
-                                                                  cl.SetOverTemperatureAndMesStatus(0, CShort(Initsetting.overTemperateValue * 10))
-                                                              End If
+                                                              GetCN()
                                                           Catch ex As Exception
-                                                              System.Diagnostics.Debug.WriteLine("后台读取控制板温度/IO失败: " & ex.Message)
+                                                              System.Diagnostics.Debug.WriteLine("后台加载分档字段失败: " & ex.Message)
                                                           End Try
                                                       End Sub)
-        '
 
         For index = 1 To MAX_CHANNEL
             cmb_ChSelect.Items.Add(index)
@@ -120,28 +117,11 @@ Public Class frmTest
             calibrateValueArray(i) = 0
         Next
         '**********************************
-        '默认OCV1，即第一次测试
-        If Initsetting.stationSelect = 1 Or Initsetting.stationSelect = 0 Then
-            With Rbtn1
-                .Checked = True
-                .Focus()
-            End With
-            Rbtn2.Visible = False
-            Rbtn1.Visible = True
-        Else
-            '默认OCV2，
-            With Rbtn2
-                .Checked = True
-                .Focus()
-            End With
-            Rbtn1.Visible = False
-            Rbtn2.Visible = True
-        End If
-
-
         '****************************
         '刷新界面
-        FreshBat(0, 0, intNumber, RecieveData, 1)
+        If Pic_Bat IsNot Nothing AndAlso Pic_Bat.Visible Then
+            FreshBat(0, 0, intNumber, RecieveData, 1)
+        End If
         RefreshChannelOverview()
         channelGrid.SelectAll()
         '****************************
@@ -154,31 +134,16 @@ Public Class frmTest
         CmdStart.Enabled = True
         smokeAlarm1.BackColor = Color.Green
         smokeAlarm2.BackColor = Color.Green
-        ' GroupBox2.Select()
-        If Rbtn2.Checked Then
-            currentOCVNum = 2
-        End If
-        If Rbtn1.Checked Then
-            currentOCVNum = 1
-        End If
         ''启动mes
         'FrmMesTask.ShowDialog()
         ''FrmMesTask.Activate()
         'FrmMesTask.Hide()
         'Rbtn2.Checked = True
         'Timer1.Start()
-        '判断数据库的连接状态
-        Call GetCN()
-        '加载完成后才允许 Resize 触发的重绘，避免初始化阶段空引用
+        '加载完成后才允许 Resize 触发的重绘，避免初始化阶段空引用。
         _isLoaded = True
-        'MDI 最大化完成后强制客户区跟随 mdiClient,防止矩阵底部被状态栏裁切
-        Me.BeginInvoke(New MethodInvoker(AddressOf FitToMdiClient))
         '布局稳定后强制左侧滚动区回到顶部,保证首屏从工位选择/托盘信息开始
-        Me.BeginInvoke(New Action(Sub()
-                                      If Panel1 IsNot Nothing Then
-                                          Panel1.AutoScrollPosition = New Point(0, 0)
-                                      End If
-                                  End Sub))
+        Me.BeginInvoke(New MethodInvoker(AddressOf ResetLeftPanelScroll))
     End Sub
 
     Private Sub InitializeChannelSelectionControls()
@@ -1307,7 +1272,7 @@ exit_sub:
     Private Sub btnStop_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles btnStop.Click
         blstop = True
     End Sub
-    Private Sub txtLastNum_KeyDown(ByVal sender As Object, ByVal e As System.Windows.Forms.KeyEventArgs) Handles txtLastNum.KeyDown, txtDataServer.KeyDown
+    Private Sub txtLastNum_KeyDown(ByVal sender As Object, ByVal e As System.Windows.Forms.KeyEventArgs) Handles txtLastNum.KeyDown
         '        Dim intF, intL As Long
         '        Dim I As Short
         '        Dim intBarnum As Short
@@ -1350,6 +1315,7 @@ exit_sub:
         End If
     End Sub
     Private Sub timer3_Elapsed(sender As Object, e As ElapsedEventArgs) Handles timer3.Elapsed
+        If shutdownPrepared OrElse ApplicationShuttingDown Then Return
         ' 这里写定时器触发后需要执行的代码
         '启动一个异步定时检测socket对象，检测温度和IO信息
         Dim cl As New SocketClient
@@ -1854,6 +1820,7 @@ exit_sub:
     End Sub
 
     Private Sub frmTest_FormClosed(sender As Object, e As FormClosedEventArgs) Handles MyBase.FormClosed
+        PrepareForShutdown()
         '复位报警状态
         alarmStatus = False
         'clientSocket.Close()
@@ -1880,6 +1847,21 @@ exit_sub:
         Timer1.Enabled = False
     End Sub
 
+    Public Sub PrepareForShutdown()
+        If shutdownPrepared Then Return
+        shutdownPrepared = True
+        _isLoaded = False
+
+        If timer3 IsNot Nothing Then timer3.Stop()
+        If Timer1 IsNot Nothing Then Timer1.Stop()
+        If Timer2 IsNot Nothing Then Timer2.Stop()
+        If Timer4 IsNot Nothing Then Timer4.Stop()
+        If channelGrid IsNot Nothing Then
+            channelGrid.Visible = False
+            channelGrid.SuspendLayout()
+        End If
+    End Sub
+
     Private Shared Function GetCalibrationFilePath() As String
         Dim dataDirectory As String = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -1889,6 +1871,7 @@ exit_sub:
     End Function
 
     Private Sub Timer4_Tick(sender As Object, e As EventArgs) Handles Timer4.Tick
+        If chkAutoTest Is Nothing OrElse Not chkAutoTest.Checked Then Return
         If autoStartFlag = True Then
             If alarmStatus = True Then
                 MessageBox.Show("目前处于报警状态，请先复位报警！", "提示", MessageBoxButtons.OK)
@@ -1904,21 +1887,21 @@ exit_sub:
         End If
     End Sub
 
-    Private Sub btn_ZeroAdjustment_Click(sender As Object, e As EventArgs) Handles btn_ZeroAdjustment.Click
-        Dim ch As Integer = 65
-        Dim temp As Byte()
-        '切换到ocr测量内阻
-        IOCardSetAcirOrOcv("ACIR")
-        temp = mSock.GetSignalSelectChannel(ch)
-        Try
-            '测试以下用同一个socket是否成功 20240102
-            Dim receiveData As Byte()
-            receiveData = socketSR(temp)
-            MsgBox("内阻仪调零成功！", vbOKOnly)
-        Catch ex As Exception
-            MsgBox("内阻仪调零失败！", vbOKOnly)
-        End Try
-    End Sub
+    'Private Sub btn_ZeroAdjustment_Click(sender As Object, e As EventArgs) Handles btn_ZeroAdjustment.Click
+    '    Dim ch As Integer = 65
+    '    Dim temp As Byte()
+    '    '切换到ocr测量内阻
+    '    IOCardSetAcirOrOcv("ACIR")
+    '    temp = mSock.GetSignalSelectChannel(ch)
+    '    Try
+    '        '测试以下用同一个socket是否成功 20240102
+    '        Dim receiveData As Byte()
+    '        receiveData = socketSR(temp)
+    '        MsgBox("内阻仪调零成功！", vbOKOnly)
+    '    Catch ex As Exception
+    '        MsgBox("内阻仪调零失败！", vbOKOnly)
+    '    End Try
+    'End Sub
 
     ''' <summary>
     ''' 读出所有通道校准值
@@ -2065,28 +2048,28 @@ exit_sub:
         txtCaliR.Text = calibrateValueArray(selectCh - 1).ToString()
     End Sub
 
-    Private Sub btnScanTray_Click(sender As Object, e As EventArgs) Handles btnScanTray.Click
-        '显示条码录入界面
-        If Not My.Forms.frmInput.IsDisposed Then
-            My.Forms.frmInput.Dispose()
-        End If
+    'Private Sub btnScanTray_Click(sender As Object, e As EventArgs) Handles btnScanTray.Click
+    '    '显示条码录入界面
+    '    If Not My.Forms.frmInput.IsDisposed Then
+    '        My.Forms.frmInput.Dispose()
+    '    End If
 
-        My.Forms.frmInput.txtTray.Text = txtTray.Text
-        '显示首尾条形码
-        My.Forms.frmInput.txtFirst.Text = txtFirstNum.Text
-        My.Forms.frmInput.txtLast.Text = txtLastNum.Text
+    '    My.Forms.frmInput.txtTray.Text = txtTray.Text
+    '    '显示首尾条形码
+    '    My.Forms.frmInput.txtFirst.Text = txtFirstNum.Text
+    '    My.Forms.frmInput.txtLast.Text = txtLastNum.Text
 
-        My.Forms.frmInput.ShowDialog()
-        My.Forms.frmInput.Activate()
-        'My.Forms.frmInput.Close()
-        '托盘编码自动更新到联机界面
-        txtTray.Text = My.Forms.frmInput.txtTray.Text
-        '显示首尾条形码
-        txtFirstNum.Text = My.Forms.frmInput.txtFirst.Text
-        txtLastNum.Text = My.Forms.frmInput.txtLast.Text
-        '选择结果决定待测试通道数，扫码不会覆盖该数量。
-        HandleSelectedChannelsChanged(channelGrid, EventArgs.Empty)
-    End Sub
+    '    My.Forms.frmInput.ShowDialog()
+    '    My.Forms.frmInput.Activate()
+    '    'My.Forms.frmInput.Close()
+    '    '托盘编码自动更新到联机界面
+    '    txtTray.Text = My.Forms.frmInput.txtTray.Text
+    '    '显示首尾条形码
+    '    txtFirstNum.Text = My.Forms.frmInput.txtFirst.Text
+    '    txtLastNum.Text = My.Forms.frmInput.txtLast.Text
+    '    '选择结果决定待测试通道数，扫码不会覆盖该数量。
+    '    HandleSelectedChannelsChanged(channelGrid, EventArgs.Empty)
+    'End Sub
     '通过检测温度变化，判读是否有超温报警。
     Private Sub t1_TextChanged(sender As Object, e As EventArgs) Handles t1.TextChanged
         If Single.Parse(t1.Text) > Initsetting.overTemperateValue Then
@@ -2226,7 +2209,7 @@ exit_sub:
         End Try
     End Sub
 
-    Private Sub txtLastNum_TextChanged(sender As Object, e As EventArgs) Handles txtLastNum.TextChanged, txtDataServer.TextChanged
+    Private Sub txtLastNum_TextChanged(sender As Object, e As EventArgs) Handles txtLastNum.TextChanged
         avalibleCount = Val(txtLastNum.Text)
     End Sub
 
@@ -2257,25 +2240,6 @@ exit_sub:
 
     End Sub
 
-    '窗体尺寸变化时重绘电池矩阵，避免 MDI 最大化后位图仍停留在原始尺寸
-    Private Sub frmTest_Resize(sender As Object, e As EventArgs) Handles Me.Resize
-        '最大化 MDI 子窗体在个别布局时序下会被留在比 mdiClient 更高的高度,
-        '导致矩阵底部(15/16 行)被底部状态栏裁切;这里强制跟随 mdiClient 客户区尺寸。
-        If _isLoaded Then FitToMdiClient()
-    End Sub
-
-    Private Sub FitToMdiClient()
-        If Me.MdiParent Is Nothing Then Return
-        '只在最大化时强制跟随 mdiClient,避免把用户手动还原的窗口硬拉满
-        If Me.WindowState <> FormWindowState.Maximized Then Return
-        Dim mdiClient As Control = Me.Parent
-        If mdiClient Is Nothing Then Return
-        Dim target As New Size(mdiClient.ClientSize.Width, mdiClient.ClientSize.Height)
-        If Me.ClientSize.Width <> target.Width OrElse Me.ClientSize.Height <> target.Height Then
-            Me.ClientSize = target
-        End If
-    End Sub
-
     Private Function BuildAllChannelDisplayData() As List(Of ChannelDisplayData)
         Dim result As New List(Of ChannelDisplayData)(MAX_CHANNEL)
         For channelNo As Integer = 1 To MAX_CHANNEL
@@ -2285,7 +2249,7 @@ exit_sub:
     End Function
 
     Private Sub RefreshChannelOverview()
-        If IsDisposed OrElse Not IsHandleCreated Then Return
+        If shutdownPrepared OrElse ApplicationShuttingDown OrElse IsDisposed OrElse Not IsHandleCreated Then Return
         If InvokeRequired Then
             BeginInvoke(New MethodInvoker(AddressOf RefreshChannelOverview))
             Return
@@ -2373,47 +2337,214 @@ exit_sub:
     ''' event bindings or business behavior.
     ''' </summary>
     Private Sub ApplyFrmTestVisualStyle()
+        ApplyFrmTestEssentialLayout()
+        ApplyFrmTestDeferredVisualStyle()
+    End Sub
+
+    Private Sub ApplyFrmTestEssentialLayout()
         MinimumSize = New Size(0, 0)
         If Panel1 Is Nothing Then Return
 
-        If responsiveLayout Is Nothing Then responsiveLayout = New ResponsiveTestLayout()
-        responsiveLayout.Apply(Me, Panel1, statisticsControl, channelGrid, Pic_Bat)
+        SuspendLayout()
+        Try
+            '左侧栏由布局容器管理，保留 WinForms 的正常字体/DPI 缩放。
+            Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
+            Me.Font = UiTheme.UiFont
+            EnsureTestModeControls()
+            ConfigureCompactLeftControls()
+            If responsiveLayout Is Nothing Then responsiveLayout = New ResponsiveTestLayout()
+            responsiveLayout.Apply(Me, Panel1, statisticsControl, channelGrid, Pic_Bat)
+        Finally
+            ResumeLayout(False)
+        End Try
+    End Sub
 
-        Me.BackColor = UiTheme.PageBackground
-        Me.Font = UiTheme.UiFont
-        Me.DoubleBuffered = True
-        Panel1.BackColor = UiTheme.PageBackground
-        Pic_Bat.BackColor = UiTheme.CardBackground
+    Private Sub ApplyFrmTestDeferredVisualStyle()
+        MinimumSize = New Size(0, 0)
+        If Panel1 Is Nothing Then Return
 
-        Dim cards As GroupBox() = {
-            GroupBox1, GroupBox2, GroupBox3, GroupBox4,
-            GroupBox5, GroupBox6, GroupBox7, GroupBox8
+        SuspendLayout()
+        Try
+            Me.BackColor = UiTheme.PageBackground
+            Me.DoubleBuffered = True
+            Panel1.BackColor = UiTheme.PageBackground
+            Pic_Bat.BackColor = UiTheme.CardBackground
+
+            Dim cards As GroupBox() = {
+                grpTestMode, GroupBox1, GroupBox2, GroupBox3,
+                GroupBox5, GroupBox6, GroupBox7, GroupBox8
+            }
+            For Each card As GroupBox In cards
+                UiTheme.ApplyCardStyle(card)
+            Next
+
+            Dim inputs As TextBox() = {
+                txtTray, txtFirstNum, txtLastNum,
+                txtMinV, txtMaxV, txtMinR, txtMaxR,
+                txtTestR, txtCaliR, txtJiajuR, txtAlarm,
+                t1, t2, t3, t4, txtTotle, txtUsed, txtRemain
+            }
+            For Each input As TextBox In inputs
+                UiTheme.ApplyTextBoxStyle(input)
+            Next
+
+            Dim fieldLabels As Label() = {
+                Label2, Label5, Label7, Label12,
+                Label1, Label14, Label15, Label16,
+                Label19, Label17, Label28, Label26, Label29
+            }
+            For Each fieldLabel As Label In fieldLabels
+                UiTheme.ApplyFieldLabelStyle(fieldLabel)
+            Next
+
+            UiTheme.ApplyCheckBoxStyle(chkAutoTest)
+            UiTheme.ApplyCheckBoxStyle(chkManualTest)
+            UiTheme.ApplyRadioButtonStyle(Rbtn1)
+            UiTheme.ApplyRadioButtonStyle(Rbtn2)
+            UiTheme.ApplyRadioButtonStyle(Rbtn3)
+
+            UiTheme.ApplyButtonStyle(CmdStart, UiTheme.ButtonRole.Primary)
+            UiTheme.ApplyButtonStyle(btnStop, UiTheme.ButtonRole.Danger)
+            UiTheme.ApplyButtonStyle(btnNGTest, UiTheme.ButtonRole.Warning)
+            UiTheme.ApplyButtonStyle(btnTrayState, UiTheme.ButtonRole.Neutral)
+            UiTheme.ApplyButtonStyle(btnOpen, UiTheme.ButtonRole.Neutral)
+            UiTheme.ApplyButtonStyle(btnClose, UiTheme.ButtonRole.Neutral)
+            'UiTheme.ApplyButtonStyle(btn_ZeroAdjustment, UiTheme.ButtonRole.Neutral)
+            UiTheme.ApplyButtonStyle(btn_ChCalibrate, UiTheme.ButtonRole.Primary)
+            'UiTheme.ApplyButtonStyle(btnScanTray, UiTheme.ButtonRole.Neutral)
+            UiTheme.ApplyButtonStyle(btnChannelSelectAll, UiTheme.ButtonRole.Primary)
+            UiTheme.ApplyButtonStyle(btnChannelClear, UiTheme.ButtonRole.Neutral)
+            UiTheme.ApplyButtonStyle(btnChannelRectangle, UiTheme.ButtonRole.Neutral)
+            UiTheme.ApplyButtonStyle(btnChannelSelectSingle, UiTheme.ButtonRole.Neutral)
+            UiTheme.ApplyButtonStyle(Button2, UiTheme.ButtonRole.Danger)
+            If responsiveLayout IsNot Nothing Then responsiveLayout.RefreshLeftContent(Panel1)
+        Finally
+            ResumeLayout(False)
+        End Try
+    End Sub
+
+    Private Sub EnsureTestModeControls()
+        If grpTestMode IsNot Nothing Then Return
+
+        grpTestMode = New GroupBox With {
+            .Name = "grpTestMode",
+            .Text = "测试控制",
+            .BackColor = UiTheme.CardBackground,
+            .Size = New Size(306, 42),
+            .TabStop = False
         }
-        For Each card As GroupBox In cards
-            UiTheme.ApplyCardStyle(card)
-        Next
-
-        Dim inputs As TextBox() = {
-            txtTray, txtFirstNum, txtLastNum, txtDataServer,
-            txtMinV, txtMaxV, txtMinR, txtMaxR,
-            txtTestR, txtCaliR, txtJiajuR, txtAlarm,
-            t1, t2, t3, t4, txtTotle, txtUsed, txtRemain
+        chkAutoTest = New CheckBox With {
+            .Name = "chkAutoTest",
+            .Text = "自动",
+            .AutoSize = True,
+            .Checked = True,
+            .Location = New Point(55, 15),
+            .TabIndex = 0
         }
-        For Each input As TextBox In inputs
-            UiTheme.ApplyTextBoxStyle(input)
-        Next
+        chkManualTest = New CheckBox With {
+            .Name = "chkManualTest",
+            .Text = "手动",
+            .AutoSize = True,
+            .Checked = False,
+            .Location = New Point(190, 15),
+            .TabIndex = 1
+        }
+        AddHandler chkAutoTest.CheckedChanged, AddressOf TestModeCheckedChanged
+        AddHandler chkManualTest.CheckedChanged, AddressOf TestModeCheckedChanged
+        grpTestMode.Controls.Add(chkAutoTest)
+        grpTestMode.Controls.Add(chkManualTest)
+        Panel1.Controls.Add(grpTestMode)
+        SetTestMode(True)
+    End Sub
 
-        UiTheme.ApplyButtonStyle(CmdStart, UiTheme.ButtonRole.Primary)
-        UiTheme.ApplyButtonStyle(btnStop, UiTheme.ButtonRole.Danger)
-        UiTheme.ApplyButtonStyle(btnNGTest, UiTheme.ButtonRole.Warning)
-        UiTheme.ApplyButtonStyle(btn_ZeroAdjustment, UiTheme.ButtonRole.Neutral)
-        UiTheme.ApplyButtonStyle(btn_ChCalibrate, UiTheme.ButtonRole.Primary)
-        UiTheme.ApplyButtonStyle(btnScanTray, UiTheme.ButtonRole.Neutral)
-        UiTheme.ApplyButtonStyle(btnChannelSelectAll, UiTheme.ButtonRole.Primary)
-        UiTheme.ApplyButtonStyle(btnChannelClear, UiTheme.ButtonRole.Neutral)
-        UiTheme.ApplyButtonStyle(btnChannelRectangle, UiTheme.ButtonRole.Neutral)
-        UiTheme.ApplyButtonStyle(btnChannelSelectSingle, UiTheme.ButtonRole.Neutral)
-        UiTheme.ApplyButtonStyle(Button2, UiTheme.ButtonRole.Danger)
+    Private Sub TestModeCheckedChanged(ByVal sender As Object, ByVal e As EventArgs)
+        If modeChangeInProgress Then Return
+
+        modeChangeInProgress = True
+        Try
+            If sender Is chkManualTest AndAlso chkManualTest.Checked Then
+                chkAutoTest.Checked = False
+            ElseIf sender Is chkAutoTest AndAlso chkAutoTest.Checked Then
+                chkManualTest.Checked = False
+            End If
+
+            If Not chkAutoTest.Checked AndAlso Not chkManualTest.Checked Then
+                chkAutoTest.Checked = True
+            End If
+        Finally
+            modeChangeInProgress = False
+            UpdateTestModeVisuals()
+        End Try
+    End Sub
+
+    Private Sub SetTestMode(ByVal autoMode As Boolean)
+        If chkAutoTest Is Nothing OrElse chkManualTest Is Nothing Then Return
+
+        modeChangeInProgress = True
+        Try
+            chkAutoTest.Checked = autoMode
+            chkManualTest.Checked = Not autoMode
+        Finally
+            modeChangeInProgress = False
+            UpdateTestModeVisuals()
+        End Try
+    End Sub
+
+    Private Sub UpdateTestModeVisuals()
+        If chkAutoTest Is Nothing OrElse chkManualTest Is Nothing Then Return
+        UiTheme.ApplyToggleStateStyle(chkAutoTest, chkAutoTest.Checked)
+        UiTheme.ApplyToggleStateStyle(chkManualTest, chkManualTest.Checked)
+    End Sub
+
+    Private Sub ConfigureStationControls()
+        Rbtn1.Text = "OCV0"
+        Rbtn2.Text = "OCV1"
+        Rbtn3.Text = "OCV2"
+        Rbtn1.Visible = True
+        Rbtn2.Visible = True
+        Rbtn3.Visible = True
+        cmbShow.Visible = False
+        cmbShow.Enabled = False
+        CmdBatInput.Visible = False
+        CmdBatInput.Enabled = False
+        '工位由系统参数决定，主测试页只展示当前工位，避免运行中切换导致测试阶段和数据字段不一致。
+        Rbtn1.Enabled = False
+        Rbtn2.Enabled = False
+        Rbtn3.Enabled = False
+
+        Select Case Initsetting.stationSelect
+            Case 1
+                Rbtn2.Checked = True
+            Case 2
+                Rbtn3.Checked = True
+            Case Else
+                Rbtn1.Checked = True
+        End Select
+        UpdateCurrentOcvSelection()
+        UiTheme.ApplyToggleStateStyle(Rbtn1, Rbtn1.Checked)
+        UiTheme.ApplyToggleStateStyle(Rbtn2, Rbtn2.Checked)
+        UiTheme.ApplyToggleStateStyle(Rbtn3, Rbtn3.Checked)
+    End Sub
+
+    Private Sub UpdateCurrentOcvSelection()
+        If Rbtn1.Checked Then
+            currentOCVNum = 1
+        ElseIf Rbtn2.Checked Then
+            currentOCVNum = 2
+        ElseIf Rbtn3.Checked Then
+            currentOCVNum = 3
+        End If
+    End Sub
+
+    Private Sub ConfigureCompactLeftControls()
+        '控件的父子关系和尺寸由 ResponsiveTestLayout 的结构化布局统一管理。
+        '这里仅保留报警复位按钮的视觉尺寸，避免恢复旧的固定坐标布局。
+        If Button2 IsNot Nothing Then Button2.Size = New Size(133, 34)
+    End Sub
+
+    Private Sub ResetLeftPanelScroll()
+        If Panel1 Is Nothing OrElse Panel1.IsDisposed Then Return
+        Panel1.AutoScrollPosition = New Point(0, 0)
     End Sub
 
     Private Sub SetTestStatus(ByVal message As String)

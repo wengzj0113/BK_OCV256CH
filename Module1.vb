@@ -26,6 +26,7 @@ Module Module1
     Public blnOnLine As Boolean   '设备是否联机正常
     Public controlBoardConnected As Boolean = False   '控制板串口已完成协议握手
     Public databaseConnected As Boolean = False   'OCV_DATA 数据库连接状态
+    Public ApplicationShuttingDown As Boolean = False   '应用程序正在退出，禁止后台 UI 更新
     Public RecieveData(MAX_CHANNEL - 1) As Bat_info
     Public Const intRow As Int16 = 16
     Public Const intCol As Int16 = 16
@@ -40,6 +41,7 @@ Module Module1
     Dim ResourcePort As New Ivi.Visa.Interop.ResourceManager
     Dim visaSession As Ivi.Visa.Interop.FormattedIO488 = Nothing
     Private Const VisaInstrumentIoTimeoutMs As Integer = 3000
+    Private Const VisaShutdownTimeoutMs As Integer = 1000
     Public bytes_IODI As Byte() = {&H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0}
     Public bytes_IODO As Byte() = {&H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0, &H0}
     Public CalibrateR As Single = 0 '初始化内阻测试机校准值为0
@@ -148,6 +150,12 @@ Module Module1
         'NG复测3562串口参数
         Dim Retest3562Port As Integer
         Dim Retest3562Rate As Integer
+        'SCM控制板时间参数（毫秒）
+        Dim ScmRelaySettleMs As Integer
+        Dim ScmChannelSettleMs As Integer
+        Dim ScmAutoStepMs As Integer
+        Dim ScmTriggerPulseMs As Integer
+        Dim ScmPhaseGuardMs As Integer
 
     End Structure
     Public Structure Bat_struct
@@ -576,7 +584,7 @@ Loop_Begin:
             Communication = -1
         End If
     End Function
-    Public Function ConnectFor3561() As Integer
+    Public Function ConnectFor3561(Optional ByVal suppressDialogs As Boolean = False) As Integer
         '---------返回值：-1    未联机；0   正常----------------
         Dim RecvStr As String
         Dim intCounter As Integer
@@ -585,7 +593,7 @@ Loop_Begin:
         intCounter = 3
         RecvStr = ""
         Do
-            CheckCom_3561()
+            CheckCom_3561(suppressDialogs)
             Try
                 Com_3561.DiscardInBuffer()
                 Com_3561.DiscardOutBuffer()
@@ -602,21 +610,21 @@ Loop_Begin:
                 If RecvStr Like "HIOKI,*" Then
                     intCounter = 1
                 End If
-                System.Windows.Forms.Application.DoEvents()
+                If Not suppressDialogs Then System.Windows.Forms.Application.DoEvents()
             Loop
             intCounter = intCounter - 1
         Loop Until (intCounter = 0)
         If RecvStr Like "HIOKI,*" Then
             ' MsgBox("内阻仪通信成功！", vbOKOnly)
             '初始化内阻仪
-            InitRes()
+            InitRes(Not suppressDialogs)
             ConnectFor3561 = 0
         Else
-            MsgBox("内阻仪通信失败！", vbOKOnly)
+            If Not suppressDialogs Then MsgBox("内阻仪通信失败！", vbOKOnly)
             ConnectFor3561 = -1
         End If
     End Function
-    Public Sub InitRes()
+    Public Sub InitRes(Optional ByVal pumpUi As Boolean = True)
 
         'Dim intCounter As Integer
         Dim RecvStr As String
@@ -628,7 +636,7 @@ Loop_Begin:
         'Static TempDownerV As Single
         Static blnInitRun As Boolean
         Dim Start
-        System.Windows.Forms.Application.DoEvents()
+        If pumpUi Then System.Windows.Forms.Application.DoEvents()
         If Not blnInitRun Then
             RecvStr = ""
             With Com_3561
@@ -659,7 +667,7 @@ Loop_Begin:
             Do While Timer < Start + 0.1
                 Timer = Now.TimeOfDay.Hours * 3600 + Now.TimeOfDay.Minutes * 60 + Now.TimeOfDay.Seconds
                 RecvStr = RecvStr + Com_3561.ReadExisting
-                System.Windows.Forms.Application.DoEvents()
+                If pumpUi Then System.Windows.Forms.Application.DoEvents()
             Loop
             blnInitRun = True
         End If
@@ -707,7 +715,6 @@ Loop_Begin:
         Dim reflag_3561 As Short = 0
         Dim reflag_PLC As Short = 0
         Dim reflag_MES As Short = 0
-        Dim obj_frmInit As frmInit = Nothing
 
         System.Threading.ThreadPool.QueueUserWorkItem(Sub()
                                                           Try
@@ -793,7 +800,6 @@ Loop_Begin:
             frmMDI1.StatusMes.Text = "MES连接正常!" & Space(2)
         End If
 
-        '汇总失败项,弹一个 MessageBox
         Dim failed As New List(Of String)()
         If reflag_SCM = -1 Then failed.Add("中位机(SCM)")
         If reflag_34461 = -1 Then failed.Add("数字万用表(34461)")
@@ -1013,8 +1019,11 @@ Loop_Begin:
             .DataBits = 8
             .StopBits = 1
             .Parity = Parity.None
-            .ReadBufferSize = 100
+            'MEMory:DATA? 返回每条记录的序号、内阻、电压；256点时返回数据明显超过100字节。
+            '缓冲区过小会在连续返回时丢字节，最终表现为“cached data read failed”。
+            .ReadBufferSize = 8192
             .NewLine = vbCrLf
+            SerialMiddleMachineClient.LogMessage("3562 serial configured: " & .PortName & ", " & .BaudRate.ToString() & ", 8N1, buffer=" & .ReadBufferSize.ToString())
             Try
                 If Not .IsOpen Then
                     .Open()
@@ -1029,7 +1038,7 @@ Loop_Begin:
     End Function
 
     '链接com3561
-    Public Function CheckCom_3561() As Short
+    Public Function CheckCom_3561(Optional ByVal suppressDialogs As Boolean = False) As Short
         '**************************
         '检查内阻仪端口是否可用
         Com_3561 = frmMDI.Com_3561  '日置内阻仪
@@ -1062,7 +1071,7 @@ Loop_Begin:
                 Catch e As Exception
                     CheckCom_3561 = -1
                     If count = 2 Then
-                        MsgBox(e.Message, vbOKOnly)
+                        If Not suppressDialogs Then MsgBox(e.Message, vbOKOnly)
                         Exit Function
                     End If
                 End Try
@@ -1074,7 +1083,9 @@ Loop_Begin:
     End Function
     Public Sub SaveInitFile()
         '保存初始化文件------------------------
-        Dim FS As New System.IO.FileStream(Application.StartupPath & "\Initset.set", IO.FileMode.Create)
+        Dim configPath As String = Application.StartupPath & "\Initset.set"
+        Dim tempConfigPath As String = configPath & ".tmp"
+        Dim FS As New System.IO.FileStream(tempConfigPath, IO.FileMode.Create, IO.FileAccess.Write, IO.FileShare.None)
         Dim BW As New System.IO.BinaryWriter(FS)
         '通讯参数
         BW.Write(Initsetting.ScanerPort)
@@ -1142,10 +1153,31 @@ Loop_Begin:
         'NG复测3562串口参数（追加字段，兼容旧配置文件）
         BW.Write(Initsetting.Retest3562Port)
         BW.Write(Initsetting.Retest3562Rate)
+        'SCM控制板时间参数（追加字段，兼容旧配置文件）
+        BW.Write(Initsetting.ScmRelaySettleMs)
+        BW.Write(Initsetting.ScmChannelSettleMs)
+        BW.Write(Initsetting.ScmAutoStepMs)
+        BW.Write(Initsetting.ScmTriggerPulseMs)
+        BW.Write(Initsetting.ScmPhaseGuardMs)
 
         'close
         BW.Close()
         FS.Close()
+        Try
+            If System.IO.File.Exists(configPath) Then
+                System.IO.File.Replace(tempConfigPath, configPath, Nothing)
+            Else
+                System.IO.File.Move(tempConfigPath, configPath)
+            End If
+        Catch
+            Try
+                If System.IO.File.Exists(tempConfigPath) Then
+                    System.IO.File.Delete(tempConfigPath)
+                End If
+            Catch
+            End Try
+            Throw
+        End Try
     End Sub
     Public Sub ReadInitFile()
         '读初始化文件---------------
@@ -1258,6 +1290,31 @@ Loop_Begin:
             Initsetting.Retest3562Rate = BR.ReadInt32()
         Else
             Initsetting.Retest3562Rate = 9600
+        End If
+        If FS.Position < FS.Length Then
+            Initsetting.ScmRelaySettleMs = BR.ReadInt32()
+        Else
+            Initsetting.ScmRelaySettleMs = ScmTimingSettings.DefaultRelaySettleMs
+        End If
+        If FS.Position < FS.Length Then
+            Initsetting.ScmChannelSettleMs = BR.ReadInt32()
+        Else
+            Initsetting.ScmChannelSettleMs = ScmTimingSettings.DefaultChannelSettleMs
+        End If
+        If FS.Position < FS.Length Then
+            Initsetting.ScmAutoStepMs = BR.ReadInt32()
+        Else
+            Initsetting.ScmAutoStepMs = ScmTimingSettings.DefaultAutoStepMs
+        End If
+        If FS.Position < FS.Length Then
+            Initsetting.ScmTriggerPulseMs = BR.ReadInt32()
+        Else
+            Initsetting.ScmTriggerPulseMs = ScmTimingSettings.DefaultTriggerPulseMs
+        End If
+        If FS.Position < FS.Length Then
+            Initsetting.ScmPhaseGuardMs = BR.ReadInt32()
+        Else
+            Initsetting.ScmPhaseGuardMs = ScmTimingSettings.DefaultPhaseGuardMs
         End If
 exit_sub:
         BR.Close()
@@ -1496,28 +1553,59 @@ Loop_No:
                     startTime = DateTime.Now
                 End If
                 System.Windows.Forms.Application.DoEvents()
-            Loop While Not HasEnough3562CacheData(recvStr, expectedCount) AndAlso
-                       Not recvStr.ToUpperInvariant().Contains("END") AndAlso
+                'MEMory:DATA? 返回的是三字段记录（序号、内阻、电压）。不能按“2个数字/点”提前退出，
+                '否则收到前两字段后就会在一条记录中间停止，导致解析器误判缓存不足。
+            Loop While Not recvStr.ToUpperInvariant().Contains("END") AndAlso
                        DateTime.Now.Subtract(startTime).TotalSeconds < 10
 
-            Dim values As List(Of Double) = ExtractNumericValues(recvStr)
-            SerialMiddleMachineClient.LogMessage("3562 cache read rawLength=" & recvStr.Length.ToString() & ", numericCount=" & values.Count.ToString())
-            If values.Count < expectedCount * 2 Then
-                SerialMiddleMachineClient.LogMessage("3562 cache read failed: numeric count is less than expected.")
+            Dim rawPreview As String = recvStr.Replace(vbCr, "<CR>").Replace(vbLf, "<LF>")
+            If rawPreview.Length > 600 Then rawPreview = rawPreview.Substring(0, 600)
+            SerialMiddleMachineClient.LogMessage("3562 cache raw preview=" & rawPreview)
+
+            If Not Parse3562MemoryData(recvStr, expectedCount, voltages, resistances) Then
+                SerialMiddleMachineClient.LogMessage("3562 cache read failed: memory records are less than expected.")
                 Return -1
             End If
 
-            For i As Integer = 0 To expectedCount - 1
-                resistances.Add(CSng(values(i * 2) * 1000.0R))
-                voltages.Add(CSng(values(i * 2 + 1)))
-            Next
-
+            SerialMiddleMachineClient.LogMessage("3562 cache read rawLength=" & recvStr.Length.ToString() & ", recordCount=" & resistances.Count.ToString() & ", format=index,resistanceOhm,voltageVolt")
             SerialMiddleMachineClient.LogMessage("3562 cache read success, resultCount=" & resistances.Count.ToString())
             Return 0
         Catch ex As Exception
             SerialMiddleMachineClient.LogMessage("3562 cache read exception: " & ex.Message)
             Return -1
         End Try
+    End Function
+
+    Private Function Parse3562MemoryData(text As String,
+                                         expectedCount As Integer,
+                                         ByRef voltages As List(Of Single),
+                                         ByRef resistances As List(Of Single)) As Boolean
+        voltages = New List(Of Single)()
+        resistances = New List(Of Single)()
+        If String.IsNullOrWhiteSpace(text) Then Return False
+
+        '3562可能使用CR、LF或CRLF作为每条记录的结束符，统一为LF后再逐条解析。
+        Dim lines As String() = text.Replace(vbCr, vbLf).Split({vbLf}, StringSplitOptions.RemoveEmptyEntries)
+        For Each line As String In lines
+            Dim record As String = line.Trim()
+            If record.Equals("END", StringComparison.OrdinalIgnoreCase) Then Continue For
+
+            Dim fields As String() = record.Split(","c)
+            If fields.Length < 3 Then Continue For
+
+            Dim recordNumber As Integer
+            Dim resistanceOhm As Double
+            Dim voltageValue As Double
+            If Not Integer.TryParse(fields(0).Trim(), recordNumber) Then Continue For
+            If Not Double.TryParse(fields(1).Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, resistanceOhm) Then Continue For
+            If Not Double.TryParse(fields(2).Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, voltageValue) Then Continue For
+
+            resistances.Add(CSng(resistanceOhm * 1000.0R))
+            voltages.Add(CSng(voltageValue))
+            If resistances.Count = expectedCount Then Exit For
+        Next
+
+        Return resistances.Count = expectedCount AndAlso voltages.Count = expectedCount
     End Function
 
     Public Function PrepareCachedData_3562(expectedCount As Integer) As Integer
@@ -1552,7 +1640,7 @@ Loop_No:
         End Try
     End Sub
 
-    Public Sub ResetCachedData_3562()
+    Public Sub ResetCachedData_3562(Optional timeoutMs As Integer = 3000)
         Try
             If Com_3561 Is Nothing OrElse Not Com_3561.IsOpen Then
                 SerialMiddleMachineClient.LogMessage("3562 reset skipped: port is not open")
@@ -1561,7 +1649,7 @@ Loop_No:
             SerialMiddleMachineClient.LogMessage("3562 reset start")
             Com_3561.DiscardInBuffer()
             Com_3561.DiscardOutBuffer()
-            Com_3561.WriteTimeout = 3000
+            Com_3561.WriteTimeout = Math.Max(100, Math.Min(timeoutMs, 3000))
             Com_3561.Write("ABOR" & vbLf)
             Com_3561.Write("INIT:CONT OFF" & vbLf)
             Com_3561.Write("MEMory:CLEA" & vbLf)
@@ -1573,10 +1661,6 @@ Loop_No:
             SerialMiddleMachineClient.LogMessage("3562 reset exception: " & ex.Message)
         End Try
     End Sub
-
-    Private Function HasEnough3562CacheData(text As String, expectedCount As Integer) As Boolean
-        Return ExtractNumericValues(text).Count >= expectedCount * 2
-    End Function
 
     Private Function ExtractNumericValues(text As String) As List(Of Double)
         Dim values As New List(Of Double)()
@@ -1602,38 +1686,52 @@ Loop_No:
             Return -1
         End If
 
-        Try
-            If ReFlag_34461 = -1 Then
-                ReFlag_34461 = ConnectFor34461()
-            End If
-            If ReFlag_34461 <> 0 OrElse visaSession Is Nothing Then
-                SerialMiddleMachineClient.LogMessage("34461 prepare failed: not connected.")
-                Return -1
-            End If
-
-            SerialMiddleMachineClient.LogMessage("34461 prepare cache, expectedCount=" & expectedCount.ToString())
-            SerialMiddleMachineClient.LogMessage("34461 SCPI prepare: IO.Clear; ABOR; CONF:VOLT:DC; SAMP:COUN 1; TRIG:COUN " & expectedCount.ToString() & "; TRIG:SOUR EXT; TRIG:SLOP POS; FORM:DATA ASCii; INIT")
+        For attempt As Integer = 1 To 2
             Try
+                'ReFlag 只能表示上一次状态；实际 I/O 失败时必须关闭旧会话并重新连接。
+                If ReFlag_34461 <> 0 OrElse visaSession Is Nothing Then
+                    ReFlag_34461 = ConnectFor34461()
+                End If
+                If ReFlag_34461 <> 0 OrElse visaSession Is Nothing Then
+                    Throw New InvalidOperationException("34461 VISA session is not connected.")
+                End If
+
+                SerialMiddleMachineClient.LogMessage("34461 prepare cache, expectedCount=" & expectedCount.ToString() & ", attempt=" & attempt.ToString())
+                SerialMiddleMachineClient.LogMessage("34461 SCPI prepare: IO.Clear; ABOR; *CLS; CONF:VOLT:DC; SAMP:COUN 1; TRIG:COUN " & expectedCount.ToString() & "; TRIG:SOUR EXT; INIT")
                 visaSession.IO.Clear()
-            Catch
+                '采用 INIT + FETC? 的分离式采集，避免 READ? 在触发未完成时长时间阻塞。
+                visaSession.IO.Timeout = 10000
+                visaSession.WriteString("ABOR")
+                visaSession.WriteString("*CLS")
+                visaSession.WriteString("CONF:VOLT:DC")
+                '1 PLC降低单次积分时间，使34461更快准备好接受下一次外部触发。
+                visaSession.WriteString("VOLT:DC:NPLC 1")
+                '每个中位机外部触发对应一个电压采样，全部读数写入 34461 reading memory。
+                visaSession.WriteString("SAMP:COUN 1")
+                visaSession.WriteString("TRIG:COUN " & expectedCount.ToString())
+                visaSession.WriteString("TRIG:SOUR EXT")
+                '不强制设置 TRIG:SLOP：34461A及原有硬件链路使用默认低有效外部触发。
+                visaSession.WriteString("INIT")
+
+                'INIT 后立即读取错误队列，避免把仪表拒绝的设置误判为已进入采集状态。
+                visaSession.IO.Timeout = 1000
+                visaSession.WriteString("SYST:ERR?")
+                Dim instrumentError As String = visaSession.ReadString()
+                SerialMiddleMachineClient.LogMessage("34461 prepare SYST:ERR?=" & instrumentError)
+                If Not instrumentError.TrimStart().StartsWith("0") AndAlso Not instrumentError.TrimStart().StartsWith("+0") Then
+                    Throw New InvalidOperationException("34461 SCPI error: " & instrumentError.Trim())
+                End If
+                visaSession.IO.Timeout = 10000
+                SerialMiddleMachineClient.LogMessage("34461 acquisition initialized; waiting for external triggers.")
+                Return 0
+            Catch ex As Exception
+                SerialMiddleMachineClient.LogMessage("34461 prepare exception (attempt " & attempt.ToString() & "): " & ex.Message)
+                ReFlag_34461 = -1
+                Close34461Session()
+                If attempt = 2 Then Return -1
             End Try
-            '采用 INIT + FETC? 的分离式采集，避免 READ? 在触发未完成时长时间阻塞。
-            visaSession.IO.Timeout = 10000
-            visaSession.WriteString("ABOR")
-            visaSession.WriteString("CONF:VOLT:DC")
-            '每个中位机外部触发对应一个电压采样，全部读数写入 34461 reading memory。
-            visaSession.WriteString("SAMP:COUN 1")
-            visaSession.WriteString("TRIG:COUN " & expectedCount.ToString())
-            visaSession.WriteString("TRIG:SOUR EXT")
-            visaSession.WriteString("TRIG:SLOP POS")
-            visaSession.WriteString("FORM:DATA ASCii")
-            visaSession.WriteString("INIT")
-            SerialMiddleMachineClient.LogMessage("34461 acquisition initialized; waiting for external triggers.")
-            Return 0
-        Catch ex As Exception
-            SerialMiddleMachineClient.LogMessage("34461 prepare exception: " & ex.Message)
-            Return -1
-        End Try
+        Next
+        Return -1
     End Function
 
     Public Function Trans_ReadCachedData_34461(expectedCount As Integer,
@@ -1652,6 +1750,19 @@ Loop_No:
 
             SerialMiddleMachineClient.LogMessage("34461 cache fetch start, expectedCount=" & expectedCount.ToString())
             '中位机完成事件表示所有外部触发已经发出；FETC? 会等待仪表完成并一次性转移 reading memory。
+            visaSession.IO.Timeout = 3000
+            visaSession.WriteString("DATA:POINTS?")
+            Dim pointsText As String = visaSession.ReadString()
+            Dim actualPointCount As Integer
+            If Not Integer.TryParse(pointsText.Trim(), actualPointCount) Then
+                SerialMiddleMachineClient.LogMessage("34461 cache point query invalid: " & pointsText.Trim())
+                Return -1
+            End If
+            SerialMiddleMachineClient.LogMessage("34461 cache points actual=" & actualPointCount.ToString() & ", expected=" & expectedCount.ToString())
+            If actualPointCount <> expectedCount Then
+                SerialMiddleMachineClient.LogMessage("34461 cache incomplete; FETC? skipped to avoid blocking read.")
+                Return -1
+            End If
             visaSession.IO.Timeout = Math.Max(10000, expectedCount * 1000)
             visaSession.WriteString("FETC?")
             'ReadList 对不同 VISA 终止符格式的兼容性较差；先读取原始 ASCII 响应，再统一解析数值。
@@ -1694,13 +1805,18 @@ Loop_No:
         End Try
     End Sub
 
-    Public Sub ResetCachedData_34461()
+    Public Sub ResetCachedData_34461(Optional timeoutMs As Integer = VisaInstrumentIoTimeoutMs)
         Try
             If visaSession Is Nothing Then
                 SerialMiddleMachineClient.LogMessage("34461 reset skipped: session is not open")
                 Return
             End If
             SerialMiddleMachineClient.LogMessage("34461 reset start")
+            '退出清理不能继承 FETC? 的长超时；否则仪表无响应时会阻塞整个 FormClosing。
+            visaSession.IO.Timeout = VisaShutdownTimeoutMs
+            If timeoutMs > 0 AndAlso timeoutMs < VisaShutdownTimeoutMs Then
+                visaSession.IO.Timeout = Math.Max(100, timeoutMs)
+            End If
             Try
                 '先清除 VISA 挂起的读写/触发状态，再发送 SCPI 中止命令。
                 '仪表处于外部触发等待时，直接 WriteString("ABOR") 可能被 VISA 阻塞。
@@ -1724,13 +1840,43 @@ Loop_No:
         End Try
     End Sub
 
-    Public Sub Close34461Session()
+    Public Function Reset34461ForNewTest() As Integer
+        Try
+            If ReFlag_34461 <> 0 OrElse visaSession Is Nothing Then
+                ReFlag_34461 = ConnectFor34461()
+            End If
+            If ReFlag_34461 <> 0 OrElse visaSession Is Nothing Then
+                SerialMiddleMachineClient.LogMessage("34461 pre-test reset failed: not connected")
+                Return -1
+            End If
+            SerialMiddleMachineClient.LogMessage("34461 pre-test reset start: IO.Clear; *RST; *CLS")
+            visaSession.IO.Clear()
+            visaSession.IO.Timeout = 10000
+            visaSession.WriteString("*RST")
+            visaSession.WriteString("*CLS")
+            SerialMiddleMachineClient.LogMessage("34461 pre-test reset completed")
+            Return 0
+        Catch ex As Exception
+            SerialMiddleMachineClient.LogMessage("34461 pre-test reset exception: " & ex.Message)
+            ReFlag_34461 = -1
+            Close34461Session()
+            Return -1
+        End Try
+    End Function
+
+    Public Sub Close34461Session(Optional sendAbort As Boolean = True)
         Try
             If visaSession IsNot Nothing Then
                 Try
-                    visaSession.WriteString("ABOR")
+                    visaSession.IO.Timeout = VisaShutdownTimeoutMs
                 Catch
                 End Try
+                If sendAbort Then
+                    Try
+                        visaSession.WriteString("ABOR")
+                    Catch
+                    End Try
+                End If
                 Try
                     visaSession.IO.Clear()
                 Catch
@@ -2755,6 +2901,26 @@ Err:
         Catch
             CheckCom_34461 = -1
             Exit Function
+        Finally
+            '启动检查只使用临时会话；必须释放它，避免随后正式采集再开会话时与34461争用控制权。
+            Try
+                If myDmm IsNot Nothing AndAlso myDmm.IO IsNot Nothing Then
+                    myDmm.IO.Close()
+                End If
+            Catch
+            End Try
+            Try
+                If myDmm IsNot Nothing Then
+                    System.Runtime.InteropServices.Marshal.FinalReleaseComObject(myDmm)
+                End If
+            Catch
+            End Try
+            Try
+                If rm IsNot Nothing Then
+                    System.Runtime.InteropServices.Marshal.FinalReleaseComObject(rm)
+                End If
+            Catch
+            End Try
         End Try
     End Function
     ''' <summary>
@@ -2766,6 +2932,19 @@ Err:
         'Dim instr As String = "USB0::0x2A8D::0x1201::MY57501015::0::INSTR"
         Dim instr As String = "TCPIP0::192.168.66.81::inst0::INSTR"
         instr = Initsetting.IpAddOf34461
+        '重连前关闭旧会话，避免启动自检或上一次测试遗留的会话继续占用仪表。
+        Try
+            If visaSession IsNot Nothing AndAlso visaSession.IO IsNot Nothing Then
+                visaSession.IO.Close()
+            End If
+        Catch
+        End Try
+        Try
+            If visaSession IsNot Nothing Then
+                System.Runtime.InteropServices.Marshal.FinalReleaseComObject(visaSession)
+            End If
+        Catch
+        End Try
         visaSession = New Ivi.Visa.Interop.FormattedIO488
         Try
             visaSession.IO = ResourcePort.Open(instr, Ivi.Visa.Interop.AccessMode.NO_LOCK, 5000, "")

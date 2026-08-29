@@ -11,10 +11,13 @@ Public Class ChannelGridControl
     Inherits UserControl
 
     Private Const GridSize As Integer = 16
-    Private ReadOnly tileControls As New Dictionary(Of Integer, ChannelTileControl)()
-    Private ReadOnly gridLayout As New TableLayoutPanel()
+    Private Const TotalChannels As Integer = GridSize * GridSize
+    Private ReadOnly displayDataByChannel As New Dictionary(Of Integer, ChannelDisplayData)()
+    Private ReadOnly gridSurface As New ChannelGridSurface()
     Private ReadOnly hoverDetailsLabel As Label
     Private ReadOnly selectedChannels As New HashSet(Of Integer)()
+    Private batchUpdateDepth As Integer
+    Private batchGridWasVisible As Boolean
     Private selectionModeValue As ChannelSelectionMode = ChannelSelectionMode.SingleChannel
     Private isSelectingRectangle As Boolean
     Private rectangleMoved As Boolean
@@ -25,20 +28,19 @@ Public Class ChannelGridControl
     Public Event SelectedChannelsChanged As EventHandler
 
     Public Sub New()
-        DoubleBuffered = True
         BackColor = UiTheme.CardBackground
         BorderStyle = BorderStyle.FixedSingle
         Padding = New Padding(10, 8, 10, 10)
 
         Dim outerLayout As New TableLayoutPanel With {
             .Dock = DockStyle.Fill,
+            .AutoSize = False,
+            .MinimumSize = New Size(0, 0),
             .ColumnCount = 2,
             .RowCount = 3,
             .BackColor = UiTheme.CardBackground,
             .Padding = New Padding(0)
         }
-        '行号/状态竖条固定 44px 排水沟,任何分辨率下都可读(不属于 tile 行列);
-        '矩阵主体列占剩余宽度。
         outerLayout.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, 44.0F))
         outerLayout.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100.0F))
         outerLayout.RowStyles.Add(New RowStyle(SizeType.Absolute, 34.0F))
@@ -106,11 +108,8 @@ Public Class ChannelGridControl
             .Dock = DockStyle.Fill,
             .ColumnCount = 1,
             .RowCount = GridSize,
-            .BackColor = UiTheme.CardBackground,
-            .Margin = New Padding(0)
+            .BackColor = UiTheme.CardBackground
         }
-        '行号列必须显式声明列样式:缺省时单列会按内容 PreferredSize 撑宽(如 117px),
-        '导致行号右溢被矩阵主体覆盖、文字被裁成碎片。
         rowHeader.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100.0F))
         For row As Integer = 1 To GridSize
             rowHeader.RowStyles.Add(New RowStyle(SizeType.Percent, 100.0F / GridSize))
@@ -118,24 +117,21 @@ Public Class ChannelGridControl
         Next
         outerLayout.Controls.Add(rowHeader, 0, 2)
 
-        gridLayout.ColumnCount = GridSize
-        gridLayout.RowCount = GridSize
-        gridLayout.Dock = DockStyle.Fill
-        gridLayout.BackColor = UiTheme.CardBackground
-        gridLayout.Margin = New Padding(0)
-        AddHandler gridLayout.Paint, AddressOf HandleGridPaint
-        For i As Integer = 0 To GridSize - 1
-            gridLayout.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100.0F / GridSize))
-            gridLayout.RowStyles.Add(New RowStyle(SizeType.Percent, 100.0F / GridSize))
-        Next
-        BuildTiles()
-        outerLayout.Controls.Add(gridLayout, 1, 2)
+        gridSurface.Dock = DockStyle.Fill
+        gridSurface.BackColor = UiTheme.CardBackground
+        gridSurface.Margin = New Padding(0)
+        AddHandler gridSurface.Paint, AddressOf HandleGridPaint
+        AddHandler gridSurface.MouseDown, AddressOf HandleGridMouseDown
+        AddHandler gridSurface.MouseMove, AddressOf HandleGridMouseMove
+        AddHandler gridSurface.MouseUp, AddressOf HandleGridMouseUp
+        AddHandler gridSurface.MouseLeave, AddressOf HandleGridMouseLeave
+        outerLayout.Controls.Add(gridSurface, 1, 2)
         Controls.Add(outerLayout)
     End Sub
 
     Public ReadOnly Property TileCount As Integer
         Get
-            Return tileControls.Count
+            Return TotalChannels
         End Get
     End Property
 
@@ -160,145 +156,209 @@ Public Class ChannelGridControl
         End Get
     End Property
 
+    Public Sub BeginBatchUpdate()
+        If batchUpdateDepth = 0 Then
+            batchGridWasVisible = gridSurface.Visible
+            SuspendLayout()
+            gridSurface.SuspendLayout()
+            gridSurface.Visible = False
+        End If
+        batchUpdateDepth += 1
+    End Sub
+
+    Public Sub EndBatchUpdate()
+        If batchUpdateDepth <= 0 Then Return
+
+        batchUpdateDepth -= 1
+        If batchUpdateDepth > 0 Then Return
+
+        gridSurface.Visible = batchGridWasVisible
+        gridSurface.ResumeLayout(False)
+        ResumeLayout(False)
+        If batchGridWasVisible Then
+            gridSurface.Invalidate()
+            Invalidate()
+        End If
+    End Sub
+
     Public Sub SelectAll()
         selectedChannels.Clear()
-        For channelNo As Integer = 1 To GridSize * GridSize
+        For channelNo As Integer = 1 To TotalChannels
             selectedChannels.Add(channelNo)
         Next
-        ApplySelectionToTiles()
+        gridSurface.Invalidate()
         RaiseEvent SelectedChannelsChanged(Me, EventArgs.Empty)
     End Sub
 
     Public Sub ClearSelection()
         If selectedChannels.Count = 0 Then Return
         selectedChannels.Clear()
-        ApplySelectionToTiles()
+        gridSurface.Invalidate()
         RaiseEvent SelectedChannelsChanged(Me, EventArgs.Empty)
     End Sub
 
     Public Sub UpdateChannel(ByVal channelNo As Integer, ByVal data As ChannelDisplayData)
-        Dim tile As ChannelTileControl = Nothing
-        If tileControls.TryGetValue(channelNo, tile) Then
-            tile.UpdateDisplay(data)
-            tile.IsSelected = selectedChannels.Contains(channelNo)
-        End If
+        If channelNo < 1 OrElse channelNo > TotalChannels Then Return
+        displayDataByChannel(channelNo) = data
+        If batchUpdateDepth = 0 Then gridSurface.Invalidate()
     End Sub
 
     Public Sub UpdateAll(ByVal data As IEnumerable(Of ChannelDisplayData))
         If data Is Nothing Then Return
-        For Each channel As ChannelDisplayData In data
-            UpdateChannel(channel.ChannelNo, channel)
-        Next
-    End Sub
-
-    Private Sub BuildTiles()
-        For column As Integer = 1 To GridSize
-            For row As Integer = 1 To GridSize
-                Dim channelNo As Integer = (column - 1) * GridSize + row
-                Dim tile As New ChannelTileControl With {.Dock = DockStyle.Fill}
-                AddHandler tile.ChannelSelected, AddressOf HandleChannelSelected
-                AddHandler tile.ChannelHovered, AddressOf HandleChannelHovered
-                AddHandler tile.ChannelHoverEnded, AddressOf HandleChannelHoverEnded
-                AddHandler tile.TileMouseDown, AddressOf HandleTileMouseDown
-                AddHandler tile.TileMouseMove, AddressOf HandleTileMouseMove
-                AddHandler tile.TileMouseUp, AddressOf HandleTileMouseUp
-                tileControls.Add(channelNo, tile)
-                gridLayout.Controls.Add(tile, column - 1, row - 1)
+        BeginBatchUpdate()
+        Try
+            For Each channel As ChannelDisplayData In data
+                UpdateChannel(channel.ChannelNo, channel)
             Next
-        Next
+        Finally
+            EndBatchUpdate()
+        End Try
     End Sub
 
-    Private Sub HandleChannelSelected(ByVal sender As Object, ByVal e As ChannelSelectedEventArgs)
-        If e Is Nothing Then Return
-        If selectionModeValue = ChannelSelectionMode.SingleChannel Then
-            ToggleSelection(e.Data.ChannelNo)
-        ElseIf rectangleMoved Then
+    Private Sub HandleGridMouseDown(ByVal sender As Object, ByVal e As MouseEventArgs)
+        If e.Button <> MouseButtons.Left Then Return
+        If selectionModeValue = ChannelSelectionMode.Rectangle Then
+            isSelectingRectangle = True
             rectangleMoved = False
+            selectionStart = e.Location
+            selectionCurrent = selectionStart
+            gridSurface.Capture = True
+            gridSurface.Invalidate()
             Return
         End If
-        RaiseEvent ChannelSelected(Me, e)
+
+        Dim channelNo As Integer = GetChannelAtPoint(e.Location)
+        Dim data As ChannelDisplayData = Nothing
+        If channelNo > 0 AndAlso displayDataByChannel.TryGetValue(channelNo, data) Then
+            ToggleSelection(channelNo)
+            RaiseEvent ChannelSelected(Me, New ChannelSelectedEventArgs(data))
+        End If
+    End Sub
+
+    Private Sub HandleGridMouseMove(ByVal sender As Object, ByVal e As MouseEventArgs)
+        If isSelectingRectangle Then
+            selectionCurrent = e.Location
+            rectangleMoved = rectangleMoved OrElse selectionCurrent <> selectionStart
+            gridSurface.Invalidate()
+            Return
+        End If
+
+        Dim channelNo As Integer = GetChannelAtPoint(e.Location)
+        Dim data As ChannelDisplayData = Nothing
+        If channelNo > 0 AndAlso displayDataByChannel.TryGetValue(channelNo, data) Then
+            hoverDetailsLabel.Text = BuildHoverDetailsText(data)
+        Else
+            hoverDetailsLabel.Text = String.Empty
+        End If
+    End Sub
+
+    Private Sub HandleGridMouseUp(ByVal sender As Object, ByVal e As MouseEventArgs)
+        If Not isSelectingRectangle OrElse e.Button <> MouseButtons.Left Then Return
+        selectionCurrent = e.Location
+        isSelectingRectangle = False
+        gridSurface.Capture = False
+
+        Dim selectionRectangle As Rectangle = NormalizeRectangle(selectionStart, selectionCurrent)
+        selectedChannels.Clear()
+        For channelNo As Integer = 1 To TotalChannels
+            If selectionRectangle.IntersectsWith(GetCellBounds(channelNo)) Then selectedChannels.Add(channelNo)
+        Next
+        gridSurface.Invalidate()
+        RaiseEvent SelectedChannelsChanged(Me, EventArgs.Empty)
+    End Sub
+
+    Private Sub HandleGridMouseLeave(ByVal sender As Object, ByVal e As EventArgs)
+        If Not isSelectingRectangle Then hoverDetailsLabel.Text = String.Empty
     End Sub
 
     Private Sub ToggleSelection(ByVal channelNo As Integer)
         If selectedChannels.Contains(channelNo) Then
             selectedChannels.Remove(channelNo)
-        ElseIf channelNo >= 1 AndAlso channelNo <= GridSize * GridSize Then
+        Else
             selectedChannels.Add(channelNo)
         End If
-        ApplySelectionToTiles()
+        gridSurface.Invalidate()
         RaiseEvent SelectedChannelsChanged(Me, EventArgs.Empty)
     End Sub
 
-    Private Sub ApplySelectionToTiles()
-        For Each tile As ChannelTileControl In tileControls.Values
-            tile.IsSelected = selectedChannels.Contains(tile.ChannelNumber)
-        Next
-        gridLayout.Invalidate()
-    End Sub
-
-    Private Sub HandleTileMouseDown(ByVal sender As Object, ByVal e As MouseEventArgs)
-        If selectionModeValue <> ChannelSelectionMode.Rectangle OrElse e.Button <> MouseButtons.Left Then Return
-        isSelectingRectangle = True
-        rectangleMoved = False
-        selectionStart = GetGridPoint(sender, e.Location)
-        selectionCurrent = selectionStart
-        gridLayout.Invalidate()
-    End Sub
-
-    Private Sub HandleTileMouseMove(ByVal sender As Object, ByVal e As MouseEventArgs)
-        If Not isSelectingRectangle Then Return
-        selectionCurrent = GetGridPoint(sender, e.Location)
-        rectangleMoved = rectangleMoved OrElse selectionCurrent <> selectionStart
-        gridLayout.Invalidate()
-    End Sub
-
-    Private Sub HandleTileMouseUp(ByVal sender As Object, ByVal e As MouseEventArgs)
-        If Not isSelectingRectangle OrElse e.Button <> MouseButtons.Left Then Return
-        selectionCurrent = GetGridPoint(sender, e.Location)
-        isSelectingRectangle = False
-        rectangleMoved = True
-        Dim selectionRectangle As Rectangle = NormalizeRectangle(selectionStart, selectionCurrent)
-        selectedChannels.Clear()
-        For Each item As KeyValuePair(Of Integer, ChannelTileControl) In tileControls
-            Dim tileBounds As Rectangle = item.Value.Bounds
-            Dim tileLocation As Point = gridLayout.PointToClient(item.Value.Parent.PointToScreen(item.Value.Location))
-            tileBounds.Location = tileLocation
-            If selectionRectangle.IntersectsWith(tileBounds) Then selectedChannels.Add(item.Key)
-        Next
-        ApplySelectionToTiles()
-        RaiseEvent SelectedChannelsChanged(Me, EventArgs.Empty)
-        gridLayout.Invalidate()
-    End Sub
-
-    Private Function GetGridPoint(ByVal sender As Object, ByVal location As Point) As Point
-        Dim control As Control = TryCast(sender, Control)
-        If control Is Nothing Then Return location
-        Return gridLayout.PointToClient(control.PointToScreen(location))
+    Private Function GetChannelAtPoint(ByVal point As Point) As Integer
+        If point.X < 0 OrElse point.Y < 0 OrElse point.X >= gridSurface.ClientSize.Width OrElse point.Y >= gridSurface.ClientSize.Height Then Return 0
+        Dim column As Integer = Math.Min(GridSize - 1, point.X * GridSize \ Math.Max(1, gridSurface.ClientSize.Width))
+        Dim row As Integer = Math.Min(GridSize - 1, point.Y * GridSize \ Math.Max(1, gridSurface.ClientSize.Height))
+        Return column * GridSize + row + 1
     End Function
+
+    Private Function GetCellBounds(ByVal channelNo As Integer) As Rectangle
+        Dim index As Integer = channelNo - 1
+        Dim column As Integer = index \ GridSize
+        Dim row As Integer = index Mod GridSize
+        Dim width As Integer = Math.Max(1, gridSurface.ClientSize.Width \ GridSize)
+        Dim height As Integer = Math.Max(1, gridSurface.ClientSize.Height \ GridSize)
+        Return New Rectangle(column * width, row * height, If(column = GridSize - 1, gridSurface.ClientSize.Width - column * width, width), If(row = GridSize - 1, gridSurface.ClientSize.Height - row * height, height))
+    End Function
+
+    Private Sub HandleGridPaint(ByVal sender As Object, ByVal e As PaintEventArgs)
+        For channelNo As Integer = 1 To TotalChannels
+            Dim bounds As Rectangle = GetCellBounds(channelNo)
+            bounds.Inflate(-2, -2)
+            If bounds.Width <= 0 OrElse bounds.Height <= 0 Then Continue For
+
+            Dim data As ChannelDisplayData = Nothing
+            Dim background As Color = UiTheme.IdleBackground
+            Dim foreground As Color = UiTheme.TextPrimary
+            If displayDataByChannel.TryGetValue(channelNo, data) Then
+                GetStatusColors(data.StatusText, background, foreground)
+            End If
+
+            Using brush As New SolidBrush(background)
+                e.Graphics.FillRectangle(brush, bounds)
+            End Using
+            Using pen As New Pen(If(selectedChannels.Contains(channelNo), UiTheme.Primary, UiTheme.CardBorder), If(selectedChannels.Contains(channelNo), 2.0F, 1.0F))
+                e.Graphics.DrawRectangle(pen, bounds)
+            End Using
+
+            Dim text As String = If(displayDataByChannel.ContainsKey(channelNo), data.Row.ToString() & "-" & data.Column.ToString(), channelNo.ToString())
+            TextRenderer.DrawText(e.Graphics, text, UiTheme.UiFont, bounds, foreground,
+                                  TextFormatFlags.HorizontalCenter Or TextFormatFlags.VerticalCenter Or TextFormatFlags.EndEllipsis)
+        Next
+
+        If isSelectingRectangle Then
+            Dim selectionRectangle As Rectangle = NormalizeRectangle(selectionStart, selectionCurrent)
+            Using fillBrush As New SolidBrush(Color.FromArgb(45, UiTheme.Primary))
+                e.Graphics.FillRectangle(fillBrush, selectionRectangle)
+            End Using
+            Using borderPen As New Pen(UiTheme.Primary, 1.0F)
+                e.Graphics.DrawRectangle(borderPen, selectionRectangle)
+            End Using
+        End If
+    End Sub
+
+    Private Shared Sub GetStatusColors(ByVal status As String, ByRef background As Color, ByRef foreground As Color)
+        Select Case If(status, String.Empty).Trim().ToUpperInvariant()
+            Case "PASS", "OK"
+                background = UiTheme.SuccessBackground
+                foreground = UiTheme.Success
+            Case "NG", "ERROR"
+                background = UiTheme.Danger
+                foreground = Color.White
+            Case "TESTING"
+                background = UiTheme.TestingBackground
+                foreground = Color.White
+            Case "WAITING"
+                background = ColorTranslator.FromHtml("#FFF2C7")
+                foreground = UiTheme.TextPrimary
+            Case "DISABLED"
+                background = UiTheme.IdleBackground
+                foreground = UiTheme.TextSecondary
+            Case Else
+                background = UiTheme.IdleBackground
+                foreground = UiTheme.TextPrimary
+        End Select
+    End Sub
 
     Private Shared Function NormalizeRectangle(ByVal first As Point, ByVal second As Point) As Rectangle
         Return Rectangle.FromLTRB(Math.Min(first.X, second.X), Math.Min(first.Y, second.Y), Math.Max(first.X, second.X), Math.Max(first.Y, second.Y))
     End Function
-
-    Private Sub HandleGridPaint(ByVal sender As Object, ByVal e As PaintEventArgs)
-        If Not isSelectingRectangle Then Return
-        Dim selectionRectangle As Rectangle = NormalizeRectangle(selectionStart, selectionCurrent)
-        Using fillBrush As New SolidBrush(Color.FromArgb(45, UiTheme.Primary))
-            e.Graphics.FillRectangle(fillBrush, selectionRectangle)
-        End Using
-        Using borderPen As New Pen(UiTheme.Primary, 1.0F)
-            e.Graphics.DrawRectangle(borderPen, selectionRectangle)
-        End Using
-    End Sub
-
-    Private Sub HandleChannelHovered(ByVal sender As Object, ByVal e As ChannelHoverEventArgs)
-        If e Is Nothing Then Return
-        hoverDetailsLabel.Text = BuildHoverDetailsText(e.Data)
-    End Sub
-
-    Private Sub HandleChannelHoverEnded(ByVal sender As Object, ByVal e As EventArgs)
-        hoverDetailsLabel.Text = String.Empty
-    End Sub
 
     Private Shared Function BuildHoverDetailsText(ByVal data As ChannelDisplayData) As String
         Dim ocvText As String = If(data.Ocv1.HasValue, data.Ocv1.Value.ToString("0.00") & " mV", "-")
@@ -319,4 +379,12 @@ Public Class ChannelGridControl
             .BackColor = UiTheme.CardBackground
         }
     End Function
+
+    Private NotInheritable Class ChannelGridSurface
+        Inherits Control
+
+        Public Sub New()
+            SetStyle(ControlStyles.UserPaint Or ControlStyles.AllPaintingInWmPaint Or ControlStyles.OptimizedDoubleBuffer Or ControlStyles.ResizeRedraw, True)
+        End Sub
+    End Class
 End Class

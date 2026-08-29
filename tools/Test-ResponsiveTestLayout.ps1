@@ -6,6 +6,10 @@ $assemblyPath = if ($env:FRMTEST_EXE) { $env:FRMTEST_EXE } else { (Join-Path $PS
 $assembly = [Reflection.Assembly]::LoadFrom($assemblyPath)
 $layoutType = $assembly.GetType('software.ResponsiveTestLayout', $false)
 if ($null -eq $layoutType) { throw 'ResponsiveTestLayout type is missing.' }
+$layoutSource = Get-Content -Raw -LiteralPath (Join-Path $PSScriptRoot '..\ResponsiveTestLayout.vb')
+if ($layoutSource -match 'leftPanel\.AutoScrollMinSize\s*=') {
+    throw 'Scrollable left content must not push its preferred height into the outer responsive layout.'
+}
 
 $formType = $assembly.GetType('software.frmTest', $true)
 $form = [Activator]::CreateInstance($formType)
@@ -14,9 +18,9 @@ $form.MinimumSize = New-Object System.Drawing.Size(0, 0)
 $form.MinimumSize = New-Object System.Drawing.Size(0, 0)
 $leftPanel = $form.Controls['Panel1']
 if ($null -eq $leftPanel) { throw 'Panel1 control is missing.' }
-$applyStyle = $formType.GetMethod('ApplyFrmTestVisualStyle', [Reflection.BindingFlags] 'Instance,NonPublic')
-if ($null -eq $applyStyle) { throw 'frmTest visual style entry point is missing.' }
-$applyStyle.Invoke($form, @()) | Out-Null
+$applyEssentialLayout = $formType.GetMethod('ApplyFrmTestEssentialLayout', [Reflection.BindingFlags] 'Instance,NonPublic')
+if ($null -eq $applyEssentialLayout) { throw 'frmTest essential layout entry point is missing.' }
+$applyEssentialLayout.Invoke($form, @()) | Out-Null
 $form.CreateControl()
 $gridField = $formType.GetField('_channelGrid', [Reflection.BindingFlags] 'Instance,NonPublic,Public')
 if ($null -eq $gridField) { throw 'channelGrid field is missing.' }
@@ -42,32 +46,49 @@ if ($form.MinimumSize.Width -ne 0 -or $form.MinimumSize.Height -ne 0) { throw 'f
 if (-not $leftPanel.AutoScroll) { throw 'Left control region must remain scrollable.' }
 $leftContent = $leftPanel.Controls['LeftControlContent']
 if ($null -eq $leftContent) { throw 'Left control content container is missing.' }
-if ($leftPanel.DisplayRectangle.Width -lt $leftContent.Width -or -not $leftPanel.HorizontalScroll.Visible) {
-    throw "Left control region does not expose its full content width: display=$($leftPanel.DisplayRectangle.Width), content=$($leftContent.Width), horizontal-scroll=$($leftPanel.HorizontalScroll.Visible)."
+if ($leftContent.Width -gt $leftPanel.DisplayRectangle.Width) {
+    throw "Left control content exceeds its viewport width: display=$($leftPanel.DisplayRectangle.Width), content=$($leftContent.Width)."
 }
 
 $rightRegion = $root.GetControlFromPosition(1, 0)
+$leftRegion = $root.GetControlFromPosition(0, 0)
+$stats = $rightRegion.GetControlFromPosition(0, 0)
+if ($leftRegion -ne $leftPanel) { throw 'Root left cell does not contain Panel1.' }
+if ($stats -eq $null) { throw 'Right region does not contain the statistics control.' }
+if ($leftPanel.Dock -ne [System.Windows.Forms.DockStyle]::Fill) {
+    throw "Left control region must fill its root cell; actual dock=$($leftPanel.Dock)."
+}
+if ($stats.Dock -ne [System.Windows.Forms.DockStyle]::Fill) {
+    throw "Statistics region must fill its right cell; actual dock=$($stats.Dock)."
+}
+if ($grid.Dock -ne [System.Windows.Forms.DockStyle]::Fill) {
+    throw "Channel grid must fill its right cell; actual dock=$($grid.Dock)."
+}
+if ($stats.Left -ne 0 -or $grid.Left -ne 0) {
+    throw "Right content must start at the right region origin; stats=$($stats.Left), grid=$($grid.Left)."
+}
 foreach ($size in @(@(1920, 1080), @(1920, 991), @(1366, 768), @(1024, 768), @(800, 600), @(600, 500))) {
     $form.Size = New-Object System.Drawing.Size($size[0], $size[1])
     $form.PerformLayout()
     if ($rightRegion.Width -le 0 -or $rightRegion.Height -le 0) { throw "Right region did not adapt at $($size[0])x$($size[1])." }
 
-    $gridLayout = $null
-    foreach ($child in $grid.Controls) {
-        if ($child -is [System.Windows.Forms.TableLayoutPanel]) {
-            foreach ($nested in $child.Controls) {
-                if ($nested -is [System.Windows.Forms.TableLayoutPanel] -and $nested.RowCount -eq 16 -and $nested.ColumnCount -eq 16) {
-                    $gridLayout = $nested
-                    break
-                }
-            }
+    $gridSurface = $null
+    $pending = New-Object System.Collections.Queue
+    foreach ($child in $grid.Controls) { $pending.Enqueue($child) }
+    while ($pending.Count -gt 0 -and $null -eq $gridSurface) {
+        $candidate = $pending.Dequeue()
+        if ($candidate.GetType().Name -eq 'ChannelGridSurface') {
+            $gridSurface = $candidate
+            break
         }
+        foreach ($nested in $candidate.Controls) { $pending.Enqueue($nested) }
     }
-    if ($null -eq $gridLayout) { throw "Matrix layout was not found at $($size[0])x$($size[1])." }
-    $lastTile = $gridLayout.GetControlFromPosition(15, 15)
-    $lastBottom = $lastTile.Bottom + $gridLayout.Top
-    if ($lastBottom -gt $grid.ClientSize.Height) {
-        throw "Matrix is clipped at $($size[0])x$($size[1]): bottom=$lastBottom, viewport=$($grid.ClientSize.Height)."
+    if ($null -eq $gridSurface) { throw "Virtual channel surface was not found at $($size[0])x$($size[1])." }
+    if ($gridSurface.Dock -ne [System.Windows.Forms.DockStyle]::Fill) {
+        throw "Virtual channel surface must fill the grid at $($size[0])x$($size[1])."
+    }
+    if ($gridSurface.ClientSize.Width -le 0 -or $gridSurface.ClientSize.Height -le 0) {
+        throw "Virtual channel surface has no usable bounds at $($size[0])x$($size[1])."
     }
 }
 

@@ -14,8 +14,10 @@ Public Class MDIForm
     Private bottomStatusControl As BottomStatusControl
     Private ngRetestForm As FrmNgRetest
     Private applyingMdiClientLayout As Boolean
-    Private resizeSyncPending As Boolean
+    Private mdiLayoutOrderApplied As Boolean
+    Private mdiChildCreationInProgress As Boolean
     Private loginMenu As ToolStripMenuItem
+    Private ReadOnly resizeDebounceTimer As New System.Windows.Forms.Timer()
     'Dim adoCnn As SqlConnection
     Public mSock As SocketCtrolCmd
     Public FrmLink As New List(Of MDIForm)
@@ -23,6 +25,8 @@ Public Class MDIForm
     Public fixtureClose As Boolean
     Public operTypeNum As Integer = 1
     Private environmentResetStarted As Boolean
+    Private Const ShutdownResetTimeoutMs As Integer = 3000
+    Private Const ResizeDebounceMs As Integer = 75
 
     Private Sub OpenFile(ByVal sender As Object, ByVal e As EventArgs)
         '已删除的死代码占位 (R2-15)
@@ -89,21 +93,32 @@ Public Class MDIForm
         I = -1
         J = -1
         Try
-            For I = 0 To UBound(Me.MdiChildren)
-                If Me.MdiChildren(I).Text.ToString = "测试" Then
-                    J = I
-                    Exit For
+            '首次创建 MDI 子窗体前先固定菜单栏/底部状态栏边界，
+            '避免子窗体在 MdiClient 尚未完成布局时缓存过大的最大化客户区。
+            ApplyMdiClientLayout()
+            mdiChildCreationInProgress = True
+            Try
+                For I = 0 To UBound(Me.MdiChildren)
+                    If Me.MdiChildren(I).Text.ToString = "测试" Then
+                        J = I
+                        Exit For
+                    End If
+                Next
+                If J = -1 Then
+                    obj_frmTest = New frmTest
+                    obj_frmTest.MdiParent = Me
+                Else
+                    obj_frmTest = Me.MdiChildren(J)
                 End If
-            Next
-            If J = -1 Then
-                obj_frmTest = New frmTest
-                obj_frmTest.MdiParent = Me
-            Else
-                obj_frmTest = Me.MdiChildren(J)
-            End If
-            obj_frmTest.WindowState = FormWindowState.Maximized
-            obj_frmTest.Show()
-            obj_frmTest.Activate()
+                obj_frmTest.Show()
+                '保持首次 Show 的 WinForms 初始化路径；显示后在已经稳定的 MDI
+                '客户区内最大化，避免未显示子窗体时触发递归布局。
+                obj_frmTest.WindowState = FormWindowState.Maximized
+                obj_frmTest.Activate()
+            Finally
+                mdiChildCreationInProgress = False
+            End Try
+            ApplyMdiClientLayout()
         Catch ex As Exception
             MsgBox(ex.ToString)
         End Try
@@ -174,12 +189,21 @@ Public Class MDIForm
     Private Sub MDIForm_FormClosing(sender As Object, e As FormClosingEventArgs) Handles Me.FormClosing
         If environmentResetStarted Then Return
         environmentResetStarted = True
+        ApplicationShuttingDown = True
+
+        '先停止 frmTest 的计时器和通道刷新，避免关闭 MDI 时 256 个方块反复布局。
+        For Each child As Form In MdiChildren
+            Dim testForm As frmTest = TryCast(child, frmTest)
+            If testForm IsNot Nothing Then testForm.PrepareForShutdown()
+        Next
+        resizeDebounceTimer.Stop()
+
         Try
             Dim middleMachine As SerialMiddleMachineClient = Nothing
             If Com_SCM IsNot Nothing AndAlso Com_SCM.IsOpen Then
                 middleMachine = New SerialMiddleMachineClient(Com_SCM)
             End If
-            TestEnvironmentResetService.ResetAll(middleMachine, True)
+            TestEnvironmentResetService.ResetAll(middleMachine, True, ShutdownResetTimeoutMs)
         Catch ex As Exception
             SerialMiddleMachineClient.LogMessage("Application exit reset exception: " & ex.Message)
         End Try
@@ -187,6 +211,8 @@ Public Class MDIForm
 
     Private Sub MDIForm_Disposed(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Disposed
         On Error Resume Next
+        resizeDebounceTimer.Stop()
+        resizeDebounceTimer.Dispose()
         If ngRetestForm IsNot Nothing AndAlso Not ngRetestForm.IsDisposed Then
             ngRetestForm.Close()
         End If
@@ -205,6 +231,8 @@ Public Class MDIForm
         txtTesting.Text = newValue
     End Sub
     Private Sub MDIForm_Load(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Load
+        resizeDebounceTimer.Interval = ResizeDebounceMs
+        AddHandler resizeDebounceTimer.Tick, AddressOf ResizeDebounceTimer_Tick
         ApplyReferenceChrome()
         EnsureCalibrationMenu()
         EnsureLoginMenu()
@@ -223,40 +251,30 @@ Public Class MDIForm
     End Sub
 
     Private Sub MDIForm_Layout(ByVal sender As Object, ByVal e As LayoutEventArgs) Handles Me.Layout
+        If ApplicationShuttingDown Then Return
         ApplyMdiClientLayout()
     End Sub
 
     Private Sub MDIForm_Resize(ByVal sender As Object, ByVal e As EventArgs) Handles Me.Resize
-        ApplyMdiClientLayout()
-        QueueMaximizedMdiChildSync()
+        If ApplicationShuttingDown Then Return
+        QueueMdiLayoutSync()
     End Sub
 
-    Private Sub QueueMaximizedMdiChildSync()
-        If resizeSyncPending OrElse IsDisposed OrElse Not IsHandleCreated Then Return
-        resizeSyncPending = True
-        Try
-            BeginInvoke(New MethodInvoker(AddressOf SyncMaximizedMdiChildren))
-        Catch ex As InvalidOperationException
-            resizeSyncPending = False
-        End Try
+    Private Sub QueueMdiLayoutSync()
+        If ApplicationShuttingDown OrElse IsDisposed OrElse Not IsHandleCreated Then Return
+        resizeDebounceTimer.Stop()
+        resizeDebounceTimer.Start()
     End Sub
 
-    Private Sub SyncMaximizedMdiChildren()
-        resizeSyncPending = False
-        If IsDisposed Then Return
+    Private Sub ResizeDebounceTimer_Tick(sender As Object, e As EventArgs)
+        resizeDebounceTimer.Stop()
+        If ApplicationShuttingDown OrElse IsDisposed Then Return
 
-        ApplyMdiClientLayout()
-        For Each child As Form In MdiChildren
-            If child.WindowState = FormWindowState.Maximized Then
-                child.WindowState = FormWindowState.Normal
-                child.WindowState = FormWindowState.Maximized
-            End If
-        Next
         ApplyMdiClientLayout()
     End Sub
 
     Private Sub ApplyMdiClientLayout()
-        If bottomStatusControl Is Nothing OrElse applyingMdiClientLayout Then Return
+        If ApplicationShuttingDown OrElse bottomStatusControl Is Nothing OrElse applyingMdiClientLayout OrElse mdiChildCreationInProgress Then Return
 
         Dim mdiClient As MdiClient = Nothing
         For Each child As Control In Controls
@@ -267,25 +285,20 @@ Public Class MDIForm
         Next
         If mdiClient Is Nothing Then Return
 
-        '底部状态控件是运行时新增的。首次最大化时 WinForms 可能在它完成 Dock
-        '布局前就创建 MDI 子窗体，导致 MdiClient 临时占满整个客户区，矩阵底部被裁切。
-        '这里显式使用两个固定边界，保证首次显示与后续 Resize 使用同一套几何关系。
+        '底部状态控件是运行时新增的。让 WinForms 按 Dock 顺序自然计算 MDI 客户区，
+        '避免缓存一个过期的 Bounds；菜单栏和底部状态栏占用的空间会自动从 Fill 中扣除。
         applyingMdiClientLayout = True
         Try
-            MenuStrip.Dock = DockStyle.Top
-            bottomStatusControl.Dock = DockStyle.Bottom
-            mdiClient.Dock = DockStyle.None
+            If MenuStrip.Dock <> DockStyle.Top Then MenuStrip.Dock = DockStyle.Top
+            If bottomStatusControl.Dock <> DockStyle.Bottom Then bottomStatusControl.Dock = DockStyle.Bottom
+            If mdiClient.Dock <> DockStyle.Fill Then mdiClient.Dock = DockStyle.Fill
 
-            Dim top As Integer = Math.Max(0, MenuStrip.Bottom)
-            Dim bottom As Integer = Math.Min(ClientSize.Height, bottomStatusControl.Top)
-            Dim height As Integer = Math.Max(0, bottom - top)
-            Dim target As New Rectangle(0, top, ClientSize.Width, height)
-            If mdiClient.Bounds <> target Then
-                mdiClient.SetBounds(target.X, target.Y, target.Width, target.Height)
+            If Not mdiLayoutOrderApplied Then
+                MenuStrip.BringToFront()
+                bottomStatusControl.BringToFront()
+                mdiClient.SendToBack()
+                mdiLayoutOrderApplied = True
             End If
-
-            MenuStrip.BringToFront()
-            bottomStatusControl.BringToFront()
         Finally
             applyingMdiClientLayout = False
         End Try
@@ -388,18 +401,16 @@ Public Class MDIForm
     End Sub
 
     Private Sub NormalizeInitialMdiChildLayout()
-        If IsDisposed Then Return
+        If ApplicationShuttingDown OrElse IsDisposed Then Return
 
         ApplyMdiClientLayout()
         For Each child As Form In MdiChildren
-            If child.WindowState = FormWindowState.Maximized Then
-                'WinForms 的 MDI 最大化缓存了创建时的客户区尺寸。还原/最大化
-                '一次会让它重新读取当前 MdiClient.Bounds,避免首次启动被裁切。
-                child.WindowState = FormWindowState.Normal
+            If child.Text = "测试" AndAlso child.WindowState = FormWindowState.Maximized Then
+                '不做 Normal -> Maximized 切换；重复设置当前状态只请求一次
+                'MDI 原生客户区重算，Resize 路径仍保持无强制刷新。
                 child.WindowState = FormWindowState.Maximized
             End If
         Next
-        ApplyMdiClientLayout()
     End Sub
 
     Private Function MakeSock()

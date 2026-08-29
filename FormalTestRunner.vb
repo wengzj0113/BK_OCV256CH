@@ -63,6 +63,11 @@ Friend Class FormalTestRunner
 
         Try
             SerialMiddleMachineClient.LogMessage("Formal test start: " & SerialMiddleMachineClient.DescribePlan(selection.ToMiddleMachinePlan()))
+            SerialMiddleMachineClient.LogMessage("Reset instruments before new test")
+            ResetCachedData_3562()
+            If Reset34461ForNewTest() <> 0 Then
+                Throw New InvalidOperationException("34461 reset failed before test.")
+            End If
             ClearInstrumentCaches()
 
             If PrepareCachedData_3562(selection.ExpectedHiokiCount) <> 0 Then

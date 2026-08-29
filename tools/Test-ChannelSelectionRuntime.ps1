@@ -20,25 +20,24 @@ $data.Column = 1
 $data.StatusText = 'IDLE'
 $grid.UpdateChannel(1, $data)
 $grid.SelectionMode = [System.Enum]::Parse($assembly.GetType('software.ChannelSelectionMode'), 'SingleChannel')
-$fields = $gridType.GetField('tileControls', [Reflection.BindingFlags] 'Instance,NonPublic')
-$tiles = $fields.GetValue($grid)
-$tile = $tiles[1]
-$handler = $tile.GetType().GetMethod('HandleSelected', [Reflection.BindingFlags] 'Instance,NonPublic')
-$handler.Invoke($tile, @($tile, [EventArgs]::Empty)) | Out-Null
+$surfaceField = $gridType.GetField('gridSurface', [Reflection.BindingFlags] 'Instance,NonPublic')
+$surface = $surfaceField.GetValue($grid)
+$grid.Size = New-Object System.Drawing.Size(640, 480)
+$surface.CreateControl()
+$grid.PerformLayout()
+$mouseDown = $gridType.GetMethod('HandleGridMouseDown', [Reflection.BindingFlags] 'Instance,NonPublic')
+$mouseDown.Invoke($grid, @($surface, [System.Windows.Forms.MouseEventArgs]::new([System.Windows.Forms.MouseButtons]::Left, 1, 10, 10, 0))) | Out-Null
 if ($grid.SelectedChannelCount -ne 1 -or $grid.SelectedChannelNumbers[0] -ne 1) { throw 'Single channel selection did not select channel 1.' }
 $grid.ClearSelection()
-$labelClick = $tile.Controls[0].GetType().GetMethod('OnClick', [Reflection.BindingFlags] 'Instance,NonPublic')
-$labelClick.Invoke($tile.Controls[0], @([EventArgs]::Empty)) | Out-Null
+$mouseDown.Invoke($grid, @($surface, [System.Windows.Forms.MouseEventArgs]::new([System.Windows.Forms.MouseButtons]::Left, 1, 10, 10, 0))) | Out-Null
 if ($grid.SelectedChannelCount -ne 1 -or $grid.SelectedChannelNumbers[0] -ne 1) { throw 'Clicking the inside of the channel tile did not select channel 1.' }
 $grid.ClearSelection()
-$mouseUp = $tile.GetType().GetMethod('HandleTileMouseUp', [Reflection.BindingFlags] 'Instance,NonPublic')
-$mouseArgs = [System.Windows.Forms.MouseEventArgs]::new([System.Windows.Forms.MouseButtons]::Left, 1, 10, 10, 0)
-$mouseUp.Invoke($tile, @($tile.Controls[0], $mouseArgs)) | Out-Null
+$selectionMode = [System.Enum]::Parse($assembly.GetType('software.ChannelSelectionMode'), 'Rectangle')
+$grid.SelectionMode = $selectionMode
+$mouseDownSurface = $gridType.GetMethod('HandleGridMouseDown', [Reflection.BindingFlags] 'Instance,NonPublic')
+$mouseUpSurface = $gridType.GetMethod('HandleGridMouseUp', [Reflection.BindingFlags] 'Instance,NonPublic')
+$mouseDownSurface.Invoke($grid, @($surface, [System.Windows.Forms.MouseEventArgs]::new([System.Windows.Forms.MouseButtons]::Left, 1, 1, 1, 0))) | Out-Null
+$mouseUpSurface.Invoke($grid, @($surface, [System.Windows.Forms.MouseEventArgs]::new([System.Windows.Forms.MouseButtons]::Left, 1, 20, 20, 0))) | Out-Null
 if ($grid.SelectedChannelCount -ne 1 -or $grid.SelectedChannelNumbers[0] -ne 1) { throw 'Mouse release inside the channel tile did not select channel 1.' }
-$tile.Size = New-Object System.Drawing.Size(60, 40)
-$tile.CreateControl()
-$tile.PerformLayout()
-$label = $tile.Controls[0]
-if (-not $label.IsSelected) { throw 'Selected tile did not propagate selection to the visible label.' }
 
-Write-Host 'PASS: runtime select-all, clear, and single-channel selection behavior verified.'
+Write-Host 'PASS: runtime select-all, clear, single-channel, and rectangle selection behavior verified.'

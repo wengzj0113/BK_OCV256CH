@@ -2,6 +2,161 @@
 Imports System.Runtime.InteropServices
 Public Class frmInit
     Dim TempInitsetting As Initset
+
+    Private Sub SetScmTimingOperationState(isBusy As Boolean)
+        btnScmRead.Enabled = Not isBusy
+        btnScmApply.Enabled = Not isBusy
+        CmdOK.Enabled = Not isBusy
+        Button1.Enabled = Not isBusy
+    End Sub
+
+    Private Function NormalizeScmTimingSettings() As ScmTimingSettings
+        Dim settings As New ScmTimingSettings()
+
+        If Initsetting.ScmRelaySettleMs >= ScmTimingSettings.MinRelaySettleMs AndAlso
+           Initsetting.ScmRelaySettleMs <= ScmTimingSettings.MaxRelaySettleMs Then
+            settings.RelaySettleMs = Initsetting.ScmRelaySettleMs
+        End If
+        If Initsetting.ScmChannelSettleMs >= ScmTimingSettings.MinChannelSettleMs AndAlso
+           Initsetting.ScmChannelSettleMs <= ScmTimingSettings.MaxChannelSettleMs Then
+            settings.ChannelSettleMs = Initsetting.ScmChannelSettleMs
+        End If
+        If Initsetting.ScmAutoStepMs >= ScmTimingSettings.MinAutoStepMs AndAlso
+           Initsetting.ScmAutoStepMs <= ScmTimingSettings.MaxAutoStepMs Then
+            settings.AutoStepMs = Initsetting.ScmAutoStepMs
+        End If
+        If Initsetting.ScmTriggerPulseMs >= ScmTimingSettings.MinTriggerPulseMs AndAlso
+           Initsetting.ScmTriggerPulseMs <= ScmTimingSettings.MaxTriggerPulseMs Then
+            settings.TriggerPulseMs = Initsetting.ScmTriggerPulseMs
+        End If
+        If Initsetting.ScmPhaseGuardMs >= ScmTimingSettings.MinPhaseGuardMs AndAlso
+           Initsetting.ScmPhaseGuardMs <= ScmTimingSettings.MaxPhaseGuardMs Then
+            settings.PhaseGuardMs = Initsetting.ScmPhaseGuardMs
+        End If
+        Return settings
+    End Function
+
+    Private Sub AssignScmTimingSettings(ByRef target As Initset, settings As ScmTimingSettings)
+        target.ScmRelaySettleMs = settings.RelaySettleMs
+        target.ScmChannelSettleMs = settings.ChannelSettleMs
+        target.ScmAutoStepMs = settings.AutoStepMs
+        target.ScmTriggerPulseMs = settings.TriggerPulseMs
+        target.ScmPhaseGuardMs = settings.PhaseGuardMs
+    End Sub
+
+    Private Sub SetScmTimingText(settings As ScmTimingSettings)
+        txtScmRelaySettleMs.Text = settings.RelaySettleMs.ToString()
+        txtScmChannelSettleMs.Text = settings.ChannelSettleMs.ToString()
+        txtScmAutoStepMs.Text = settings.AutoStepMs.ToString()
+        txtScmTriggerPulseMs.Text = settings.TriggerPulseMs.ToString()
+        txtScmPhaseGuardMs.Text = settings.PhaseGuardMs.ToString()
+    End Sub
+
+    Private Function TryGetScmTimingText(ByRef settings As ScmTimingSettings) As Boolean
+        Dim relaySettleMs As Integer
+        Dim channelSettleMs As Integer
+        Dim autoStepMs As Integer
+        Dim triggerPulseMs As Integer
+        Dim phaseGuardMs As Integer
+
+        If Not Integer.TryParse(txtScmRelaySettleMs.Text.Trim(), relaySettleMs) Then
+            ShowScmTimingValidationError("继电器稳定时间必须是整数，允许范围为5-5000 ms。")
+            Return False
+        End If
+        If Not Integer.TryParse(txtScmChannelSettleMs.Text.Trim(), channelSettleMs) Then
+            ShowScmTimingValidationError("通道稳定时间必须是整数，允许范围为0-5000 ms。")
+            Return False
+        End If
+        If Not Integer.TryParse(txtScmAutoStepMs.Text.Trim(), autoStepMs) Then
+            ShowScmTimingValidationError("仪表等待时间必须是整数，允许范围为10-10000 ms。")
+            Return False
+        End If
+        If Not Integer.TryParse(txtScmTriggerPulseMs.Text.Trim(), triggerPulseMs) Then
+            ShowScmTimingValidationError("触发脉宽时间必须是整数，允许范围为1-1000 ms。")
+            Return False
+        End If
+        If Not Integer.TryParse(txtScmPhaseGuardMs.Text.Trim(), phaseGuardMs) Then
+            ShowScmTimingValidationError("遍末保护时间必须是整数，允许范围为100-10000 ms。")
+            Return False
+        End If
+
+        settings = New ScmTimingSettings(relaySettleMs,
+                                          channelSettleMs,
+                                          autoStepMs,
+                                          triggerPulseMs,
+                                          phaseGuardMs)
+        Dim validationError As String = settings.Validate()
+        If Not String.IsNullOrWhiteSpace(validationError) Then
+            ShowScmTimingValidationError(validationError)
+            Return False
+        End If
+        Return True
+    End Function
+
+    Private Sub ShowScmTimingValidationError(message As String)
+        lblScmStatus.Text = message
+        MsgBox(message, vbOKOnly, "SCM参数错误")
+    End Sub
+
+    Private Sub btnScmRead_Click(sender As Object, e As EventArgs) Handles btnScmRead.Click
+        SetScmTimingOperationState(True)
+        lblScmStatus.Text = "正在读取 SCM 当前时间参数..."
+        Try
+            Dim client As New SerialMiddleMachineClient(frmMDI.Com_SCM)
+            Dim settings As ScmTimingSettings = client.ReadScmTimingSettings()
+            SetScmTimingText(settings)
+            lblScmStatus.Text = "已读取 SCM 当前值，尚未保存到本机配置。"
+        Catch ex As Exception
+            lblScmStatus.Text = "读取 SCM 失败：" & ex.Message
+            MsgBox(lblScmStatus.Text, vbOKOnly, "SCM读取失败")
+        Finally
+            SetScmTimingOperationState(False)
+        End Try
+    End Sub
+
+    Private Sub btnScmApply_Click(sender As Object, e As EventArgs) Handles btnScmApply.Click
+        Dim settings As ScmTimingSettings = Nothing
+        If Not TryGetScmTimingText(settings) Then Return
+
+        Dim previousSettings As New ScmTimingSettings(
+            Initsetting.ScmRelaySettleMs,
+            Initsetting.ScmChannelSettleMs,
+            Initsetting.ScmAutoStepMs,
+            Initsetting.ScmTriggerPulseMs,
+            Initsetting.ScmPhaseGuardMs)
+
+        SetScmTimingOperationState(True)
+        lblScmStatus.Text = "正在向 SCM 写入 5 项时间参数..."
+        Try
+            Dim client As New SerialMiddleMachineClient(frmMDI.Com_SCM)
+            client.WriteScmTimingSettings(settings)
+
+            AssignScmTimingSettings(Initsetting, settings)
+            AssignScmTimingSettings(TempInitsetting, settings)
+            SaveInitFile()
+            SetScmTimingText(settings)
+            lblScmStatus.Text = "SCM 5 项时间参数应用成功，已保存到本机配置。"
+        Catch ex As ScmTimingWriteException
+            AssignScmTimingSettings(Initsetting, previousSettings)
+            AssignScmTimingSettings(TempInitsetting, previousSettings)
+            lblScmStatus.Text = String.Format(
+                "SCM部分写入失败：已成功{0}项；第{1}项(0x{2:X4})失败，值={3}。本机配置未保存。{4}",
+                ex.CompletedCount,
+                ex.ParameterName,
+                ex.RegisterAddress,
+                ex.Value,
+                ex.InnerException.Message)
+            MsgBox(lblScmStatus.Text, vbOKOnly, "SCM应用失败")
+        Catch ex As Exception
+            AssignScmTimingSettings(Initsetting, previousSettings)
+            AssignScmTimingSettings(TempInitsetting, previousSettings)
+            lblScmStatus.Text = "SCM应用失败，本机配置未保存：" & ex.Message
+            MsgBox(lblScmStatus.Text, vbOKOnly, "SCM应用失败")
+        Finally
+            SetScmTimingOperationState(False)
+        End Try
+    End Sub
+
     Private Sub CmdOK_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles CmdOK.Click
         Dim Rebutton As Microsoft.VisualBasic.MsgBoxResult
         If Not TextToStruct() Then Return
@@ -107,6 +262,7 @@ Public Class frmInit
         UpdatePlcTransportControls()
     End Sub
     Private Function TextToStruct() As Boolean
+        TempInitsetting = Initsetting
         If Not ChbPLCIP.Checked AndAlso Not ChbPlcCom.Checked Then
             ChbPlcCom.Checked = True
         End If
@@ -260,6 +416,7 @@ Public Class frmInit
     End Sub
     Private Sub structToText()
         Dim intLoop As Int16
+        Dim scmTimingSettings As ScmTimingSettings = NormalizeScmTimingSettings()
         '**************************
         '通讯参数
         'ComRate.SelectedIndex = Initsetting.SCM_com
@@ -377,6 +534,7 @@ Public Class frmInit
         If Initsetting.stationSelect = 2 Then
             radioOCV2Set.Checked = True
         End If
+        SetScmTimingText(scmTimingSettings)
 
     End Sub
     Private Sub txtRes1_Validated(ByVal sender As Object, ByVal e As System.EventArgs) Handles txtRes1.Validated
@@ -399,7 +557,7 @@ Public Class frmInit
             txtVol2.Clear()
         End If
     End Sub
-    Private Sub txtDatabase_Validated(ByVal sender As Object, ByVal e As System.EventArgs) Handles txtDatabase.Validated, txtMesApiAddress.Validated
+    Private Sub txtDatabase_Validated(ByVal sender As Object, ByVal e As System.EventArgs) Handles txtDatabase.Validated, txtMesApiAddress.Validated, txtMesDatabaseServerIP.Validated
         If txtDatabase.Text = "" Then
             txtDatabase.Focus()
         End If

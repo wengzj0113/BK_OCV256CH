@@ -11,35 +11,21 @@ foreach ($size in @(@(876, 774), @(524, 555))) {
     $grid.CreateControl()
     $grid.PerformLayout()
 
-    $gridLayout = $null
-    foreach ($child in $grid.Controls) {
-        if ($child -is [System.Windows.Forms.TableLayoutPanel]) {
-            foreach ($nested in $child.Controls) {
-                if ($nested -is [System.Windows.Forms.TableLayoutPanel] -and $nested.RowCount -eq 16 -and $nested.ColumnCount -eq 16) {
-                    $gridLayout = $nested
-                    break
-                }
-            }
-        }
+    $gridSurface = $null
+    $pending = New-Object System.Collections.Queue
+    foreach ($child in $grid.Controls) { $pending.Enqueue($child) }
+    while ($pending.Count -gt 0 -and $null -eq $gridSurface) {
+        $candidate = $pending.Dequeue()
+        if ($candidate.GetType().Name -eq 'ChannelGridSurface') { $gridSurface = $candidate; break }
+        foreach ($nested in $candidate.Controls) { $pending.Enqueue($nested) }
     }
-    if ($null -eq $gridLayout) { throw "16x16 runtime grid was not found at $($size[0])x$($size[1])." }
-
-    $lastTile = $gridLayout.GetControlFromPosition(15, 15)
-    if ($null -eq $lastTile) { throw "Last matrix tile was not created at $($size[0])x$($size[1])." }
-    $lastBottom = $lastTile.Bottom + $gridLayout.Top
-    if ($lastBottom -gt $grid.ClientSize.Height) {
-        throw "Last matrix row is clipped at $($size[0])x$($size[1]): bottom=$lastBottom, viewport=$($grid.ClientSize.Height)."
-    }
-    $firstTile = $gridLayout.GetControlFromPosition(0, 0)
-    $firstTileLeft = $firstTile.Left + $gridLayout.Left
-    $maxFirstTileLeft = [Math]::Max(60, [int]($grid.ClientSize.Width * 0.10))
-    if ($firstTileLeft -gt $maxFirstTileLeft) {
-        throw "First matrix tile is too far from the upper-left corner at $($size[0])x$($size[1]): left=$firstTileLeft, limit=$maxFirstTileLeft."
-    }
+    if ($null -eq $gridSurface) { throw "Virtual channel surface was not found at $($size[0])x$($size[1])." }
+    if ($gridSurface.Dock -ne [System.Windows.Forms.DockStyle]::Fill) { throw 'Virtual channel surface must fill its host cell.' }
+    if ($gridSurface.ClientSize.Width -le 0 -or $gridSurface.ClientSize.Height -le 0) { throw 'Virtual channel surface has no usable size.' }
     $outer = $grid.Controls | Where-Object { $_ -is [System.Windows.Forms.TableLayoutPanel] } | Select-Object -First 1
     $headerHeight = $outer.GetRowHeights()[0] + $outer.GetRowHeights()[1]
     if ($headerHeight -gt [Math]::Max(80, [int]($grid.ClientSize.Height * 0.20))) {
         throw "Matrix headers consume too much vertical space at $($size[0])x$($size[1]): height=$headerHeight."
     }
-    Write-Output "PASS: $($size[0])x$($size[1]); last row bottom=$lastBottom, viewport=$($grid.ClientSize.Height)."
+    Write-Output "PASS: $($size[0])x$($size[1]); virtual surface=$($gridSurface.ClientSize.Width)x$($gridSurface.ClientSize.Height)."
 }

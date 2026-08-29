@@ -36,6 +36,9 @@ Public NotInheritable Class UiTheme
     Public Shared ReadOnly UiFontBold As New Font("Microsoft YaHei UI", 9.0F, FontStyle.Bold)
     Public Shared ReadOnly UiFontTitle As New Font("Microsoft YaHei UI", 14.0F, FontStyle.Bold)
     Public Shared ReadOnly UiFontMetric As New Font("Microsoft YaHei UI", 20.0F, FontStyle.Regular)
+    Public Const LeftSectionGap As Integer = 5
+    Public Const LeftContentPadding As Integer = 6
+    Public Const LeftButtonHeight As Integer = 28
 
     Public Shared Sub ApplyCardStyle(ByVal control As Control)
         If control Is Nothing Then Return
@@ -49,12 +52,64 @@ Public NotInheritable Class UiTheme
             groupBox.FlatStyle = FlatStyle.Flat
             groupBox.ForeColor = Primary
             groupBox.Font = UiFontBold
-            groupBox.Padding = New Padding(8, 16, 8, 8)
+            groupBox.Padding = New Padding(6, 15, 6, 6)
         End If
 
         Dim panel As Panel = TryCast(control, Panel)
         If panel IsNot Nothing Then
             panel.BorderStyle = BorderStyle.FixedSingle
+        End If
+    End Sub
+
+    Public Shared Sub ApplyCheckBoxStyle(ByVal checkBox As CheckBox)
+        If checkBox Is Nothing Then Return
+
+        checkBox.AutoSize = False
+        checkBox.Height = 28
+        checkBox.Font = UiFontBold
+        checkBox.BackColor = CardBackground
+        checkBox.ForeColor = TextPrimary
+        checkBox.TextAlign = ContentAlignment.MiddleCenter
+        checkBox.Appearance = Appearance.Button
+        checkBox.FlatStyle = FlatStyle.Flat
+        checkBox.UseVisualStyleBackColor = False
+        checkBox.FlatAppearance.BorderSize = 1
+        ApplyToggleStateStyle(checkBox, checkBox.Checked)
+    End Sub
+
+    Public Shared Sub ApplyRadioButtonStyle(ByVal radioButton As RadioButton)
+        If radioButton Is Nothing Then Return
+
+        radioButton.AutoSize = False
+        radioButton.Height = 28
+        radioButton.Font = UiFontBold
+        radioButton.BackColor = CardBackground
+        radioButton.ForeColor = TextPrimary
+        radioButton.TextAlign = ContentAlignment.MiddleCenter
+        radioButton.Appearance = Appearance.Button
+        radioButton.FlatStyle = FlatStyle.Flat
+        radioButton.UseVisualStyleBackColor = False
+        radioButton.FlatAppearance.BorderSize = 1
+        ApplyToggleStateStyle(radioButton, radioButton.Checked)
+    End Sub
+
+    Public Shared Sub ApplyToggleStateStyle(ByVal control As Control, ByVal selected As Boolean)
+        If control Is Nothing Then Return
+
+        If selected Then
+            control.BackColor = Primary
+            control.ForeColor = Color.White
+            Dim checkBox As CheckBox = TryCast(control, CheckBox)
+            If checkBox IsNot Nothing Then checkBox.FlatAppearance.BorderColor = Primary
+            Dim radioButton As RadioButton = TryCast(control, RadioButton)
+            If radioButton IsNot Nothing Then radioButton.FlatAppearance.BorderColor = Primary
+        Else
+            control.BackColor = CardBackground
+            control.ForeColor = TextPrimary
+            Dim checkBox As CheckBox = TryCast(control, CheckBox)
+            If checkBox IsNot Nothing Then checkBox.FlatAppearance.BorderColor = CardBorder
+            Dim radioButton As RadioButton = TryCast(control, RadioButton)
+            If radioButton IsNot Nothing Then radioButton.FlatAppearance.BorderColor = CardBorder
         End If
     End Sub
 
@@ -65,6 +120,14 @@ Public NotInheritable Class UiTheme
         textBox.ForeColor = TextPrimary
         textBox.Font = UiFont
         textBox.BorderStyle = BorderStyle.FixedSingle
+    End Sub
+
+    Public Shared Sub ApplyFieldLabelStyle(ByVal label As Label)
+        If label Is Nothing Then Return
+
+        label.Font = UiFont
+        label.ForeColor = TextPrimary
+        label.BackColor = CardBackground
     End Sub
 
     Public Shared Sub ApplyButtonStyle(ByVal button As Button, ByVal role As ButtonRole)

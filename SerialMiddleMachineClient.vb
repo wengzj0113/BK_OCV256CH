@@ -2,6 +2,97 @@ Imports System.IO.Ports
 Imports System.Threading
 Imports System.Windows.Forms
 
+Public Class ScmTimingSettings
+    Public Const DefaultRelaySettleMs As Integer = 5
+    Public Const DefaultChannelSettleMs As Integer = 50
+    Public Const DefaultAutoStepMs As Integer = 10
+    Public Const DefaultTriggerPulseMs As Integer = 1
+    Public Const DefaultPhaseGuardMs As Integer = 100
+    Public Const MinRelaySettleMs As Integer = 5
+    Public Const MaxRelaySettleMs As Integer = 5000
+    Public Const MinChannelSettleMs As Integer = 0
+    Public Const MaxChannelSettleMs As Integer = 5000
+    Public Const MinAutoStepMs As Integer = 10
+    Public Const MaxAutoStepMs As Integer = 10000
+    Public Const MinTriggerPulseMs As Integer = 1
+    Public Const MaxTriggerPulseMs As Integer = 1000
+    Public Const MinPhaseGuardMs As Integer = 100
+    Public Const MaxPhaseGuardMs As Integer = 10000
+
+    Public Property RelaySettleMs As Integer
+    Public Property ChannelSettleMs As Integer
+    Public Property AutoStepMs As Integer
+    Public Property TriggerPulseMs As Integer
+    Public Property PhaseGuardMs As Integer
+
+    Public Sub New()
+        RelaySettleMs = DefaultRelaySettleMs
+        ChannelSettleMs = DefaultChannelSettleMs
+        AutoStepMs = DefaultAutoStepMs
+        TriggerPulseMs = DefaultTriggerPulseMs
+        PhaseGuardMs = DefaultPhaseGuardMs
+    End Sub
+
+    Public Sub New(relaySettleMs As Integer,
+                   channelSettleMs As Integer,
+                   autoStepMs As Integer,
+                   triggerPulseMs As Integer,
+                   phaseGuardMs As Integer)
+        Me.RelaySettleMs = relaySettleMs
+        Me.ChannelSettleMs = channelSettleMs
+        Me.AutoStepMs = autoStepMs
+        Me.TriggerPulseMs = triggerPulseMs
+        Me.PhaseGuardMs = phaseGuardMs
+    End Sub
+
+    Public Function Validate() As String
+        Dim errorMessage As String = ValidateRange("继电器稳定时间", RelaySettleMs, MinRelaySettleMs, MaxRelaySettleMs)
+        If errorMessage IsNot Nothing Then Return errorMessage
+
+        errorMessage = ValidateRange("通道稳定时间", ChannelSettleMs, MinChannelSettleMs, MaxChannelSettleMs)
+        If errorMessage IsNot Nothing Then Return errorMessage
+
+        errorMessage = ValidateRange("仪表等待时间", AutoStepMs, MinAutoStepMs, MaxAutoStepMs)
+        If errorMessage IsNot Nothing Then Return errorMessage
+
+        errorMessage = ValidateRange("触发脉宽时间", TriggerPulseMs, MinTriggerPulseMs, MaxTriggerPulseMs)
+        If errorMessage IsNot Nothing Then Return errorMessage
+
+        Return ValidateRange("遍末保护时间", PhaseGuardMs, MinPhaseGuardMs, MaxPhaseGuardMs)
+    End Function
+
+    Private Shared Function ValidateRange(parameterName As String,
+                                           value As Integer,
+                                           minimum As Integer,
+                                           maximum As Integer) As String
+        If value < minimum OrElse value > maximum Then
+            Return String.Format("{0}必须在{1}-{2} ms范围内，当前值为{3}。", parameterName, minimum, maximum, value)
+        End If
+        Return Nothing
+    End Function
+End Class
+
+Public Class ScmTimingWriteException
+    Inherits InvalidOperationException
+
+    Public ReadOnly Property ParameterName As String
+    Public ReadOnly Property RegisterAddress As UShort
+    Public ReadOnly Property Value As Integer
+    Public ReadOnly Property CompletedCount As Integer
+
+    Public Sub New(parameterName As String,
+                   registerAddress As UShort,
+                   value As Integer,
+                   completedCount As Integer,
+                   innerException As Exception)
+        MyBase.New(String.Format("SCM parameter {0} (0x{1:X4}) write value {2} failed; {3} items completed: {4}", parameterName, registerAddress, value, completedCount, innerException.Message), innerException)
+        Me.ParameterName = parameterName
+        Me.RegisterAddress = registerAddress
+        Me.Value = value
+        Me.CompletedCount = completedCount
+    End Sub
+End Class
+
 Public Class MiddleMachineChannelPlan
     Public Property SelectedPhysicalChannels As List(Of Integer)
     Public Property G1PhysicalChannels As List(Of Integer)
@@ -34,11 +125,16 @@ Public Class SerialMiddleMachineClient
     Private Const WriteRetryCount As Integer = 3
     Private Const WriteRetryDelayMs As Integer = 150
     Private Const StopSettleDelayMs As Integer = 250
+    Private Const ScmConfigWriteIntervalMs As Integer = 100
 
     Private Const RegStartStop As UShort = &H30
     Private Const RegG1Start As UShort = &H31
     Private Const RegG1End As UShort = &H32
+    Private Const RegRelaySettleMs As UShort = &H33
+    Private Const RegChannelSettleMs As UShort = &H34
     Private Const RegTwoPass As UShort = &H35
+    Private Const RegAutoStepMs As UShort = &H36
+    Private Const RegTriggerPulseMs As UShort = &H37
     Private Const RegSpeed As UShort = &H38
     Private Const RegG1PlanMode As UShort = &H60
     Private Const RegG1ListCount As UShort = &H61
@@ -51,6 +147,7 @@ Public Class SerialMiddleMachineClient
     Private Const RegG2End As UShort = &H68
     Private Const RegGroupEnable As UShort = &H6A
     Private Const RegMeasureItems As UShort = &H6B
+    Private Const RegPhaseGuardMs As UShort = &H6C
     Private Const RegG1ListBase As UShort = &H70
     Private Const RegG2ListBase As UShort = &H100
     Private Const RegWriteResultStart As UShort = &H5B
@@ -141,13 +238,18 @@ Public Class SerialMiddleMachineClient
         If firstException IsNot Nothing Then Throw firstException
     End Sub
 
-    Public Sub ResetToSafeState()
+    Public Sub ResetToSafeState(Optional totalTimeoutMs As Integer = 3000)
         TraceMessage("Middle machine safe reset start")
-        Try
-            StopAndClearLists()
-        Catch ex As Exception
-            TraceMessage("Middle machine stop/clear during reset failed: " & ex.Message)
-        End Try
+        Dim deadline As DateTime = DateTime.UtcNow.AddMilliseconds(Math.Max(1, totalTimeoutMs))
+
+        TryWriteRegisterForDeadline(RegStartStop, &H0, deadline)
+        Dim remainingTimeoutMs As Integer = GetRemainingTimeoutMs(deadline)
+        If remainingTimeoutMs > 0 Then
+            Thread.Sleep(Math.Min(StopSettleDelayMs, remainingTimeoutMs))
+        End If
+
+        TryWriteRegisterForDeadline(RegG1ListClear, &H1, deadline)
+        TryWriteRegisterForDeadline(RegG2ListClear, &H1, deadline)
 
         Dim safeWrites As UShort(,) = {
             {RegSyncMode, &H0},
@@ -157,11 +259,8 @@ Public Class SerialMiddleMachineClient
             {RegSpeed, &H0}
         }
         For i As Integer = 0 To safeWrites.GetLength(0) - 1
-            Try
-                WriteRegister(safeWrites(i, 0), safeWrites(i, 1))
-            Catch ex As Exception
-                TraceMessage(String.Format("Middle machine safe write failed: 0x{0:X4}=0x{1:X4}: {2}", safeWrites(i, 0), safeWrites(i, 1), ex.Message))
-            End Try
+            If GetRemainingTimeoutMs(deadline) <= 0 Then Exit For
+            TryWriteRegisterForDeadline(safeWrites(i, 0), safeWrites(i, 1), deadline)
         Next
         TraceMessage("Middle machine safe reset completed")
     End Sub
@@ -291,17 +390,118 @@ Public Class SerialMiddleMachineClient
         WriteRegister(address, value, True)
     End Sub
 
-    Private Sub WriteRegister(address As UShort, value As UShort, verifyWriteStatus As Boolean)
+    Public Function ReadScmTimingSettings() As ScmTimingSettings
+        Dim timingValues As UShort() = ReadRegisters(RegRelaySettleMs, 5)
+        Dim phaseGuardValues As UShort() = ReadRegisters(RegPhaseGuardMs, 1)
+
+        If timingValues Is Nothing OrElse timingValues.Length < 5 OrElse
+           phaseGuardValues Is Nothing OrElse phaseGuardValues.Length < 1 Then
+            Throw New InvalidOperationException("SCM时间参数读取响应不完整。")
+        End If
+
+        Return New ScmTimingSettings(
+            CInt(timingValues(0)),
+            CInt(timingValues(1)),
+            CInt(timingValues(3)),
+            CInt(timingValues(4)),
+            CInt(phaseGuardValues(0)))
+    End Function
+
+    Public Sub WriteScmTimingSettings(settings As ScmTimingSettings)
+        If settings Is Nothing Then
+            Throw New ArgumentNullException("settings")
+        End If
+
+        Dim validationError As String = settings.Validate()
+        If Not String.IsNullOrWhiteSpace(validationError) Then
+            Throw New ArgumentException(validationError, "settings")
+        End If
+
+        EnsureScmTimingSettingsWritable()
+
+        Dim writes As ScmTimingRegister() = {
+            New ScmTimingRegister("继电器稳定时间", RegRelaySettleMs, settings.RelaySettleMs),
+            New ScmTimingRegister("通道稳定时间", RegChannelSettleMs, settings.ChannelSettleMs),
+            New ScmTimingRegister("仪表等待时间", RegAutoStepMs, settings.AutoStepMs),
+            New ScmTimingRegister("触发脉宽时间", RegTriggerPulseMs, settings.TriggerPulseMs),
+            New ScmTimingRegister("遍末保护时间", RegPhaseGuardMs, settings.PhaseGuardMs)
+        }
+
+        Dim completedCount As Integer = 0
+        For Each item As ScmTimingRegister In writes
+            Try
+                WriteRegisterAndVerifyStatus(item.Address, CUShort(item.Value))
+            Catch ex As Exception
+                Throw New ScmTimingWriteException(item.ParameterName,
+                                                  item.Address,
+                                                  item.Value,
+                                                  completedCount,
+                                                  ex)
+            End Try
+
+            completedCount += 1
+            If completedCount < writes.Length Then
+                Thread.Sleep(ScmConfigWriteIntervalMs)
+            End If
+        Next
+    End Sub
+
+    Private Sub EnsureScmTimingSettingsWritable()
+        Dim values As UShort() = ReadRegisters(RegBasicStatusStart, 1)
+        If values Is Nothing OrElse values.Length = 0 Then
+            Throw New InvalidOperationException("无法读取 SCM 当前状态，未执行参数写入。")
+        End If
+
+        Dim status As UShort = values(0)
+        If status <> 0 AndAlso status <> StatusCompleted AndAlso status <> StatusError Then
+            Throw New InvalidOperationException(String.Format(
+                "SCM当前状态为{0}(0x{1:X4})，参数已锁定，请先停止测试。",
+                GetScmStatusName(status),
+                status))
+        End If
+    End Sub
+
+    Private Shared Function GetScmStatusName(status As UShort) As String
+        Select Case status
+            Case 0 : Return "TEST_IDLE"
+            Case 1 : Return "TEST_WAIT_RELAY_SETTLE"
+            Case 2 : Return "TEST_WAIT_CHANNEL_SETTLE"
+            Case 3 : Return "TEST_WAIT_INSTRUMENT"
+            Case 4 : Return "TEST_WAIT_PHASE_GUARD"
+            Case 6 : Return "TEST_DONE"
+            Case 7 : Return "TEST_PAUSE"
+            Case 100 : Return "TEST_ERROR"
+            Case Else : Return "UNKNOWN"
+        End Select
+    End Function
+
+    Private Structure ScmTimingRegister
+        Public ReadOnly ParameterName As String
+        Public ReadOnly Address As UShort
+        Public ReadOnly Value As Integer
+
+        Public Sub New(parameterName As String, address As UShort, value As Integer)
+            Me.ParameterName = parameterName
+            Me.Address = address
+            Me.Value = value
+        End Sub
+    End Structure
+
+    Private Sub WriteRegister(address As UShort,
+                               value As UShort,
+                               verifyWriteStatus As Boolean,
+                               Optional responseTimeoutMs As Integer = WriteResponseTimeoutMs,
+                               Optional retryCount As Integer = WriteRetryCount)
         Dim request As Byte() = BuildWriteFrame(address, value)
         Dim lastException As Exception = Nothing
-        For attempt As Integer = 1 To WriteRetryCount
+        For attempt As Integer = 1 To Math.Max(1, retryCount)
             Try
                 EnsureOpen()
                 serialPort.DiscardInBuffer()
                 TraceMessage(String.Format("TX WRITE 0x{0:X4}=0x{1:X4} attempt={2}/{3}: {4}", address, value, attempt, WriteRetryCount, BytesToHex(request)))
                 serialPort.Write(request, 0, request.Length)
 
-                Dim echo As Byte() = ReadSpecificResponse(CommandWrite, 8, WriteResponseTimeoutMs)
+                Dim echo As Byte() = ReadSpecificResponse(CommandWrite, 8, Math.Max(1, responseTimeoutMs))
                 If echo Is Nothing Then
                     TraceMessage(String.Format("RX WRITE TIMEOUT 0x{0:X4}=0x{1:X4} attempt={2}", address, value, attempt))
                     Throw New TimeoutException(String.Format("Middle machine write response timeout: 0x{0:X4}=0x{1:X4}.", address, value))
@@ -317,7 +517,7 @@ Public Class SerialMiddleMachineClient
                 Return
             Catch ex As Exception
                 lastException = ex
-                If attempt < WriteRetryCount Then
+                If attempt < Math.Max(1, retryCount) Then
                     TraceMessage(String.Format("WRITE retry scheduled 0x{0:X4}=0x{1:X4} after: {2}", address, value, ex.Message))
                     Thread.Sleep(WriteRetryDelayMs)
                 End If
@@ -325,6 +525,25 @@ Public Class SerialMiddleMachineClient
         Next
         Throw lastException
     End Sub
+
+    Private Sub TryWriteRegisterForDeadline(address As UShort, value As UShort, deadline As DateTime)
+        Dim remainingTimeoutMs As Integer = GetRemainingTimeoutMs(deadline)
+        If remainingTimeoutMs <= 0 Then Return
+
+        Try
+            WriteRegister(address,
+                          value,
+                          False,
+                          Math.Min(remainingTimeoutMs, WriteResponseTimeoutMs),
+                          1)
+        Catch ex As Exception
+            TraceMessage(String.Format("Middle machine bounded reset write failed: 0x{0:X4}=0x{1:X4}: {2}", address, value, ex.Message))
+        End Try
+    End Sub
+
+    Private Shared Function GetRemainingTimeoutMs(deadline As DateTime) As Integer
+        Return CInt(Math.Max(0, Math.Ceiling((deadline - DateTime.UtcNow).TotalMilliseconds)))
+    End Function
 
     Public Function ReadWriteStatusRegisters() As UShort()
         Return ReadRegisters(RegWriteResultStart, 3)

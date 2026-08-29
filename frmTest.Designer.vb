@@ -38,9 +38,6 @@ Partial Class frmTest
         Me.txtMaxV = New System.Windows.Forms.TextBox()
         Me.Label7 = New System.Windows.Forms.Label()
         Me.GroupBox1 = New System.Windows.Forms.GroupBox()
-        Me.grpChannelSelection = New System.Windows.Forms.GroupBox()
-        Me.btnScanTray = New System.Windows.Forms.Button()
-        Me.btn_ZeroAdjustment = New System.Windows.Forms.Button()
         Me.btnStop = New System.Windows.Forms.Button()
         Me.btnNGTest = New System.Windows.Forms.Button()
         Me.CmdStart = New System.Windows.Forms.Button()
@@ -48,10 +45,10 @@ Partial Class frmTest
         Me.Label3 = New System.Windows.Forms.Label()
         Me.Label5 = New System.Windows.Forms.Label()
         Me.Label4 = New System.Windows.Forms.Label()
-        Me.txtDataServer = New System.Windows.Forms.TextBox()
         Me.txtLastNum = New System.Windows.Forms.TextBox()
         Me.txtFirstNum = New System.Windows.Forms.TextBox()
         Me.txtTray = New System.Windows.Forms.TextBox()
+        Me.grpChannelSelection = New System.Windows.Forms.GroupBox()
         Me.btnChannelSelectSingle = New System.Windows.Forms.Button()
         Me.btnChannelRectangle = New System.Windows.Forms.Button()
         Me.btnChannelClear = New System.Windows.Forms.Button()
@@ -62,9 +59,7 @@ Partial Class frmTest
         Me.cmbShow = New System.Windows.Forms.ComboBox()
         Me.Rbtn3 = New System.Windows.Forms.RadioButton()
         Me.Rbtn2 = New System.Windows.Forms.RadioButton()
-        Me.GroupBox4 = New System.Windows.Forms.GroupBox()
         Me.btnClose = New System.Windows.Forms.Button()
-        Me.Button1 = New System.Windows.Forms.Button()
         Me.btnOpen = New System.Windows.Forms.Button()
         Me.btnTrayState = New System.Windows.Forms.Button()
         Me.GroupBox6 = New System.Windows.Forms.GroupBox()
@@ -103,11 +98,12 @@ Partial Class frmTest
         Me.txtTotle = New System.Windows.Forms.TextBox()
         Me.channelGrid = New software.ChannelGridControl()
         Me.statisticsControl = New software.StatisticsControl()
+        Me.Label2 = New System.Windows.Forms.Label()
         CType(Me.Pic_Bat, System.ComponentModel.ISupportInitialize).BeginInit()
         Me.GroupBox3.SuspendLayout()
         Me.GroupBox1.SuspendLayout()
+        Me.grpChannelSelection.SuspendLayout()
         Me.GroupBox2.SuspendLayout()
-        Me.GroupBox4.SuspendLayout()
         Me.GroupBox5.SuspendLayout()
         Me.Panel3.SuspendLayout()
         Me.Panel2.SuspendLayout()
@@ -150,12 +146,12 @@ Partial Class frmTest
         Me.GroupBox3.Controls.Add(Me.txtMinV)
         Me.GroupBox3.Controls.Add(Me.txtMaxV)
         Me.GroupBox3.Controls.Add(Me.Label7)
-        Me.GroupBox3.Location = New System.Drawing.Point(2, 354)
+        Me.GroupBox3.Location = New System.Drawing.Point(2, 279)
         Me.GroupBox3.Name = "GroupBox3"
         Me.GroupBox3.Size = New System.Drawing.Size(306, 89)
         Me.GroupBox3.TabIndex = 49
         Me.GroupBox3.TabStop = False
-        Me.GroupBox3.Text = "合格范围"
+        Me.GroupBox3.Text = "合格范围设置"
         '
         'Label12
         '
@@ -240,68 +236,34 @@ Partial Class frmTest
         'GroupBox1
         '
         Me.GroupBox1.BackColor = System.Drawing.Color.White
-        Me.GroupBox1.Controls.Add(Me.btnScanTray)
-        Me.GroupBox1.Controls.Add(Me.btn_ZeroAdjustment)
+        Me.GroupBox1.Controls.Add(Me.btnClose)
         Me.GroupBox1.Controls.Add(Me.btnStop)
+        Me.GroupBox1.Controls.Add(Me.btnOpen)
         Me.GroupBox1.Controls.Add(Me.btnNGTest)
+        Me.GroupBox1.Controls.Add(Me.btnTrayState)
         Me.GroupBox1.Controls.Add(Me.CmdStart)
         Me.GroupBox1.Controls.Add(Me.lblBarNum)
         Me.GroupBox1.Controls.Add(Me.Label3)
+        Me.GroupBox1.Controls.Add(Me.Label2)
         Me.GroupBox1.Controls.Add(Me.Label5)
         Me.GroupBox1.Controls.Add(Me.Label4)
-        Me.GroupBox1.Controls.Add(Me.txtDataServer)
         Me.GroupBox1.Controls.Add(Me.txtLastNum)
         Me.GroupBox1.Controls.Add(Me.txtFirstNum)
         Me.GroupBox1.Controls.Add(Me.txtTray)
-        Me.GroupBox1.Location = New System.Drawing.Point(2, 58)
+        Me.GroupBox1.Location = New System.Drawing.Point(2, 57)
         Me.GroupBox1.Name = "GroupBox1"
-        Me.GroupBox1.Size = New System.Drawing.Size(306, 190)
+        Me.GroupBox1.Size = New System.Drawing.Size(306, 157)
         Me.GroupBox1.TabIndex = 56
         Me.GroupBox1.TabStop = False
-        Me.GroupBox1.Text = "托盘与电池"
-        '
-        'grpChannelSelection
-        '
-        Me.grpChannelSelection.BackColor = System.Drawing.Color.White
-        Me.grpChannelSelection.Controls.Add(Me.btnChannelSelectSingle)
-        Me.grpChannelSelection.Controls.Add(Me.btnChannelRectangle)
-        Me.grpChannelSelection.Controls.Add(Me.btnChannelClear)
-        Me.grpChannelSelection.Controls.Add(Me.btnChannelSelectAll)
-        Me.grpChannelSelection.Location = New System.Drawing.Point(2, 254)
-        Me.grpChannelSelection.Name = "grpChannelSelection"
-        Me.grpChannelSelection.Size = New System.Drawing.Size(306, 90)
-        Me.grpChannelSelection.TabIndex = 72
-        Me.grpChannelSelection.TabStop = False
-        Me.grpChannelSelection.Text = "通道选择"
-        '
-        'btnScanTray
-        '
-        Me.btnScanTray.FlatStyle = System.Windows.Forms.FlatStyle.System
-        Me.btnScanTray.Location = New System.Drawing.Point(14, 14)
-        Me.btnScanTray.Name = "btnScanTray"
-        Me.btnScanTray.Size = New System.Drawing.Size(65, 23)
-        Me.btnScanTray.TabIndex = 66
-        Me.btnScanTray.Text = "扫码"
-        Me.btnScanTray.UseVisualStyleBackColor = True
-        '
-        'btn_ZeroAdjustment
-        '
-        Me.btn_ZeroAdjustment.BackColor = System.Drawing.SystemColors.ButtonFace
-        Me.btn_ZeroAdjustment.Font = New System.Drawing.Font("宋体", 9.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.btn_ZeroAdjustment.Location = New System.Drawing.Point(151, 142)
-        Me.btn_ZeroAdjustment.Name = "btn_ZeroAdjustment"
-        Me.btn_ZeroAdjustment.Size = New System.Drawing.Size(116, 25)
-        Me.btn_ZeroAdjustment.TabIndex = 65
-        Me.btn_ZeroAdjustment.Text = "仪器调零"
-        Me.btn_ZeroAdjustment.UseVisualStyleBackColor = False
+        Me.GroupBox1.Text = "控制板"
         '
         'btnStop
         '
         Me.btnStop.BackColor = System.Drawing.SystemColors.ButtonFace
         Me.btnStop.Font = New System.Drawing.Font("宋体", 9.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.btnStop.Location = New System.Drawing.Point(151, 116)
+        Me.btnStop.Location = New System.Drawing.Point(101, 74)
         Me.btnStop.Name = "btnStop"
-        Me.btnStop.Size = New System.Drawing.Size(116, 25)
+        Me.btnStop.Size = New System.Drawing.Size(70, 25)
         Me.btnStop.TabIndex = 65
         Me.btnStop.Text = "停止测试"
         Me.btnStop.UseVisualStyleBackColor = False
@@ -310,9 +272,9 @@ Partial Class frmTest
         '
         Me.btnNGTest.BackColor = System.Drawing.SystemColors.ButtonFace
         Me.btnNGTest.Font = New System.Drawing.Font("宋体", 9.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.btnNGTest.Location = New System.Drawing.Point(19, 142)
+        Me.btnNGTest.Location = New System.Drawing.Point(185, 74)
         Me.btnNGTest.Name = "btnNGTest"
-        Me.btnNGTest.Size = New System.Drawing.Size(116, 25)
+        Me.btnNGTest.Size = New System.Drawing.Size(70, 25)
         Me.btnNGTest.TabIndex = 56
         Me.btnNGTest.Text = "NG点测试"
         Me.btnNGTest.UseVisualStyleBackColor = False
@@ -321,9 +283,9 @@ Partial Class frmTest
         '
         Me.CmdStart.BackColor = System.Drawing.SystemColors.ButtonFace
         Me.CmdStart.Font = New System.Drawing.Font("宋体", 9.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.CmdStart.Location = New System.Drawing.Point(20, 116)
+        Me.CmdStart.Location = New System.Drawing.Point(16, 74)
         Me.CmdStart.Name = "CmdStart"
-        Me.CmdStart.Size = New System.Drawing.Size(116, 25)
+        Me.CmdStart.Size = New System.Drawing.Size(70, 25)
         Me.CmdStart.TabIndex = 56
         Me.CmdStart.Text = "启动测试"
         Me.CmdStart.UseVisualStyleBackColor = False
@@ -370,18 +332,6 @@ Partial Class frmTest
         Me.Label4.TextAlign = System.Drawing.ContentAlignment.MiddleRight
         Me.Label4.Visible = False
         '
-        'txtDataServer
-        '
-        Me.txtDataServer.BackColor = System.Drawing.Color.White
-        Me.txtDataServer.Font = New System.Drawing.Font("宋体", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.txtDataServer.ForeColor = System.Drawing.Color.FromArgb(CType(CType(64, Byte), Integer), CType(CType(0, Byte), Integer), CType(CType(0, Byte), Integer))
-        Me.txtDataServer.Location = New System.Drawing.Point(6, 163)
-        Me.txtDataServer.Name = "txtDataServer"
-        Me.txtDataServer.ReadOnly = True
-        Me.txtDataServer.Size = New System.Drawing.Size(13, 21)
-        Me.txtDataServer.TabIndex = 46
-        Me.txtDataServer.Visible = False
-        '
         'txtLastNum
         '
         Me.txtLastNum.BackColor = System.Drawing.Color.White
@@ -411,15 +361,29 @@ Partial Class frmTest
         Me.txtTray.BackColor = System.Drawing.Color.White
         Me.txtTray.Font = New System.Drawing.Font("宋体", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
         Me.txtTray.ForeColor = System.Drawing.Color.FromArgb(CType(CType(64, Byte), Integer), CType(CType(0, Byte), Integer), CType(CType(0, Byte), Integer))
-        Me.txtTray.Location = New System.Drawing.Point(94, 16)
+        Me.txtTray.Location = New System.Drawing.Point(63, 17)
         Me.txtTray.Name = "txtTray"
         Me.txtTray.ReadOnly = True
-        Me.txtTray.Size = New System.Drawing.Size(192, 21)
+        Me.txtTray.Size = New System.Drawing.Size(227, 21)
         Me.txtTray.TabIndex = 44
+        '
+        'grpChannelSelection
+        '
+        Me.grpChannelSelection.BackColor = System.Drawing.Color.White
+        Me.grpChannelSelection.Controls.Add(Me.btnChannelSelectSingle)
+        Me.grpChannelSelection.Controls.Add(Me.btnChannelRectangle)
+        Me.grpChannelSelection.Controls.Add(Me.btnChannelClear)
+        Me.grpChannelSelection.Controls.Add(Me.btnChannelSelectAll)
+        Me.grpChannelSelection.Location = New System.Drawing.Point(2, 220)
+        Me.grpChannelSelection.Name = "grpChannelSelection"
+        Me.grpChannelSelection.Size = New System.Drawing.Size(306, 53)
+        Me.grpChannelSelection.TabIndex = 72
+        Me.grpChannelSelection.TabStop = False
+        Me.grpChannelSelection.Text = "通道选择"
         '
         'btnChannelSelectSingle
         '
-        Me.btnChannelSelectSingle.Location = New System.Drawing.Point(221, 48)
+        Me.btnChannelSelectSingle.Location = New System.Drawing.Point(221, 16)
         Me.btnChannelSelectSingle.Name = "btnChannelSelectSingle"
         Me.btnChannelSelectSingle.Size = New System.Drawing.Size(62, 28)
         Me.btnChannelSelectSingle.TabIndex = 3
@@ -428,7 +392,7 @@ Partial Class frmTest
         '
         'btnChannelRectangle
         '
-        Me.btnChannelRectangle.Location = New System.Drawing.Point(153, 48)
+        Me.btnChannelRectangle.Location = New System.Drawing.Point(153, 16)
         Me.btnChannelRectangle.Name = "btnChannelRectangle"
         Me.btnChannelRectangle.Size = New System.Drawing.Size(62, 28)
         Me.btnChannelRectangle.TabIndex = 2
@@ -437,7 +401,7 @@ Partial Class frmTest
         '
         'btnChannelClear
         '
-        Me.btnChannelClear.Location = New System.Drawing.Point(85, 48)
+        Me.btnChannelClear.Location = New System.Drawing.Point(85, 16)
         Me.btnChannelClear.Name = "btnChannelClear"
         Me.btnChannelClear.Size = New System.Drawing.Size(62, 28)
         Me.btnChannelClear.TabIndex = 1
@@ -446,7 +410,7 @@ Partial Class frmTest
         '
         'btnChannelSelectAll
         '
-        Me.btnChannelSelectAll.Location = New System.Drawing.Point(17, 48)
+        Me.btnChannelSelectAll.Location = New System.Drawing.Point(17, 16)
         Me.btnChannelSelectAll.Name = "btnChannelSelectAll"
         Me.btnChannelSelectAll.Size = New System.Drawing.Size(62, 28)
         Me.btnChannelSelectAll.TabIndex = 0
@@ -527,47 +491,22 @@ Partial Class frmTest
         Me.Rbtn2.Text = "OCV2"
         Me.Rbtn2.UseVisualStyleBackColor = True
         '
-        'GroupBox4
-        '
-        Me.GroupBox4.BackColor = System.Drawing.Color.White
-        Me.GroupBox4.Controls.Add(Me.btnClose)
-        Me.GroupBox4.Controls.Add(Me.Button1)
-        Me.GroupBox4.Controls.Add(Me.btnOpen)
-        Me.GroupBox4.Controls.Add(Me.btnTrayState)
-        Me.GroupBox4.Location = New System.Drawing.Point(2, 667)
-        Me.GroupBox4.Name = "GroupBox4"
-        Me.GroupBox4.Size = New System.Drawing.Size(306, 60)
-        Me.GroupBox4.TabIndex = 59
-        Me.GroupBox4.TabStop = False
-        Me.GroupBox4.Text = "托盘控制"
-        '
         'btnClose
         '
         Me.btnClose.BackColor = System.Drawing.SystemColors.ButtonFace
-        Me.btnClose.Location = New System.Drawing.Point(222, 20)
+        Me.btnClose.Location = New System.Drawing.Point(185, 109)
         Me.btnClose.Name = "btnClose"
-        Me.btnClose.Size = New System.Drawing.Size(65, 28)
+        Me.btnClose.Size = New System.Drawing.Size(70, 25)
         Me.btnClose.TabIndex = 63
         Me.btnClose.Text = "闭合托盘"
         Me.btnClose.UseVisualStyleBackColor = False
         '
-        'Button1
-        '
-        Me.Button1.Font = New System.Drawing.Font("宋体", 9.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.Button1.Location = New System.Drawing.Point(125, 55)
-        Me.Button1.Name = "Button1"
-        Me.Button1.Size = New System.Drawing.Size(68, 31)
-        Me.Button1.TabIndex = 52
-        Me.Button1.Text = "逐个扫描电池条形码"
-        Me.Button1.UseVisualStyleBackColor = True
-        Me.Button1.Visible = False
-        '
         'btnOpen
         '
         Me.btnOpen.BackColor = System.Drawing.SystemColors.ButtonFace
-        Me.btnOpen.Location = New System.Drawing.Point(116, 20)
+        Me.btnOpen.Location = New System.Drawing.Point(102, 109)
         Me.btnOpen.Name = "btnOpen"
-        Me.btnOpen.Size = New System.Drawing.Size(65, 28)
+        Me.btnOpen.Size = New System.Drawing.Size(70, 25)
         Me.btnOpen.TabIndex = 62
         Me.btnOpen.Text = "开启托盘"
         Me.btnOpen.UseVisualStyleBackColor = False
@@ -575,9 +514,9 @@ Partial Class frmTest
         'btnTrayState
         '
         Me.btnTrayState.BackColor = System.Drawing.SystemColors.ButtonFace
-        Me.btnTrayState.Location = New System.Drawing.Point(10, 20)
+        Me.btnTrayState.Location = New System.Drawing.Point(16, 109)
         Me.btnTrayState.Name = "btnTrayState"
-        Me.btnTrayState.Size = New System.Drawing.Size(65, 28)
+        Me.btnTrayState.Size = New System.Drawing.Size(70, 25)
         Me.btnTrayState.TabIndex = 60
         Me.btnTrayState.Text = "托盘状态"
         Me.btnTrayState.UseVisualStyleBackColor = False
@@ -630,7 +569,7 @@ Partial Class frmTest
         Me.GroupBox5.BackColor = System.Drawing.Color.White
         Me.GroupBox5.Controls.Add(Me.Panel3)
         Me.GroupBox5.Controls.Add(Me.Panel2)
-        Me.GroupBox5.Location = New System.Drawing.Point(2, 450)
+        Me.GroupBox5.Location = New System.Drawing.Point(2, 374)
         Me.GroupBox5.Name = "GroupBox5"
         Me.GroupBox5.Size = New System.Drawing.Size(306, 143)
         Me.GroupBox5.TabIndex = 59
@@ -828,11 +767,11 @@ Partial Class frmTest
         '
         Me.GroupBox7.BackColor = System.Drawing.Color.White
         Me.GroupBox7.Controls.Add(Me.txtAlarm)
-        Me.GroupBox7.Location = New System.Drawing.Point(4, 744)
+        Me.GroupBox7.Location = New System.Drawing.Point(2, 585)
         Me.GroupBox7.Margin = New System.Windows.Forms.Padding(2)
         Me.GroupBox7.Name = "GroupBox7"
         Me.GroupBox7.Padding = New System.Windows.Forms.Padding(2)
-        Me.GroupBox7.Size = New System.Drawing.Size(306, 180)
+        Me.GroupBox7.Size = New System.Drawing.Size(306, 123)
         Me.GroupBox7.TabIndex = 64
         Me.GroupBox7.TabStop = False
         Me.GroupBox7.Text = "事件日志"
@@ -844,7 +783,7 @@ Partial Class frmTest
         Me.txtAlarm.Margin = New System.Windows.Forms.Padding(2)
         Me.txtAlarm.Multiline = True
         Me.txtAlarm.Name = "txtAlarm"
-        Me.txtAlarm.Size = New System.Drawing.Size(302, 162)
+        Me.txtAlarm.Size = New System.Drawing.Size(302, 105)
         Me.txtAlarm.TabIndex = 0
         '
         'Button2
@@ -852,7 +791,7 @@ Partial Class frmTest
         Me.Button2.BackColor = System.Drawing.Color.FromArgb(CType(CType(128, Byte), Integer), CType(CType(255, Byte), Integer), CType(CType(255, Byte), Integer))
         Me.Button2.Font = New System.Drawing.Font("微软雅黑", 10.5!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
         Me.Button2.ForeColor = System.Drawing.Color.Black
-        Me.Button2.Location = New System.Drawing.Point(88, 943)
+        Me.Button2.Location = New System.Drawing.Point(95, 713)
         Me.Button2.Name = "Button2"
         Me.Button2.Size = New System.Drawing.Size(133, 42)
         Me.Button2.TabIndex = 1
@@ -870,14 +809,13 @@ Partial Class frmTest
         Me.Panel1.Controls.Add(Me.GroupBox8)
         Me.Panel1.Controls.Add(Me.GroupBox7)
         Me.Panel1.Controls.Add(Me.GroupBox5)
-        Me.Panel1.Controls.Add(Me.GroupBox4)
         Me.Panel1.Controls.Add(Me.GroupBox2)
         Me.Panel1.Controls.Add(Me.GroupBox1)
         Me.Panel1.Controls.Add(Me.grpChannelSelection)
         Me.Panel1.Controls.Add(Me.GroupBox3)
         Me.Panel1.Location = New System.Drawing.Point(12, 12)
         Me.Panel1.Name = "Panel1"
-        Me.Panel1.Size = New System.Drawing.Size(342, 659)
+        Me.Panel1.Size = New System.Drawing.Size(342, 745)
         Me.Panel1.TabIndex = 15
         '
         'GroupBox8
@@ -888,7 +826,7 @@ Partial Class frmTest
         Me.GroupBox8.Controls.Add(Me.Label26)
         Me.GroupBox8.Controls.Add(Me.txtUsed)
         Me.GroupBox8.Controls.Add(Me.txtTotle)
-        Me.GroupBox8.Location = New System.Drawing.Point(2, 602)
+        Me.GroupBox8.Location = New System.Drawing.Point(2, 523)
         Me.GroupBox8.Name = "GroupBox8"
         Me.GroupBox8.Size = New System.Drawing.Size(306, 56)
         Me.GroupBox8.TabIndex = 65
@@ -975,6 +913,16 @@ Partial Class frmTest
         Me.statisticsControl.Size = New System.Drawing.Size(1060, 96)
         Me.statisticsControl.TabIndex = 70
         '
+        'Label2
+        '
+        Me.Label2.Font = New System.Drawing.Font("宋体", 9.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
+        Me.Label2.Location = New System.Drawing.Point(-6, 18)
+        Me.Label2.Name = "Label2"
+        Me.Label2.Size = New System.Drawing.Size(54, 21)
+        Me.Label2.TabIndex = 47
+        Me.Label2.Text = "托盘码"
+        Me.Label2.TextAlign = System.Drawing.ContentAlignment.MiddleRight
+        '
         'frmTest
         '
         Me.AutoScaleDimensions = New System.Drawing.SizeF(6.0!, 12.0!)
@@ -993,9 +941,9 @@ Partial Class frmTest
         Me.GroupBox3.PerformLayout()
         Me.GroupBox1.ResumeLayout(False)
         Me.GroupBox1.PerformLayout()
+        Me.grpChannelSelection.ResumeLayout(False)
         Me.GroupBox2.ResumeLayout(False)
         Me.GroupBox2.PerformLayout()
-        Me.GroupBox4.ResumeLayout(False)
         Me.GroupBox5.ResumeLayout(False)
         Me.Panel3.ResumeLayout(False)
         Me.Panel3.PerformLayout()
@@ -1031,8 +979,6 @@ Partial Class frmTest
     Friend WithEvents btnChannelClear As Button
     Friend WithEvents btnChannelRectangle As Button
     Friend WithEvents btnChannelSelectSingle As Button
-    Friend WithEvents btnScanTray As Button
-    Friend WithEvents btn_ZeroAdjustment As Button
     Friend WithEvents btnStop As Button
     Friend WithEvents btnNGTest As Button
     Friend WithEvents CmdStart As Button
@@ -1048,7 +994,6 @@ Partial Class frmTest
     Friend WithEvents cmbShow As ComboBox
     Friend WithEvents Rbtn3 As RadioButton
     Friend WithEvents Rbtn2 As RadioButton
-    Friend WithEvents GroupBox4 As GroupBox
     Friend WithEvents btnClose As Button
     Friend WithEvents GroupBox6 As GroupBox
     Friend WithEvents btn_ChCalibrate As Button
@@ -1056,7 +1001,6 @@ Partial Class frmTest
     Friend WithEvents txtJiajuR As TextBox
     Friend WithEvents txtCaliR As TextBox
     Friend WithEvents txtTestR As TextBox
-    Friend WithEvents Button1 As Button
     Friend WithEvents btnOpen As Button
     Friend WithEvents btnTrayState As Button
     Friend WithEvents GroupBox5 As GroupBox
@@ -1088,5 +1032,5 @@ Partial Class frmTest
     Friend WithEvents txtUsed As TextBox
     Friend WithEvents txtTotle As TextBox
     Friend WithEvents Label5 As Label
-    Friend WithEvents txtDataServer As TextBox
+    Friend WithEvents Label2 As Label
 End Class
