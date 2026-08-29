@@ -40,6 +40,8 @@ Public Class frmTest
     Private deferredStartupScheduled As Boolean
     Private deferredStartupCompleted As Boolean
     Private firstPaintRecorded As Boolean
+    Private deferredStructuredLayoutTimer As System.Windows.Forms.Timer
+    Private deferredStructuredLayoutStep As Integer
     Private lastTestSelection As TestChannelSelection
     Private currentTestChannels As List(Of Integer)
     Private ReadOnly testingChannelNumbers As New HashSet(Of Integer)()
@@ -188,8 +190,47 @@ Public Class frmTest
 
         '完整样式不属于首屏必要路径，放在首次 Paint 之后执行。
         ApplyFrmTestDeferredVisualStyle()
+        ScheduleDeferredStructuredLayout()
         StartupTiming.Mark("frmTest-deferred-style")
         StartupTiming.Mark("frmTest-deferred-complete")
+    End Sub
+
+    Private Sub ScheduleDeferredStructuredLayout()
+        If responsiveLayout Is Nothing OrElse deferredStructuredLayoutTimer IsNot Nothing Then Return
+
+        deferredStructuredLayoutStep = 0
+        deferredStructuredLayoutTimer = New System.Windows.Forms.Timer()
+        deferredStructuredLayoutTimer.Interval = 250
+        AddHandler deferredStructuredLayoutTimer.Tick, AddressOf DeferredStructuredLayout_Tick
+        deferredStructuredLayoutTimer.Start()
+    End Sub
+
+    Private Sub DeferredStructuredLayout_Tick(ByVal sender As Object, ByVal e As EventArgs)
+        If shutdownPrepared OrElse ApplicationShuttingDown OrElse IsDisposed Then
+            If deferredStructuredLayoutTimer IsNot Nothing Then deferredStructuredLayoutTimer.Stop()
+            Return
+        End If
+        If responsiveLayout Is Nothing Then Return
+
+        Try
+            If deferredStructuredLayoutStep = 0 Then StartupTiming.Mark("frmTest-structured-layout-start")
+            StartupTiming.Mark("frmTest-structured-layout-step-start", deferredStructuredLayoutStep.ToString())
+            Dim completed As Boolean = responsiveLayout.ApplyDeferredStructuredLayoutStep(deferredStructuredLayoutStep)
+            StartupTiming.Mark("frmTest-structured-layout-step-end", deferredStructuredLayoutStep.ToString())
+            If completed Then
+                deferredStructuredLayoutTimer.Stop()
+                If Panel1 IsNot Nothing AndAlso Not Panel1.IsDisposed Then
+                    responsiveLayout.RefreshLeftContent(Panel1)
+                End If
+                StartupTiming.Mark("frmTest-structured-layout-end")
+            Else
+                deferredStructuredLayoutStep += 1
+                deferredStructuredLayoutTimer.Interval = 20
+            End If
+        Catch ex As Exception
+            deferredStructuredLayoutTimer.Stop()
+            System.Diagnostics.Debug.WriteLine("延后结构化布局失败: " & ex.Message)
+        End Try
     End Sub
 
     Private Sub InitializeChannelSelectionControls()
@@ -1889,6 +1930,11 @@ exit_sub:
             timer3.Stop() ' 停止计时器
             timer3.Dispose() ' 释放资源
         End If
+        If deferredStructuredLayoutTimer IsNot Nothing Then
+            deferredStructuredLayoutTimer.Stop()
+            deferredStructuredLayoutTimer.Dispose()
+            deferredStructuredLayoutTimer = Nothing
+        End If
         Timer2.Enabled = False
         Timer1.Enabled = False
     End Sub
@@ -1902,6 +1948,7 @@ exit_sub:
         If Timer1 IsNot Nothing Then Timer1.Stop()
         If Timer2 IsNot Nothing Then Timer2.Stop()
         If Timer4 IsNot Nothing Then Timer4.Stop()
+        If deferredStructuredLayoutTimer IsNot Nothing Then deferredStructuredLayoutTimer.Stop()
         If channelGrid IsNot Nothing Then
             channelGrid.Visible = False
             channelGrid.SuspendLayout()
