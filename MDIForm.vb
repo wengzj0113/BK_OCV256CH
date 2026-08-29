@@ -254,7 +254,9 @@ Public Class MDIForm
 
     Private Sub MDIForm_Layout(ByVal sender As Object, ByVal e As LayoutEventArgs) Handles Me.Layout
         If ApplicationShuttingDown Then Return
-        ApplyMdiClientLayout()
+        'Layout 事件可能在一次 Resize 中连续触发；统一交给防抖计时器，
+        '避免每个中间尺寸都同步重算 MDI 客户区。
+        QueueMdiLayoutSync()
     End Sub
 
     Private Sub MDIForm_Resize(ByVal sender As Object, ByVal e As EventArgs) Handles Me.Resize
@@ -344,13 +346,22 @@ Public Class MDIForm
             "OCV1", _
             If(controlBoardConnected, "已连接", "未连接"), _
             If(plcConnected, "已连接", "未连接"), _
-            If(status_34461 Is Nothing OrElse status_34461.Text = "——", "未连接", "已连接"), _
-            If(Com_3561 Is Nothing OrElse Not Com_3561.IsOpen, "未连接", "已连接"), _
+            If(IsSuccessfulStatus(status_34461, "端口正常", "通讯成功"), "已连接", "未连接"), _
+            If(IsSuccessfulStatus(status_3561, "端口正常", "通讯成功") AndAlso Com_3561 IsNot Nothing AndAlso Com_3561.IsOpen, "已连接", "未连接"), _
             If(databaseConnected, "已连接", "未连接"), _
-            If(StatusMes Is Nothing OrElse StatusMes.Text = "——", "未连接", "已连接"), _
+            If(IsSuccessfulStatus(StatusMes, "连接正常"), "已连接", "未连接"), _
             If(String.IsNullOrWhiteSpace(operatorName), "Admin", operatorName), _
             DateTime.Now)
     End Sub
+
+    Private Shared Function IsSuccessfulStatus(ByVal statusLabel As System.Windows.Forms.ToolStripItem,
+                                                ParamArray successMarkers() As String) As Boolean
+        If statusLabel Is Nothing OrElse String.IsNullOrWhiteSpace(statusLabel.Text) Then Return False
+        For Each marker As String In successMarkers
+            If statusLabel.Text.IndexOf(marker, StringComparison.OrdinalIgnoreCase) >= 0 Then Return True
+        Next
+        Return False
+    End Function
 
     '供启动期后台设备检查完成后刷新底部状态栏。
     Public Sub UpdateBottomStatusForDeviceCheck()

@@ -2231,16 +2231,29 @@ exit_sub:
     End Sub
 
     Public Sub GetCN()
-        g_objCN = New Dictionary(Of String, String)
+        Dim emptyResult As New Dictionary(Of String, String)()
         Try
-            Using service As New OcvDataService()
-                Dim table As DataTable = service.GetGradeSelectableFields()
-                For Each row As DataRow In table.Rows
-                    g_objCN.Add(Convert.ToString(row("FieldName")), Convert.ToString(row("DisplayName")))
-                Next
-            End Using
+            '连接和查询各自有超时设置；这里再给整个操作一个统一的 3 秒预算，
+            '避免两段超时叠加后拖住后台初始化线程。
+            Dim loadTask As System.Threading.Tasks.Task(Of Dictionary(Of String, String)) =
+                System.Threading.Tasks.Task.Run(Function()
+                                                    Dim result As New Dictionary(Of String, String)()
+                                                    Using service As New OcvDataService()
+                                                        Dim table As DataTable = service.GetGradeSelectableFields()
+                                                        For Each row As DataRow In table.Rows
+                                                            result(Convert.ToString(row("FieldName"))) = Convert.ToString(row("DisplayName"))
+                                                        Next
+                                                    End Using
+                                                    Return result
+                                                End Function)
+            If loadTask.Wait(3000) AndAlso loadTask.Status = System.Threading.Tasks.TaskStatus.RanToCompletion Then
+                g_objCN = loadTask.Result
+            Else
+                g_objCN = emptyResult
+            End If
         Catch ex As Exception
             'OCV_DATA 不可用时,g_objCN 为空字典
+            g_objCN = emptyResult
         End Try
     End Sub
     Function ScanBarCode() As String
