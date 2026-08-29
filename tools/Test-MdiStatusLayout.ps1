@@ -13,16 +13,12 @@ if (-not $method.Success) {
 }
 $body = $method.Value
 
-if ($body -notmatch 'mdiClient\.Dock\s*=\s*DockStyle\.None') {
-    throw 'ApplyMdiClientLayout must take explicit ownership of the MDI client bounds.'
+if ($body -notmatch 'mdiClient\.Dock\s*=\s*DockStyle\.Fill') {
+    throw 'MDI client must fill the naturally calculated area left by the menu and status bar.'
 }
 
-if ($body -notmatch 'mdiClient\.SetBounds\(target\.X') {
-    throw 'ApplyMdiClientLayout must set the MDI client bounds after the menu and status controls are laid out.'
+if ($body -match 'mdiClient\.Dock\s*=\s*DockStyle\.None|mdiClient\.SetBounds') {
+    throw 'MDI client must not use cached manual bounds.'
 }
 
-if ($body -notmatch 'MenuStrip\.Bottom' -or $body -notmatch 'bottomStatusControl\.Top') {
-    throw 'MDI client bounds must be derived from the actual menu bottom and status bar top.'
-}
-
-Write-Output 'PASS: MdiClient is explicitly bounded between menu bottom and status top.'
+Write-Output 'PASS: MdiClient uses Dock=Fill and leaves menu/status space to WinForms.'

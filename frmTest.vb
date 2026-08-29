@@ -2384,6 +2384,7 @@ exit_sub:
     ''' </summary>
     Private Sub ApplyFrmTestVisualStyle()
         ApplyFrmTestEssentialLayout()
+        If responsiveLayout IsNot Nothing Then responsiveLayout.ApplyDeferredStructuredLayouts()
         ApplyFrmTestDeferredVisualStyle()
     End Sub
 

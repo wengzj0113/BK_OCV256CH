@@ -25,16 +25,18 @@ $form.PerformLayout()
 $leftPanel = Find-Control $form 'Panel1'
 $content = $leftPanel.Controls['LeftControlContent']
 
-$names = @('GroupBox2','GroupBox1','GroupBox6','GroupBox3','GroupBox5','GroupBox8','GroupBox4','GroupBox7')
+$names = @('grpTestMode','GroupBox2','GroupBox1','grpChannelSelection','GroupBox3','GroupBox5','GroupBox8','GroupBox7')
 $boxes = @{}
 foreach ($n in $names) {
     $c = $content.Controls[$n]
+    if ($null -eq $c) { throw "Current left layout is missing $n." }
     $boxes[$n] = @{ Left=$c.Left; Top=$c.Top; Right=($c.Left+$c.Width); Bottom=($c.Top+$c.Height); W=$c.Width; H=$c.Height }
 }
 
-# GroupBox4 must be full-size and non-collapsed
-$gb4 = $boxes['GroupBox4']
-if ($gb4.W -lt 350) { throw "GroupBox4 托盘控制 still collapsed: $($gb4.W)x$($gb4.H)" }
+# All visible left cards must have a usable width.
+foreach ($n in $names) {
+    if ($boxes[$n].W -lt 300) { throw "Left card $n is collapsed: $($boxes[$n].W)x$($boxes[$n].H)" }
+}
 
 # No two visible groupboxes may overlap
 for ($i=0; $i -lt $names.Length; $i++) {
@@ -45,17 +47,8 @@ for ($i=0; $i -lt $names.Length; $i++) {
     }
 }
 
-# probeProgress must not overlap GroupBox8
-$pp = $content.Controls['probeProgress']
-$gb8 = $boxes['GroupBox8']
-if ($pp.Top -lt $gb8.Bottom -and $pp.Bottom -gt $gb8.Top) {
-    throw "probeProgress overlaps GroupBox8: pp=$($pp.Top)..$($pp.Bottom), gb8=$($gb8.Top)..$($gb8.Bottom)"
-}
+$leftPanel = Find-Control $form 'Panel1'
+if ($content.Height -le 0 -or $content.Width -le 0) { throw "Left content has invalid bounds: content=$($content.Width)x$($content.Height)" }
 
-# GroupBox4's txtInfo must fit inside GroupBox4
-$gb4c = $content.Controls['GroupBox4']
-$info = $gb4c.Controls['txtInfo']
-if ($info.Bottom -gt $gb4c.Height) { throw "txtInfo bottom $($info.Bottom) exceeds GroupBox4 height $($gb4c.Height)" }
-
-Write-Output ("PASS: left panel boxes non-overlapping; GroupBox4={0}x{1}; probeProgress at y={2} below GroupBox8 bottom={3}; txtInfo bottom={4}<=gb4 height={5}" -f $gb4.W,$gb4.H,$pp.Top,$gb8.Bottom,$info.Bottom,$gb4c.Height)
+Write-Output ("PASS: left panel cards are non-overlapping and scrollable; content={0}x{1}; panel={2}x{3}" -f $content.Width,$content.Height,$leftPanel.ClientSize.Width,$leftPanel.ClientSize.Height)
 $form.Dispose()

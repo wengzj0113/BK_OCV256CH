@@ -8,11 +8,11 @@ $method = [regex]::Match($source, 'Private Sub ApplyMdiClientLayout\(\).*?\n    
 if (-not $method.Success) { throw 'ApplyMdiClientLayout method body not found.' }
 $body = $method.Value
 
-if ($body -notmatch 'Dim top As Integer\s*=\s*Math\.Max\(0,\s*MenuStrip\.Bottom\)') {
-    throw 'Initial MDI layout does not explicitly start below the menu bar.'
+if ($body -notmatch 'mdiClient\.Dock\s*=\s*DockStyle\.Fill') {
+    throw 'Initial MDI layout must let MdiClient fill the naturally calculated client area.'
 }
-if ($body -notmatch 'Dim bottom As Integer\s*=\s*Math\.Min\(ClientSize\.Height,\s*bottomStatusControl\.Top\)') {
-    throw 'Initial MDI layout does not explicitly end above the bottom status bar.'
+if ($body -match 'mdiClient\.Dock\s*=\s*DockStyle\.None|mdiClient\.SetBounds') {
+    throw 'Initial MDI layout must not cache manual MdiClient bounds.'
 }
 
-Write-Host 'PASS: initial MDI layout is bounded between the menu and bottom status bar.'
+Write-Host 'PASS: initial MDI layout uses Dock=Fill between the menu and bottom status bar.'
