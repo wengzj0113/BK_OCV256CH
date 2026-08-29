@@ -455,6 +455,8 @@
     </Compile>
     <Compile Include="Heartbeat.vb" />
     <Compile Include="Keysight34461ACtrl.vb" />
+    <Compile Include="StartupTiming.vb" />
+    <Compile Include="StartupDeviceService.vb" />
     <Compile Include="MDIForm.Designer.vb">
       <DependentUpon>MDIForm.vb</DependentUpon>
     </Compile>

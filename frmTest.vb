@@ -37,6 +37,9 @@ Public Class frmTest
     Private chkAutoTest As CheckBox
     Private chkManualTest As CheckBox
     Private modeChangeInProgress As Boolean
+    Private deferredStartupScheduled As Boolean
+    Private deferredStartupCompleted As Boolean
+    Private firstPaintRecorded As Boolean
     Private lastTestSelection As TestChannelSelection
     Private currentTestChannels As List(Of Integer)
     Private ReadOnly testingChannelNumbers As New HashSet(Of Integer)()
@@ -69,11 +72,15 @@ Public Class frmTest
     End Property
 
     Private Sub frmTest_Load(ByVal sender As Object, ByVal e As System.EventArgs) Handles MyBase.Load
+        StartupTiming.Mark("frmTest-load-begin")
         InitializeChannelSelectionControls()
+        StartupTiming.Mark("frmTest-selection-controls")
         'R2-18:提前标记已加载完成,确保 frmTest_Resize 的布局调整始终执行
         '       (若 myConnection 未打开,后面 Exit Sub 会提前返回,原 _isLoaded=True 在末尾无法执行)
         _isLoaded = True
-        ApplyFrmTestVisualStyle()
+        '首屏只建立必要容器和尺寸，完整样式延后到第一次 Paint 之后。
+        ApplyFrmTestEssentialLayout()
+        StartupTiming.Mark("frmTest-essential-layout")
         '*******************************
         '显示相关信息
         '数据服务器字段已从主测试页移除。
@@ -85,32 +92,26 @@ Public Class frmTest
         txtMinR.Text = Initsetting.downResistance
         '**************************************
         ReadInitFile()
+        StartupTiming.Mark("frmTest-read-init")
         ConfigureStationControls()
+        StartupTiming.Mark("frmTest-station-controls")
         '探针相关
         txtTotle.Text = Initsetting.Probelifespan.ToString
         txtUsed.Text = Initsetting.ProbeUsedCount.ToString
         txtRemain.Text = (Initsetting.Probelifespan - Initsetting.ProbeUsedCount).ToString
-        timer3.Interval = 1000
-        timer3.Start()
-        Timer4.Start()
         '设置ocv次数确认标志初始值为false，表示一次都没有跟客户确认过。
         isAskOcvNum = False
 
-        '分档字段查询保留在后台，不阻塞窗体消息循环。
-        System.Threading.ThreadPool.QueueUserWorkItem(Sub()
-                                                          Try
-                                                              GetCN()
-                                                          Catch ex As Exception
-                                                              System.Diagnostics.Debug.WriteLine("后台加载分档字段失败: " & ex.Message)
-                                                          End Try
-                                                      End Sub)
-
+        StartupTiming.Mark("frmTest-combo-begin")
         For index = 1 To MAX_CHANNEL
             cmb_ChSelect.Items.Add(index)
         Next
         cmb_ChSelect.SelectedIndex = 0
+        StartupTiming.Mark("frmTest-channel-combo")
         '读取校准值数组
+        StartupTiming.Mark("frmTest-calibration-begin")
         Call CalibrateOperate()
+        StartupTiming.Mark("frmTest-calibration")
         '初始化校准值数组
         ReDim calibrateValueArray(255)
         For i As Integer = 0 To MAX_CHANNEL - 1
@@ -122,8 +123,11 @@ Public Class frmTest
         If Pic_Bat IsNot Nothing AndAlso Pic_Bat.Visible Then
             FreshBat(0, 0, intNumber, RecieveData, 1)
         End If
+        StartupTiming.Mark("frmTest-overview-begin")
         RefreshChannelOverview()
+        StartupTiming.Mark("frmTest-channel-overview")
         channelGrid.SelectAll()
+        StartupTiming.Mark("frmTest-selection-all")
         '****************************
         LabelAlarm.Visible = False
         LabelRun.Visible = True
@@ -134,6 +138,7 @@ Public Class frmTest
         CmdStart.Enabled = True
         smokeAlarm1.BackColor = Color.Green
         smokeAlarm2.BackColor = Color.Green
+        StartupTiming.Mark("frmTest-initial-ui")
         ''启动mes
         'FrmMesTask.ShowDialog()
         ''FrmMesTask.Activate()
@@ -142,8 +147,49 @@ Public Class frmTest
         'Timer1.Start()
         '加载完成后才允许 Resize 触发的重绘，避免初始化阶段空引用。
         _isLoaded = True
+        StartupTiming.Mark("frmTest-load-end")
         '布局稳定后强制左侧滚动区回到顶部,保证首屏从工位选择/托盘信息开始
         Me.BeginInvoke(New MethodInvoker(AddressOf ResetLeftPanelScroll))
+    End Sub
+
+    Private Sub frmTest_Paint(ByVal sender As Object, ByVal e As PaintEventArgs) Handles MyBase.Paint
+        If firstPaintRecorded Then Return
+        firstPaintRecorded = True
+        StartupTiming.Mark("frmTest-first-paint")
+
+        If deferredStartupScheduled OrElse Not IsHandleCreated Then Return
+        deferredStartupScheduled = True
+        BeginInvoke(New MethodInvoker(AddressOf StartDeferredStartupWork))
+    End Sub
+
+    Private Sub StartDeferredStartupWork()
+        If deferredStartupCompleted OrElse ApplicationShuttingDown OrElse IsDisposed Then Return
+        deferredStartupCompleted = True
+        StartupTiming.Mark("frmTest-deferred-start")
+
+        '先启动后台工作，所有连接、查询和轮询都不能阻塞首屏。
+        If frmMDI IsNot Nothing AndAlso Not frmMDI.IsDisposed Then
+            MainwindowsShowAsync(frmMDI)
+            frmMDI.StartDatabaseHealthCheckAsync()
+        End If
+
+        System.Threading.ThreadPool.QueueUserWorkItem(Sub()
+                                                          If ApplicationShuttingDown Then Return
+                                                          Try
+                                                              GetCN()
+                                                          Catch ex As Exception
+                                                              System.Diagnostics.Debug.WriteLine("后台加载分档字段失败: " & ex.Message)
+                                                          End Try
+                                                      End Sub)
+
+        timer3.Interval = 1000
+        timer3.Start()
+        Timer4.Start()
+
+        '完整样式不属于首屏必要路径，放在首次 Paint 之后执行。
+        ApplyFrmTestDeferredVisualStyle()
+        StartupTiming.Mark("frmTest-deferred-style")
+        StartupTiming.Mark("frmTest-deferred-complete")
     End Sub
 
     Private Sub InitializeChannelSelectionControls()
@@ -2347,13 +2393,14 @@ exit_sub:
 
         SuspendLayout()
         Try
-            '左侧栏由布局容器管理，保留 WinForms 的正常字体/DPI 缩放。
-            Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
-            Me.Font = UiTheme.UiFont
+            '首屏不切换窗体字体/AutoScaleMode，避免设计器控件整体重新缩放。
+            StartupTiming.Mark("frmTest-essential-before-controls")
             EnsureTestModeControls()
             ConfigureCompactLeftControls()
+            StartupTiming.Mark("frmTest-essential-before-responsive")
             If responsiveLayout Is Nothing Then responsiveLayout = New ResponsiveTestLayout()
-            responsiveLayout.Apply(Me, Panel1, statisticsControl, channelGrid, Pic_Bat)
+            responsiveLayout.Apply(Me, Panel1, statisticsControl, channelGrid, Pic_Bat, False)
+            StartupTiming.Mark("frmTest-essential-after-responsive")
         Finally
             ResumeLayout(False)
         End Try
@@ -2365,6 +2412,8 @@ exit_sub:
 
         SuspendLayout()
         Try
+            '结构化左侧布局不加入首屏后的同步工作，避免首次显示后再次长时间占用 UI 线程。
+            '首屏先沿用设计器控件布局；后续 Resize/布局刷新时再由 ResponsiveTestLayout 处理。
             Me.BackColor = UiTheme.PageBackground
             Me.DoubleBuffered = True
             Panel1.BackColor = UiTheme.PageBackground

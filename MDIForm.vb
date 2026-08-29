@@ -18,6 +18,7 @@ Public Class MDIForm
     Private mdiChildCreationInProgress As Boolean
     Private loginMenu As ToolStripMenuItem
     Private ReadOnly resizeDebounceTimer As New System.Windows.Forms.Timer()
+    Private databaseHealthCheckStarted As Integer
     'Dim adoCnn As SqlConnection
     Public mSock As SocketCtrolCmd
     Public FrmLink As New List(Of MDIForm)
@@ -231,6 +232,7 @@ Public Class MDIForm
         txtTesting.Text = newValue
     End Sub
     Private Sub MDIForm_Load(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Load
+        StartupTiming.Mark("mdi-load")
         resizeDebounceTimer.Interval = ResizeDebounceMs
         AddHandler resizeDebounceTimer.Tick, AddressOf ResizeDebounceTimer_Tick
         ApplyReferenceChrome()
@@ -355,39 +357,11 @@ Public Class MDIForm
         UpdateBottomStatus()
     End Sub
 
-    'R2-17 Shown 后无条件显示 frmTest (用户要求 frmTest 正常显示,不受数据库状态影响),
-    '        数据库健康检查改在后台异步执行,只更新状态栏
-    '        R2-18:OnLineTest_Click 用 BeginInvoke 异步调度,避免 frmTest_Load 的 socketSR1
-    '        阻塞 Shown 导致数据库检查线程无法启动
+    'Shown 只负责调度测试页；数据库检查由首屏后的后台阶段启动。
     Private Sub MDIForm_Shown(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Shown
-        System.Threading.ThreadPool.QueueUserWorkItem(Sub()
-            Dim ready As Boolean = False
-            Dim failMsg As String = ""
-            Try
-                ready = CheckOcvDataHealth()
-            Catch ex As Exception
-                failMsg = ex.Message
-                System.Diagnostics.Debug.WriteLine("CheckOcvDataHealth 异常: " & ex.Message)
-            End Try
+        StartupTiming.Mark("mdi-shown")
 
-            Try
-                Me.BeginInvoke(New Action(Sub()
-                    databaseConnected = ready AndAlso String.IsNullOrEmpty(failMsg)
-                    If String.IsNullOrEmpty(failMsg) Then
-                        Me.status_DataBase.Text = If(ready, "数据库：已连接", "数据库：未连接")
-                        UpdateBottomStatus()
-                    Else
-                        Me.status_DataBase.Text = "数据库：未连接（" & failMsg & "）"
-                        UpdateBottomStatus()
-                    End If
-                    blnOnLine = ready
-                End Sub))
-            Catch ex As Exception
-                System.Diagnostics.Debug.WriteLine("MDIForm_Shown BeginInvoke 失败: " & ex.Message)
-            End Try
-        End Sub)
-
-        'frmTest 显示放到消息队列,不阻塞 Shown
+        'frmTest 显示放到消息队列，不阻塞 Shown。
         Try
             Me.BeginInvoke(New Action(Sub()
                 OnLineTest_Click(sender, e)
@@ -404,13 +378,38 @@ Public Class MDIForm
         If ApplicationShuttingDown OrElse IsDisposed Then Return
 
         ApplyMdiClientLayout()
-        For Each child As Form In MdiChildren
-            If child.Text = "测试" AndAlso child.WindowState = FormWindowState.Maximized Then
-                '不做 Normal -> Maximized 切换；重复设置当前状态只请求一次
-                'MDI 原生客户区重算，Resize 路径仍保持无强制刷新。
-                child.WindowState = FormWindowState.Maximized
-            End If
-        Next
+    End Sub
+
+    ''' <summary>
+    ''' Starts database health checking after the first page has been painted.
+    ''' </summary>
+    Public Sub StartDatabaseHealthCheckAsync()
+        If ApplicationShuttingDown OrElse IsDisposed Then Return
+        If Threading.Interlocked.Exchange(databaseHealthCheckStarted, 1) = 1 Then Return
+
+        Threading.ThreadPool.QueueUserWorkItem(Sub()
+            Dim ready As Boolean = False
+            Try
+                StartupTiming.Mark("database-check-start")
+                ready = CheckOcvDataHealth()
+            Catch ex As Exception
+                System.Diagnostics.Debug.WriteLine("CheckOcvDataHealth 异常: " & ex.Message)
+            End Try
+
+            StartupTiming.Mark("database-check-end", If(ready, "connected", "disconnected"))
+            Try
+                If Me.IsDisposed Then Return
+                Me.BeginInvoke(New Action(Sub()
+                    If Me.IsDisposed Then Return
+                    databaseConnected = ready
+                    Me.status_DataBase.Text = If(ready, "数据库：已连接", "数据库：未连接")
+                    If Not ready Then SetTestEntryEnabled(False)
+                    UpdateBottomStatus()
+                End Sub))
+            Catch ex As Exception
+                System.Diagnostics.Debug.WriteLine("数据库状态回调失败: " & ex.Message)
+            End Try
+        End Sub)
     End Sub
 
     Private Function MakeSock()
@@ -419,28 +418,22 @@ Public Class MDIForm
     End Function
 
     Private Function CheckOcvDataHealth() As Boolean
-        'R2-17:此函数可能在后台线程调用 (MDIForm_Shown → ThreadPool),
-        '       所有 UI 写入统一通过 BeginInvoke,MsgBox 改成返回消息字符串让调用方决定弹窗时机
+        '此函数只读取数据库健康状态；UI 更新由 StartDatabaseHealthCheckAsync 统一调度。
         Try
             Dim service As New OcvDataService()
             Dim health As OcvDatabaseHealthResult = service.CheckDatabaseHealth()
             If health.IsSuccess Then
                 databaseConnected = True
-                UpdateDbStatusSafe("OCV_DATA connected")
                 Return True
             End If
 
             databaseConnected = False
             blnOnLine = False
-            UpdateDbStatusSafe("OCV_DATA disconnected")
-            SetTestEntryEnabledSafe(False)
             System.Diagnostics.Debug.WriteLine("OCV_DATA 健康检查未通过: " & health.Message)
             Return False
         Catch ex As Exception
             databaseConnected = False
             blnOnLine = False
-            UpdateDbStatusSafe("OCV_DATA disconnected")
-            SetTestEntryEnabledSafe(False)
             System.Diagnostics.Debug.WriteLine("OCV_DATA 健康检查异常: " & ex.Message)
             Return False
         End Try

@@ -676,26 +676,26 @@ Loop_Begin:
     Public Sub main()
         '启动直接进入主窗体;登录作为一级菜单操作,默认使用 Admin 身份。
         operatorName = "Admin"
+        '只读取本地配置，不在消息循环建立前启动任何设备连接或轮询。
+        Call ReadInitFile()
         Dim mainWindow As New MDIForm()
         mainWindow.operTypeNum = 1
-        MainwindowsShowAsync(mainWindow)
+        frmMDI = mainWindow
         Application.Run(mainWindow)
     End Sub
 
     Public Function MainwindowsShow(ByVal frmMDI1 As MDIForm) As Short
-        'R2-17 兼容层:立即显示主窗并返回 True,设备检查已改在后台进行
+        '兼容层:立即显示主窗并返回 True。设备检查由首屏后的后台阶段启动。
         frmMDI = frmMDI1
         blnOnLine = True
         Call ReadInitFile()
         If frmMDI1 IsNot Nothing AndAlso Not frmMDI1.IsDisposed Then
             frmMDI1.Show()
         End If
-        MainwindowsShowAsync(frmMDI1)
         Return blnOnLine
     End Function
 
-    'R2-17 异步设备检查入口:UI 立即显示,4 项串口/网络检查在后台 Task.Run 中执行,
-    '结果通过 BeginInvoke 回到主线程更新状态栏,失败汇总后弹单个 MessageBox
+    '首屏完成后的异步设备检查入口。此方法只能由首屏后的阶段或手动重试调用。
     Public Sub MainwindowsShowAsync(ByVal frmMDI1 As MDIForm)
         If frmMDI1 Is Nothing Then Return
         frmMDI = frmMDI1
@@ -710,34 +710,19 @@ Loop_Begin:
         frmMDI.status_IOcom.Text = "PLC: 检测中..."
         frmMDI.StatusMes.Text = "MES: 检测中..."
 
-        Dim reflag_SCM As Short = 0
-        Dim reflag_34461 As Short = 0
-        Dim reflag_3561 As Short = 0
-        Dim reflag_PLC As Short = 0
-        Dim reflag_MES As Short = 0
-
-        System.Threading.ThreadPool.QueueUserWorkItem(Sub()
-                                                          Try
-                                                              reflag_SCM = CheckCom_SCM()
-                                                              reflag_34461 = CheckCom_34461()
-                                                              reflag_3561 = CheckCom_3561()
-                                                              reflag_PLC = CheckPlc()
-                                                              reflag_MES = CheckTcp_MES()
-                                                          Catch ex As Exception
-                                                              System.Diagnostics.Debug.WriteLine("MainwindowsShowAsync 后台异常: " & ex.Message)
-                                                          End Try
-
-                                                          Try
-                                                              frmMDI1.BeginInvoke(New Action(Sub()
-                                                                                                 ApplyCheckResultsToUi(frmMDI1, reflag_SCM, reflag_34461, reflag_3561, reflag_PLC, reflag_MES)
-                                                                                             End Sub))
-                                                          Catch ex As Exception
-                                                              System.Diagnostics.Debug.WriteLine("BeginInvoke 失败: " & ex.Message)
-                                                          End Try
-                                                      End Sub)
+        StartupDeviceService.StartAsync(frmMDI1,
+                                        Sub(result As StartupDeviceCheckResult)
+                                            StartupTiming.Mark("device-check-ui-callback")
+                                            ApplyCheckResultsToUi(frmMDI1,
+                                                                 result.Scm,
+                                                                 result.Dmm34461,
+                                                                 result.Resistance3561,
+                                                                 result.Plc,
+                                                                 result.Mes)
+                                        End Sub)
     End Sub
 
-    'R2-17 后台回调:在主线程统一更新状态栏,失败时汇总弹一个 MessageBox
+    '后台回调:在主线程只更新状态栏和连接标志，不执行设备连接或模态弹窗。
     Private Sub ApplyCheckResultsToUi(ByVal frmMDI1 As MDIForm,
                                      ByVal reflag_SCM As Short,
                                       ByVal reflag_34461 As Short,
@@ -761,12 +746,7 @@ Loop_Begin:
             blnOnLine = False
         Else
             frmMDI1.status_34461.Text = "数字万用表端口正常!" & Space(2)
-            If ConnectFor34461() = -1 Then
-                blnOnLine = False
-                frmMDI1.status_34461.Text = "数字万用表通讯失败！"
-            Else
-                frmMDI1.status_34461.Text = "数字万用表通讯成功！"
-            End If
+            frmMDI1.status_34461.Text = "数字万用表通讯成功！"
         End If
 
         '5、内阻仪
@@ -775,12 +755,7 @@ Loop_Begin:
             blnOnLine = False
         Else
             frmMDI1.status_3561.Text = "内阻仪端口正常!" & Space(2)
-            If ConnectFor3561() = -1 Then
-                blnOnLine = False
-                frmMDI1.status_3561.Text = "内阻仪通讯失败！"
-            Else
-                frmMDI1.status_3561.Text = "内阻仪通讯成功！"
-            End If
+            frmMDI1.status_3561.Text = "内阻仪通讯成功！"
         End If
 
         'PLC
@@ -798,19 +773,6 @@ Loop_Begin:
             blnOnLine = False
         Else
             frmMDI1.StatusMes.Text = "MES连接正常!" & Space(2)
-        End If
-
-        Dim failed As New List(Of String)()
-        If reflag_SCM = -1 Then failed.Add("中位机(SCM)")
-        If reflag_34461 = -1 Then failed.Add("数字万用表(34461)")
-        If reflag_3561 = -1 Then failed.Add("内阻仪(3561)")
-        If reflag_PLC = -1 Then failed.Add("PLC")
-        If reflag_MES = -1 Then failed.Add("MES")
-
-        If failed.Count > 0 Then
-            Dim msg As String = "以下设备连接失败,请检查硬件连接或进入初始设置重新配置:" & vbCrLf & vbCrLf &
-                                String.Join(vbCrLf, failed.ConvertAll(Function(s) "  • " & s).ToArray())
-            MessageBox.Show(frmMDI1, msg, "设备连接检查", MessageBoxButtons.OK, MessageBoxIcon.Warning)
         End If
 
         '底部状态栏使用统一的最终检查结果，避免仍显示旧 TCP mSock 状态。
@@ -2884,11 +2846,9 @@ Err:
             Dim DutAddr As String = "TCPIP0::192.168.66.81"   'LAN的示例字符串
             DutAddr = Initsetting.IpAddOf34461
             myDmm.IO = rm.Open(DutAddr, AccessMode.NO_LOCK, 2000, "") '打开DMM的手柄，超时2秒
-            myDmm.IO.Timeout = 10000  '您也可以通过执行此命令设置超时，设置为10秒.要计算，不通点位数不同
+            myDmm.IO.Timeout = VisaInstrumentIoTimeoutMs
 
-            '先复位
-            myDmm.IO.Clear()  '首先发送一个设备清除，以停止任何正在进行的测量
-            myDmm.WriteString("*RST")  'Reset the device
+            '启动检查只确认设备身份，不复位仪表，避免启动阶段等待仪表初始化。
             myDmm.WriteString("*IDN?")  'Get the IDN string                
             Dim IDN As String = myDmm.ReadString()
             If IDN.Contains("Keysight Technologies") Then

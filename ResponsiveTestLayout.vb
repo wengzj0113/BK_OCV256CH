@@ -13,6 +13,7 @@ Public NotInheritable Class ResponsiveTestLayout
     Private rootLayout As TableLayoutPanel
     Private rightLayout As TableLayoutPanel
     Private leftContentPanel As TableLayoutPanel
+    Private structuredLayoutsBuilt As Boolean
 
     Public ReadOnly Property Root As TableLayoutPanel
         Get
@@ -24,7 +25,8 @@ Public NotInheritable Class ResponsiveTestLayout
                      ByVal leftPanel As Panel,
                      ByVal statistics As Control,
                      ByVal channelGrid As Control,
-                     ByVal legacyPicture As Control)
+                     ByVal legacyPicture As Control,
+                     Optional ByVal buildStructuredLayouts As Boolean = True)
         If host Is Nothing OrElse leftPanel Is Nothing OrElse statistics Is Nothing OrElse channelGrid Is Nothing Then Return
 
         Dim firstApply As Boolean = (rootLayout Is Nothing)
@@ -52,7 +54,7 @@ Public NotInheritable Class ResponsiveTestLayout
                 leftPanel.AutoScroll = True
                 leftPanel.HorizontalScroll.Enabled = True
                 leftPanel.VerticalScroll.Enabled = True
-                PrepareScrollableLeftPanel(leftPanel)
+                PrepareScrollableLeftPanel(leftPanel, buildStructuredLayouts)
 
                 statistics.Dock = DockStyle.Fill
                 statistics.AutoSize = False
@@ -82,9 +84,21 @@ Public NotInheritable Class ResponsiveTestLayout
             rootLayout.MinimumSize = New Size(0, 0)
             rightLayout.AutoSize = False
             rightLayout.MinimumSize = New Size(0, 0)
-            rootLayout.PerformLayout()
-            ResizeLeftContent(leftPanel)
+            '容器在 ResumeLayout(False) 后会由宿主自然完成首屏布局；
+            '左侧内容高度和滚动宽度在首次 Paint 后统一刷新，避免首屏重复重排。
         End If
+    End Sub
+
+    Public Sub ApplyDeferredStructuredLayouts()
+        If structuredLayoutsBuilt OrElse leftContentPanel Is Nothing Then Return
+
+        leftContentPanel.SuspendLayout()
+        Try
+            BuildStructuredSectionLayouts()
+            structuredLayoutsBuilt = True
+        Finally
+            leftContentPanel.ResumeLayout(False)
+        End Try
     End Sub
 
     Public Sub RefreshLeftContent(ByVal leftPanel As Panel)
@@ -125,7 +139,8 @@ Public NotInheritable Class ResponsiveTestLayout
         Return contentHeight
     End Function
 
-    Private Sub PrepareScrollableLeftPanel(ByVal leftPanel As Panel)
+    Private Sub PrepareScrollableLeftPanel(ByVal leftPanel As Panel,
+                                           ByVal buildStructuredLayouts As Boolean)
         leftContentPanel = New TableLayoutPanel With {
             .Name = "LeftControlContent",
             .Location = New Point(0, 0),
@@ -171,7 +186,10 @@ Public NotInheritable Class ResponsiveTestLayout
             Next
             leftPanel.Controls.Add(leftContentPanel)
             leftContentPanel.BringToFront()
-            BuildStructuredSectionLayouts()
+            If buildStructuredLayouts Then
+                BuildStructuredSectionLayouts()
+                structuredLayoutsBuilt = True
+            End If
         Finally
             leftContentPanel.ResumeLayout(False)
             leftPanel.ResumeLayout(False)

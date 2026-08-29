@@ -7,6 +7,7 @@ $frmTest = Get-Content -Raw -LiteralPath (Join-Path $root 'frmTest.vb')
 $responsive = Get-Content -Raw -LiteralPath (Join-Path $root 'ResponsiveTestLayout.vb')
 $grid = Get-Content -Raw -LiteralPath (Join-Path $root 'ChannelGridControl.vb')
 $dataService = Get-Content -Raw -LiteralPath (Join-Path $root 'OcvDataService.vb')
+$deviceService = Get-Content -Raw -LiteralPath (Join-Path $root 'StartupDeviceService.vb')
 
 function Assert-Contains([string]$source, [string]$pattern, [string]$message) {
     if ($source -notmatch $pattern) { throw $message }
@@ -33,9 +34,9 @@ Assert-NotContains $checkResultsMethod 'ConnectFor34461\s*\(' 'Device result UI 
 Assert-NotContains $checkResultsMethod 'ConnectFor3561\s*\(' 'Device result UI callback must not reconnect the 3561 on the UI thread.'
 Assert-NotContains $checkResultsMethod 'MessageBox\.Show|MsgBox\s*\(' 'Startup device result callback must not show a modal dialog.'
 
-Assert-Contains $module 'DeviceStartupCheck' 'Startup device checks must be owned by a background device service/task.'
-Assert-Contains $module 'ThreadPool\.QueueUserWorkItem\([\s\S]*?DeviceStartupCheck' 'Startup device checks must be queued away from the UI thread.'
-Assert-Contains $module 'StartupDeviceCheckCompleted' 'Device check completion must be represented as a non-modal status update.'
+Assert-Contains $module 'StartupDeviceService\.StartAsync' 'Startup device checks must be owned by a background device service/task.'
+Assert-Contains $deviceService 'Task\.Run' 'Startup device checks must be queued away from the UI thread.'
+Assert-Contains $deviceService 'DeviceStartupCheck' 'The background service must expose the startup device check operation.'
 
 $loadMethod = [regex]::Match($frmTest, 'Private Sub frmTest_Load\(.*?\n    End Sub', [System.Text.RegularExpressions.RegexOptions]::Singleline).Value
 if ([string]::IsNullOrWhiteSpace($loadMethod)) { throw 'frmTest_Load method body not found.' }
