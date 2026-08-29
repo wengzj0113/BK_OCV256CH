@@ -46,8 +46,9 @@ Assert-Contains $frmTest 'StartDeferredStartupWork' 'frmTest must schedule timer
 
 Assert-Contains $frmTest 'ApplyFrmTestEssentialLayout' 'frmTest must have a separate essential first-paint layout phase.'
 Assert-Contains $frmTest 'ApplyFrmTestDeferredVisualStyle' 'frmTest must have a deferred visual-style phase.'
-Assert-Contains $frmTest 'ScheduleDeferredStructuredLayout\(\)' 'Structured sidebar layout must be scheduled from the post-first-paint phase.'
-Assert-Contains $frmTest 'ApplyDeferredStructuredLayoutStep' 'Structured sidebar layout must be applied in resumable batches.'
+Assert-NotContains $frmTest 'ScheduleDeferredStructuredLayout\(\)' 'Startup must not schedule repeated sidebar layout batches after first paint.'
+Assert-NotContains $frmTest 'deferredStructuredLayoutTimer' 'Startup must not keep a timer that repaints sidebar containers one by one.'
+Assert-Contains $frmTest 'ApplyFrmTestDeferredVisualStyle\(\)' 'Post-first-paint work must remain limited to visual styling and background services.'
 Assert-Contains $frmTest 'StartupTiming' 'Startup phases must use the shared timing helper.'
 Assert-Contains $mdi 'StartupTiming' 'MDI startup must record timing phases.'
 Assert-Contains $module 'StartupTiming' 'Device startup checks must record timing phases.'

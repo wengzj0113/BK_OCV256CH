@@ -89,6 +89,11 @@ Public NotInheritable Class ResponsiveTestLayout
         End If
     End Sub
 
+    ''' <summary>
+    ''' Applies the optional structured sidebar layout for an explicit caller.
+    ''' It is intentionally not part of the automatic startup path because
+    ''' rebuilding each legacy group causes visible sidebar churn.
+    ''' </summary>
     Public Sub ApplyDeferredStructuredLayouts()
         If structuredLayoutsBuilt OrElse leftContentPanel Is Nothing Then Return
 
@@ -100,51 +105,6 @@ Public NotInheritable Class ResponsiveTestLayout
             leftContentPanel.ResumeLayout(False)
         End Try
     End Sub
-
-    ''' <summary>
-    ''' Applies one structured sidebar section.  The caller can schedule each
-    ''' step separately so a large first layout does not monopolize the UI
-    ''' message loop after the page has become visible.
-    ''' </summary>
-    Public Function ApplyDeferredStructuredLayoutStep(ByVal sectionIndex As Integer) As Boolean
-        If structuredLayoutsBuilt OrElse leftContentPanel Is Nothing Then Return True
-        If sectionIndex < 0 OrElse sectionIndex > 7 Then Return False
-
-        leftContentPanel.SuspendLayout()
-        Try
-            Select Case sectionIndex
-                Case 0
-                    ConfigureGroupLayout(FindDirectChild(leftContentPanel, "grpTestMode"))
-                    BuildTestModeLayout(FindDirectChild(leftContentPanel, "grpTestMode"))
-                Case 1
-                    ConfigureGroupLayout(FindDirectChild(leftContentPanel, "GroupBox2"))
-                    BuildStationLayout(FindDirectChild(leftContentPanel, "GroupBox2"))
-                Case 2
-                    ConfigureGroupLayout(FindDirectChild(leftContentPanel, "GroupBox1"))
-                    BuildControlBoardLayout(FindDirectChild(leftContentPanel, "GroupBox1"))
-                Case 3
-                    ConfigureGroupLayout(FindDirectChild(leftContentPanel, "grpChannelSelection"))
-                    BuildChannelSelectionLayout(FindDirectChild(leftContentPanel, "grpChannelSelection"))
-                Case 4
-                    ConfigureGroupLayout(FindDirectChild(leftContentPanel, "GroupBox3"))
-                    BuildRangeLayout(FindDirectChild(leftContentPanel, "GroupBox3"))
-                Case 5
-                    ConfigureGroupLayout(FindDirectChild(leftContentPanel, "GroupBox5"))
-                    BuildAlarmLayout(FindDirectChild(leftContentPanel, "GroupBox5"))
-                Case 6
-                    ConfigureGroupLayout(FindDirectChild(leftContentPanel, "GroupBox8"))
-                    BuildProbeUsageLayout(FindDirectChild(leftContentPanel, "GroupBox8"))
-                Case 7
-                    ConfigureGroupLayout(FindDirectChild(leftContentPanel, "GroupBox7"))
-                    BuildEventLogLayout(FindDirectChild(leftContentPanel, "GroupBox7"))
-            End Select
-        Finally
-            leftContentPanel.ResumeLayout(False)
-        End Try
-
-        If sectionIndex = 7 Then structuredLayoutsBuilt = True
-        Return structuredLayoutsBuilt
-    End Function
 
     Public Sub RefreshLeftContent(ByVal leftPanel As Panel)
         If leftPanel Is Nothing OrElse leftContentPanel Is Nothing Then Return
