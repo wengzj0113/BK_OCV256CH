@@ -119,7 +119,8 @@ Public NotInheritable Class ResponsiveTestLayout
         If leftContentPanel Is Nothing OrElse leftPanel Is Nothing Then Return
 
         ResetEventLogHeight()
-        SetLeftContentWidth(leftPanel.ClientSize.Width)
+        Dim availableWidth As Integer = GetUnscrolledClientWidth(leftPanel)
+        SetLeftContentWidth(availableWidth)
         Dim contentHeight As Integer = CalculateLeftContentHeight()
 
         If contentHeight < leftPanel.ClientSize.Height Then
@@ -129,7 +130,7 @@ Public NotInheritable Class ResponsiveTestLayout
 
         If contentHeight > leftPanel.ClientSize.Height Then
             ResetEventLogHeight()
-            SetLeftContentWidth(Math.Max(0, leftPanel.ClientSize.Width - SystemInformation.VerticalScrollBarWidth))
+            SetLeftContentWidth(Math.Max(0, availableWidth - SystemInformation.VerticalScrollBarWidth))
             contentHeight = CalculateLeftContentHeight()
         End If
 
@@ -140,6 +141,12 @@ Public NotInheritable Class ResponsiveTestLayout
 
         leftContentPanel.Height = Math.Max(contentHeight, leftPanel.ClientSize.Height)
     End Sub
+
+    Private Shared Function GetUnscrolledClientWidth(ByVal leftPanel As Panel) As Integer
+        Dim width As Integer = leftPanel.ClientSize.Width
+        If leftPanel.VerticalScroll.Visible Then width += SystemInformation.VerticalScrollBarWidth
+        Return width
+    End Function
 
     Private Sub SetLeftContentWidth(ByVal width As Integer)
         leftContentPanel.Width = Math.Max(0, width)

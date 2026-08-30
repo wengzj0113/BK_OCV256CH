@@ -233,6 +233,12 @@ try {
     $form.PerformLayout()
     if (-not $panel.VerticalScroll.Visible) { throw 'The left sidebar must scroll at the compact window size.' }
     if ($panel.HorizontalScroll.Visible) { throw 'The compact left sidebar must not require horizontal scrolling.' }
+    $compactWidth = $content.Width
+    1..3 | ForEach-Object {
+        $layoutField.GetValue($form).RefreshLeftContent($panel)
+        $form.PerformLayout()
+    }
+    if ([Math]::Abs($content.Width - $compactWidth) -gt 1) { throw "Repeated responsive refresh changed the compact sidebar width: before=$compactWidth, after=$($content.Width)." }
     Assert-VisibleChildrenContained $content
 
     foreach ($stationIndex in 0, 1, 2) {

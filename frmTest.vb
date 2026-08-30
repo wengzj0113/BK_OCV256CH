@@ -187,6 +187,7 @@ Public Class frmTest
         Timer4.Start()
 
         '完整样式不属于首屏必要路径，放在首次 Paint 之后执行。
+        If responsiveLayout IsNot Nothing Then responsiveLayout.ApplyDeferredStructuredLayouts()
         ApplyFrmTestDeferredVisualStyle()
         StartupTiming.Mark("frmTest-deferred-style")
         StartupTiming.Mark("frmTest-deferred-complete")
