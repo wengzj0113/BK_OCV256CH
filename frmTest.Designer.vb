@@ -803,7 +803,7 @@ Partial Class frmTest
         Me.Panel1.Anchor = CType(((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Bottom) _
             Or System.Windows.Forms.AnchorStyles.Left), System.Windows.Forms.AnchorStyles)
         Me.Panel1.AutoScroll = True
-        Me.Panel1.AutoScrollMinSize = New System.Drawing.Size(0, 1280)
+        Me.Panel1.AutoScrollMinSize = New System.Drawing.Size(0, 0)
         Me.Panel1.BackColor = System.Drawing.Color.FromArgb(CType(CType(243, Byte), Integer), CType(CType(246, Byte), Integer), CType(CType(250, Byte), Integer))
         Me.Panel1.Controls.Add(Me.Button2)
         Me.Panel1.Controls.Add(Me.GroupBox8)

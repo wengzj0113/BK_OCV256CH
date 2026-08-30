@@ -6,6 +6,9 @@ Add-Type -AssemblyName System.Drawing
 $assemblyPath = if ($env:FRMTEST_EXE) { $env:FRMTEST_EXE } else { Join-Path $PSScriptRoot '..\bin\Debug\XL_OCV_256CH.exe' }
 $assembly = [Reflection.Assembly]::LoadFrom((Resolve-Path $assemblyPath))
 $formType = $assembly.GetType('software.frmTest', $true)
+$moduleType = $assembly.GetType('software.Module1', $true)
+$initField = $moduleType.GetField('Initsetting', [Reflection.BindingFlags] 'Static,Public,NonPublic')
+$stationField = $initField.FieldType.GetField('stationSelect', [Reflection.BindingFlags] 'Instance,Public,NonPublic')
 $form = [Activator]::CreateInstance($formType)
 
 function Find-Control([System.Windows.Forms.Control]$root, [string]$name) {
@@ -37,24 +40,66 @@ function Get-BottomRelativeTo([System.Windows.Forms.Control]$control, [System.Wi
     return $bottom
 }
 
+function Set-ConfiguredStation([int]$stationIndex) {
+    $init = $initField.GetValue($null)
+    $stationField.SetValue($init, $stationIndex)
+    $initField.SetValue($null, $init)
+}
+
+function Assert-StationVariant([int]$stationIndex) {
+    Set-ConfiguredStation $stationIndex
+    $variant = [Activator]::CreateInstance($formType)
+    try {
+        $configure = $formType.GetMethod('ConfigureStationControls', [Reflection.BindingFlags] 'Instance,NonPublic')
+        $apply = $formType.GetMethod('ApplyFrmTestVisualStyle', [Reflection.BindingFlags] 'Instance,NonPublic')
+        $configure.Invoke($variant, @()) | Out-Null
+        $apply.Invoke($variant, @()) | Out-Null
+        $variant.CreateControl()
+        $variant.ClientSize = New-Object System.Drawing.Size(800, 600)
+        $variant.PerformLayout()
+
+        $panel = Find-Control $variant 'Panel1'
+        $layout = $formType.GetField('responsiveLayout', [Reflection.BindingFlags] 'Instance,NonPublic').GetValue($variant)
+        $layout.RefreshLeftContent($panel)
+        $variant.PerformLayout()
+        $stations = @(
+            $formType.GetField('_Rbtn1', [Reflection.BindingFlags] 'Instance,NonPublic').GetValue($variant),
+            $formType.GetField('_Rbtn2', [Reflection.BindingFlags] 'Instance,NonPublic').GetValue($variant),
+            $formType.GetField('_Rbtn3', [Reflection.BindingFlags] 'Instance,NonPublic').GetValue($variant)
+        )
+        $selected = @($stations | Where-Object { $_.Checked })
+        if ($selected.Count -ne 1 -or $selected[0].Text -ne ('OCV' + $stationIndex)) {
+            throw "stationSelect=$stationIndex did not expose the configured station: selected=$($selected.Text)."
+        }
+        if ($selected[0].Parent -ne $panel.Controls['LeftControlContent'] -or $panel.HorizontalScroll.Visible) {
+            throw "stationSelect=$stationIndex produced an invalid sidebar placement or horizontal scroll."
+        }
+    }
+    finally {
+        $variant.Dispose()
+    }
+}
+
 try {
     $applyStyle = $formType.GetMethod('ApplyFrmTestVisualStyle', [Reflection.BindingFlags] 'Instance,NonPublic')
     $configureStations = $formType.GetMethod('ConfigureStationControls', [Reflection.BindingFlags] 'Instance,NonPublic')
     $resetScroll = $formType.GetMethod('ResetLeftPanelScroll', [Reflection.BindingFlags] 'Instance,NonPublic')
-    $applyStyle.Invoke($form, @()) | Out-Null
     $configureStations.Invoke($form, @()) | Out-Null
+    $applyStyle.Invoke($form, @()) | Out-Null
     $form.CreateControl()
     $form.ClientSize = New-Object System.Drawing.Size(1280, 920)
     $form.PerformLayout()
 
     $panel = Find-Control $form 'Panel1'
     $content = $panel.Controls['LeftControlContent']
+    $layoutField = $formType.GetField('responsiveLayout', [Reflection.BindingFlags] 'Instance,NonPublic')
+    $layoutField.GetValue($form).RefreshLeftContent($panel)
+    $form.PerformLayout()
     if ($null -eq $content) { throw 'LeftControlContent is missing.' }
     if ($form.AutoScaleMode -eq [System.Windows.Forms.AutoScaleMode]::None) {
         throw 'The structured sidebar must remain compatible with normal WinForms font/DPI scaling.'
     }
     foreach ($layoutName in @(
-        'StationOptionsLayout',
         'ControlBoardLayout',
         'ChannelSelectionLayout',
         'RangeSettingsLayout',
@@ -86,12 +131,13 @@ try {
     )
     if (($stations | Where-Object { $_.Text -in @('OCV0','OCV1','OCV2') }).Count -ne 3) { throw 'OCV0/OCV1/OCV2 are not all present.' }
     if (($stations | Where-Object { $null -eq $_.Parent }).Count -ne 0) { throw 'One or more OCV station controls are not attached.' }
-    if ((($stations | ForEach-Object { $_.Top } | Select-Object -Unique).Count) -ne 1) { throw 'OCV station controls are not on one row.' }
-    if (($stations | Where-Object { $_.Appearance -ne [System.Windows.Forms.Appearance]::Button }).Count -ne 0) { throw 'OCV station controls must use the compact button appearance.' }
-    $stationGroup = $content.Controls['GroupBox2']
-    $legacyStationSelector = Find-Control $stationGroup 'cmbShow'
-    if ($null -ne $legacyStationSelector -and $legacyStationSelector.Visible) { throw 'The legacy station combo box must remain hidden.' }
-    if ($stationGroup.Height -gt 80) { throw "Station card is too tall for its single row: $($stationGroup.Height)." }
+    $selectedStations = @($stations | Where-Object { $_.Checked })
+    if ($selectedStations.Count -ne 1) { throw "Expected exactly one selected station button, actual=$($selectedStations.Count)." }
+    $station = $selectedStations[0]
+    if ($station.Parent -ne $content) { throw 'Current station is not a direct child of LeftControlContent.' }
+    if ($content.Controls.GetChildIndex($station) -ne 0) { throw 'Current station is not the first left-sidebar item.' }
+    if ($station.Height -lt 50) { throw "Current station button was not enlarged: height=$($station.Height)." }
+    if ($null -ne $content.Controls['GroupBox2']) { throw 'Legacy station container must not remain in LeftControlContent.' }
 
     $channelGroup = $content.Controls['grpChannelSelection']
     $channelButtons = @('btnChannelSelectAll','btnChannelClear','btnChannelRectangle','btnChannelSelectSingle') | ForEach-Object { Find-Control $channelGroup $_ }
@@ -161,7 +207,8 @@ try {
     if (($usageUnit.Left - $remainingUsage.Right) -gt 8) { throw "Probe usage unit is detached from its input: gap=$($usageUnit.Left - $remainingUsage.Right)." }
 
     $eventLogGroup = $content.Controls['GroupBox7']
-    if ($eventLogGroup.Height -gt 104) { throw "Event log group is too tall for the normal production viewport: $($eventLogGroup.Height)." }
+    if ($eventLogGroup.Height -lt 82) { throw "Event log group is too short: $($eventLogGroup.Height)." }
+    if ($eventLogGroup.Bottom -gt $content.Height) { throw 'Event log group is outside the left content bounds.' }
     $resetButton = Find-Control $content 'Button2'
     $resetBottom = Get-BottomRelativeTo $resetButton $panel
     if ($resetBottom -gt $panel.ClientSize.Height) { throw "Alarm reset button is below the normal production viewport: bottom=$resetBottom, client=$($panel.ClientSize.Height)." }
@@ -179,6 +226,18 @@ try {
         if ($null -ne $fieldLabel -and $fieldLabel.ForeColor.ToArgb() -ne $textPrimary.ToArgb()) { throw "Sidebar field label must use the neutral body color: $fieldLabelName." }
     }
     Assert-VisibleChildrenContained $content
+
+    $form.ClientSize = New-Object System.Drawing.Size(800, 600)
+    $form.PerformLayout()
+    $layoutField.GetValue($form).RefreshLeftContent($panel)
+    $form.PerformLayout()
+    if (-not $panel.VerticalScroll.Visible) { throw 'The left sidebar must scroll at the compact window size.' }
+    if ($panel.HorizontalScroll.Visible) { throw 'The compact left sidebar must not require horizontal scrolling.' }
+    Assert-VisibleChildrenContained $content
+
+    foreach ($stationIndex in 0, 1, 2) {
+        Assert-StationVariant $stationIndex
+    }
 
     $resetScroll.Invoke($form, @()) | Out-Null
     if ($panel.AutoScrollPosition.Y -ne 0) { throw "Left panel did not reset to the top: $($panel.AutoScrollPosition.Y)" }

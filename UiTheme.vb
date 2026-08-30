@@ -39,6 +39,7 @@ Public NotInheritable Class UiTheme
     Public Const LeftSectionGap As Integer = 5
     Public Const LeftContentPadding As Integer = 6
     Public Const LeftButtonHeight As Integer = 28
+    Public Const LeftStationButtonHeight As Integer = 56
 
     Public Shared Sub ApplyCardStyle(ByVal control As Control)
         If control Is Nothing Then Return
@@ -91,6 +92,20 @@ Public NotInheritable Class UiTheme
         radioButton.UseVisualStyleBackColor = False
         radioButton.FlatAppearance.BorderSize = 1
         ApplyToggleStateStyle(radioButton, radioButton.Checked)
+    End Sub
+
+    Public Shared Sub ApplyStationButtonStyle(ByVal radioButton As RadioButton)
+        If radioButton Is Nothing Then Return
+
+        radioButton.AutoSize = False
+        radioButton.Height = LeftStationButtonHeight
+        radioButton.Font = UiFontTitle
+        radioButton.TextAlign = ContentAlignment.MiddleCenter
+        radioButton.Appearance = Appearance.Button
+        radioButton.FlatStyle = FlatStyle.Flat
+        radioButton.UseVisualStyleBackColor = False
+        radioButton.FlatAppearance.BorderSize = 1
+        ApplyToggleStateStyle(radioButton, True)
     End Sub
 
     Public Shared Sub ApplyToggleStateStyle(ByVal control As Control, ByVal selected As Boolean)

@@ -10,6 +10,7 @@ Public NotInheritable Class ResponsiveTestLayout
     '左栏中的历史控件仍使用固定的内部坐标,需要为输入框和四个通道按钮
     '预留滚动条、内容边距以及边界余量,否则窄栏会把右侧控件裁掉。
     Private Const LeftColumnWidth As Single = 350.0F
+    Private Const EventLogMinimumHeight As Integer = 82
     Private rootLayout As TableLayoutPanel
     Private rightLayout As TableLayoutPanel
     Private leftContentPanel As TableLayoutPanel
@@ -52,7 +53,8 @@ Public NotInheritable Class ResponsiveTestLayout
                 leftPanel.AutoSize = False
                 leftPanel.MinimumSize = New Size(0, 0)
                 leftPanel.AutoScroll = True
-                leftPanel.HorizontalScroll.Enabled = True
+                leftPanel.AutoScrollMinSize = New Size(0, 0)
+                leftPanel.HorizontalScroll.Enabled = False
                 leftPanel.VerticalScroll.Enabled = True
                 PrepareScrollableLeftPanel(leftPanel, buildStructuredLayouts)
 
@@ -114,17 +116,29 @@ Public NotInheritable Class ResponsiveTestLayout
     End Sub
 
     Private Sub ResizeLeftContent(ByVal leftPanel As Panel)
-        If leftContentPanel Is Nothing Then Return
+        If leftContentPanel Is Nothing OrElse leftPanel Is Nothing Then Return
 
-        '先按完整客户区排版；只有内容确实需要纵向滚动时，才为滚动条预留宽度。
-        '这样正常生产分辨率不会永久浪费一条滚动条宽度，小分辨率也不会出现横向滚动。
+        ResetEventLogHeight()
         SetLeftContentWidth(leftPanel.ClientSize.Width)
         Dim contentHeight As Integer = CalculateLeftContentHeight()
+
+        If contentHeight < leftPanel.ClientSize.Height Then
+            StretchEventLogToViewport(leftPanel)
+            contentHeight = CalculateLeftContentHeight()
+        End If
+
         If contentHeight > leftPanel.ClientSize.Height Then
+            ResetEventLogHeight()
             SetLeftContentWidth(Math.Max(0, leftPanel.ClientSize.Width - SystemInformation.VerticalScrollBarWidth))
             contentHeight = CalculateLeftContentHeight()
         End If
-        leftContentPanel.Height = contentHeight
+
+        If contentHeight < leftPanel.ClientSize.Height Then
+            StretchEventLogToViewport(leftPanel)
+            contentHeight = CalculateLeftContentHeight()
+        End If
+
+        leftContentPanel.Height = Math.Max(contentHeight, leftPanel.ClientSize.Height)
     End Sub
 
     Private Sub SetLeftContentWidth(ByVal width As Integer)
@@ -144,6 +158,21 @@ Public NotInheritable Class ResponsiveTestLayout
         Return contentHeight
     End Function
 
+    Private Sub ResetEventLogHeight()
+        If leftContentPanel Is Nothing Then Return
+        Dim eventLog As Control = FindDirectChild(leftContentPanel, "GroupBox7")
+        If eventLog IsNot Nothing Then eventLog.Height = EventLogMinimumHeight
+    End Sub
+
+    Private Sub StretchEventLogToViewport(ByVal leftPanel As Panel)
+        If leftContentPanel Is Nothing OrElse leftPanel Is Nothing Then Return
+        Dim eventLog As Control = FindDirectChild(leftContentPanel, "GroupBox7")
+        If eventLog Is Nothing Then Return
+
+        Dim extraHeight As Integer = leftPanel.ClientSize.Height - CalculateLeftContentHeight()
+        If extraHeight > 0 Then eventLog.Height += extraHeight
+    End Sub
+
     Private Sub PrepareScrollableLeftPanel(ByVal leftPanel As Panel,
                                            ByVal buildStructuredLayouts As Boolean)
         leftContentPanel = New TableLayoutPanel With {
@@ -162,13 +191,14 @@ Public NotInheritable Class ResponsiveTestLayout
         leftContentPanel.SuspendLayout()
 
         Try
+            Dim currentStation As Control = TakeCurrentStationControl(leftPanel)
             Dim existingChildren As New List(Of Control)()
             For Each child As Control In leftPanel.Controls
                 existingChildren.Add(child)
             Next
             Dim orderedChildren As New List(Of Control)()
+            If currentStation IsNot Nothing Then orderedChildren.Add(currentStation)
             AddIfPresent(existingChildren, orderedChildren, "grpTestMode")
-            AddIfPresent(existingChildren, orderedChildren, "GroupBox2")
             AddIfPresent(existingChildren, orderedChildren, "GroupBox1")
             AddIfPresent(existingChildren, orderedChildren, "grpChannelSelection")
             AddIfPresent(existingChildren, orderedChildren, "GroupBox3")
@@ -177,14 +207,16 @@ Public NotInheritable Class ResponsiveTestLayout
             AddIfPresent(existingChildren, orderedChildren, "GroupBox7")
             AddIfPresent(existingChildren, orderedChildren, "Button2")
 
-            For Each child As Control In orderedChildren
+            For index As Integer = 0 To orderedChildren.Count - 1
+                Dim child As Control = orderedChildren(index)
                 Dim contentItem As Control = child
                 If String.Equals(child.Name, "Button2", StringComparison.OrdinalIgnoreCase) Then
                     contentItem = CreateCenteredResetLayout(child)
                 End If
                 contentItem.Anchor = AnchorStyles.Top Or AnchorStyles.Left Or AnchorStyles.Right
                 contentItem.Dock = DockStyle.Top
-                contentItem.Margin = New Padding(0, 0, 0, UiTheme.LeftSectionGap)
+                Dim bottomGap As Integer = If(index = orderedChildren.Count - 1, 0, UiTheme.LeftSectionGap)
+                contentItem.Margin = New Padding(0, 0, 0, bottomGap)
                 leftContentPanel.RowStyles.Add(New RowStyle(SizeType.AutoSize))
                 leftContentPanel.Controls.Add(contentItem, 0, leftContentPanel.RowCount)
                 leftContentPanel.RowCount += 1
@@ -200,6 +232,23 @@ Public NotInheritable Class ResponsiveTestLayout
             leftPanel.ResumeLayout(False)
         End Try
     End Sub
+
+    Private Shared Function TakeCurrentStationControl(ByVal leftPanel As Panel) As Control
+        Dim stationGroup As Control = FindDirectChild(leftPanel, "GroupBox2")
+        If stationGroup Is Nothing Then Return Nothing
+
+        Dim selected As RadioButton = stationGroup.Controls.OfType(Of RadioButton)().FirstOrDefault(Function(button) button.Checked AndAlso button.Visible)
+        If selected Is Nothing Then
+            selected = stationGroup.Controls.OfType(Of RadioButton)().FirstOrDefault(Function(button) button.Checked)
+        End If
+        If selected Is Nothing Then Return Nothing
+
+        stationGroup.Controls.Remove(selected)
+        leftPanel.Controls.Remove(stationGroup)
+        stationGroup.Visible = False
+        selected.Visible = True
+        Return selected
+    End Function
 
     Private Shared Function CreateCenteredResetLayout(ByVal resetButton As Control) As TableLayoutPanel
         Dim layout As New TableLayoutPanel With {
@@ -233,7 +282,6 @@ Public NotInheritable Class ResponsiveTestLayout
         If leftContentPanel Is Nothing Then Return
 
         ConfigureGroupLayout(FindDirectChild(leftContentPanel, "grpTestMode"))
-        ConfigureGroupLayout(FindDirectChild(leftContentPanel, "GroupBox2"))
         ConfigureGroupLayout(FindDirectChild(leftContentPanel, "GroupBox1"))
         ConfigureGroupLayout(FindDirectChild(leftContentPanel, "grpChannelSelection"))
         ConfigureGroupLayout(FindDirectChild(leftContentPanel, "GroupBox3"))
@@ -242,7 +290,6 @@ Public NotInheritable Class ResponsiveTestLayout
         ConfigureGroupLayout(FindDirectChild(leftContentPanel, "GroupBox7"))
 
         BuildTestModeLayout(FindDirectChild(leftContentPanel, "grpTestMode"))
-        BuildStationLayout(FindDirectChild(leftContentPanel, "GroupBox2"))
         BuildControlBoardLayout(FindDirectChild(leftContentPanel, "GroupBox1"))
         BuildChannelSelectionLayout(FindDirectChild(leftContentPanel, "grpChannelSelection"))
         BuildRangeLayout(FindDirectChild(leftContentPanel, "GroupBox3"))
@@ -336,25 +383,6 @@ Public NotInheritable Class ResponsiveTestLayout
         MoveControlToTable(group, layout, "chkManualTest", 1, 0)
         ConfigureFillControl(FindDirectChild(layout, "chkAutoTest"))
         ConfigureFillControl(FindDirectChild(layout, "chkManualTest"))
-    End Sub
-
-    Private Shared Sub BuildStationLayout(ByVal group As Control)
-        If group Is Nothing Then Return
-        For Each legacyName As String In {"cmbShow", "CmdBatInput"}
-            Dim legacyControl As Control = FindDirectChild(group, legacyName)
-            If legacyControl IsNot Nothing Then
-                legacyControl.Visible = False
-                legacyControl.Enabled = False
-                legacyControl.TabStop = False
-            End If
-        Next
-        Dim layout As TableLayoutPanel = CreateTableLayout(group, "StationOptionsLayout", 3, 1)
-        MoveControlToTable(group, layout, "Rbtn1", 0, 0)
-        MoveControlToTable(group, layout, "Rbtn2", 1, 0)
-        MoveControlToTable(group, layout, "Rbtn3", 2, 0)
-        For Each name As String In {"Rbtn1", "Rbtn2", "Rbtn3"}
-            ConfigureFillControl(FindDirectChild(layout, name))
-        Next
     End Sub
 
     Private Shared Sub BuildControlBoardLayout(ByVal group As Control)
@@ -530,8 +558,8 @@ Public NotInheritable Class ResponsiveTestLayout
     Private Shared Sub BuildEventLogLayout(ByVal group As Control)
         If group Is Nothing Then Return
         group.AutoSize = False
-        group.MinimumSize = New Size(0, 82)
-        group.Height = 82
+        group.MinimumSize = New Size(0, EventLogMinimumHeight)
+        group.Height = EventLogMinimumHeight
         Dim alarmText As Control = FindDirectChild(group, "txtAlarm")
         If alarmText IsNot Nothing Then
             alarmText.Dock = DockStyle.Fill

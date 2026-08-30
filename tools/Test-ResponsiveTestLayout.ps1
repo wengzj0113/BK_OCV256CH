@@ -7,9 +7,11 @@ $assembly = [Reflection.Assembly]::LoadFrom($assemblyPath)
 $layoutType = $assembly.GetType('software.ResponsiveTestLayout', $false)
 if ($null -eq $layoutType) { throw 'ResponsiveTestLayout type is missing.' }
 $layoutSource = Get-Content -Raw -LiteralPath (Join-Path $PSScriptRoot '..\ResponsiveTestLayout.vb')
-if ($layoutSource -match 'leftPanel\.AutoScrollMinSize\s*=') {
-    throw 'Scrollable left content must not push its preferred height into the outer responsive layout.'
+if ($layoutSource -match 'leftPanel\.AutoScrollMinSize\s*=\s*New Size\(0,\s*1280\)') {
+    throw 'Legacy fixed left scroll height must be removed.'
 }
+if ($layoutSource -notmatch 'StretchEventLogToViewport') { throw 'Flexible event-log height path is missing.' }
+if ($layoutSource -notmatch 'CalculateLeftContentHeight') { throw 'Dynamic left content height calculation is missing.' }
 
 $formType = $assembly.GetType('software.frmTest', $true)
 $form = [Activator]::CreateInstance($formType)

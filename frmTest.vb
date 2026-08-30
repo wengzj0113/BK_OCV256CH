@@ -78,23 +78,23 @@ Public Class frmTest
         'R2-18:提前标记已加载完成,确保 frmTest_Resize 的布局调整始终执行
         '       (若 myConnection 未打开,后面 Exit Sub 会提前返回,原 _isLoaded=True 在末尾无法执行)
         _isLoaded = True
-        '首屏只建立必要容器和尺寸，完整样式延后到第一次 Paint 之后。
-        ApplyFrmTestEssentialLayout()
-        StartupTiming.Mark("frmTest-essential-layout")
         '*******************************
         '显示相关信息
         '数据服务器字段已从主测试页移除。
         lblBarNum.Text = "*"
+        ReadInitFile()
+        StartupTiming.Mark("frmTest-read-init")
+        ConfigureStationControls()
+        StartupTiming.Mark("frmTest-station-controls")
+        '首屏只建立必要容器和尺寸，完整样式延后到第一次 Paint 之后。
+        ApplyFrmTestEssentialLayout()
+        StartupTiming.Mark("frmTest-essential-layout")
         '合格范围
         txtMaxV.Text = Initsetting.upVoltage
         txtMinV.Text = Initsetting.downVoltage
         txtMaxR.Text = Initsetting.upResistance
         txtMinR.Text = Initsetting.downResistance
         '**************************************
-        ReadInitFile()
-        StartupTiming.Mark("frmTest-read-init")
-        ConfigureStationControls()
-        StartupTiming.Mark("frmTest-station-controls")
         '探针相关
         txtTotle.Text = Initsetting.Probelifespan.ToString
         txtUsed.Text = Initsetting.ProbeUsedCount.ToString
@@ -2421,7 +2421,7 @@ exit_sub:
             Pic_Bat.BackColor = UiTheme.CardBackground
 
             Dim cards As GroupBox() = {
-                grpTestMode, GroupBox1, GroupBox2, GroupBox3,
+                grpTestMode, GroupBox1, GroupBox3,
                 GroupBox5, GroupBox6, GroupBox7, GroupBox8
             }
             For Each card As GroupBox In cards
@@ -2452,6 +2452,8 @@ exit_sub:
             UiTheme.ApplyRadioButtonStyle(Rbtn1)
             UiTheme.ApplyRadioButtonStyle(Rbtn2)
             UiTheme.ApplyRadioButtonStyle(Rbtn3)
+            Dim currentStationButton As RadioButton = {Rbtn1, Rbtn2, Rbtn3}.FirstOrDefault(Function(button) button.Checked)
+            UiTheme.ApplyStationButtonStyle(currentStationButton)
 
             UiTheme.ApplyButtonStyle(CmdStart, UiTheme.ButtonRole.Primary)
             UiTheme.ApplyButtonStyle(btnStop, UiTheme.ButtonRole.Danger)
@@ -2550,9 +2552,11 @@ exit_sub:
         Rbtn1.Text = "OCV0"
         Rbtn2.Text = "OCV1"
         Rbtn3.Text = "OCV2"
-        Rbtn1.Visible = True
-        Rbtn2.Visible = True
-        Rbtn3.Visible = True
+        Rbtn1.Visible = False
+        Rbtn2.Visible = False
+        Rbtn3.Visible = False
+        GroupBox2.Visible = False
+        GroupBox2.Enabled = False
         cmbShow.Visible = False
         cmbShow.Enabled = False
         CmdBatInput.Visible = False
@@ -2565,10 +2569,13 @@ exit_sub:
         Select Case Initsetting.stationSelect
             Case 1
                 Rbtn2.Checked = True
+                Rbtn2.Visible = True
             Case 2
                 Rbtn3.Checked = True
+                Rbtn3.Visible = True
             Case Else
                 Rbtn1.Checked = True
+                Rbtn1.Visible = True
         End Select
         UpdateCurrentOcvSelection()
         UiTheme.ApplyToggleStateStyle(Rbtn1, Rbtn1.Checked)
@@ -2595,6 +2602,11 @@ exit_sub:
     Private Sub ResetLeftPanelScroll()
         If Panel1 Is Nothing OrElse Panel1.IsDisposed Then Return
         Panel1.AutoScrollPosition = New Point(0, 0)
+    End Sub
+
+    Private Sub frmTest_Resize(ByVal sender As Object, ByVal e As EventArgs) Handles MyBase.Resize
+        If Not _isLoaded OrElse responsiveLayout Is Nothing OrElse Panel1 Is Nothing Then Return
+        responsiveLayout.RefreshLeftContent(Panel1)
     End Sub
 
     Private Sub SetTestStatus(ByVal message As String)
