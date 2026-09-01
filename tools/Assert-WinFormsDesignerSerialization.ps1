@@ -7,6 +7,19 @@ $designerFiles = @(
     'BottomStatusControl.Designer.vb'
 )
 
+$projectFile = 'MP-60A-RV-64Mem.vbproj'
+if (-not (Test-Path -LiteralPath $projectFile)) {
+    throw "Missing project file: $projectFile"
+}
+$projectContent = Get-Content -LiteralPath $projectFile -Raw
+if ($projectContent -notmatch '<UseWinFormsOutOfProcDesigner>True</UseWinFormsOutOfProcDesigner>') {
+    $projectViolations = "${projectFile}: WinForms out-of-process Designer must be enabled for the x86 .NET Framework project"
+}
+$anyCpuPattern = 'Condition="[^"]*Debug\|AnyCPU[^"]*"[\s\S]*?<PlatformTarget>AnyCPU</PlatformTarget>'
+if ($projectContent -notmatch $anyCpuPattern) {
+    $projectViolations = "${projectFile}: Debug|AnyCPU must be available as a separate Designer-compatible configuration"
+}
+
 $forbiddenCalls = @(
     'BuildDesignerLayout',
     'BuildDesignerTestModeLayout',
@@ -35,6 +48,9 @@ $forbiddenCalls = @(
 )
 
 $violations = New-Object System.Collections.Generic.List[string]
+if ($projectViolations) {
+    $violations.Add($projectViolations)
+}
 foreach ($file in $designerFiles) {
     if (-not (Test-Path -LiteralPath $file)) {
         $violations.Add("Missing Designer file: $file")
