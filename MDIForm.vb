@@ -637,7 +637,7 @@ Public Class MDIForm
 
     End Sub
 
-    Private Sub EMS涓婁紶ToolStripMenuItem_Click(sender As Object, e As EventArgs)
+    Private Sub EMS涓婁紶ToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles EMS上传ToolStripMenuItem.Click
         FrmMesTask.ShowDialog()
         FrmMesTask.Activate()
     End Sub

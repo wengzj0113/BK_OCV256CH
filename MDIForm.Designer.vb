@@ -206,6 +206,18 @@ Partial Class MDIForm
         Me.loginMenu.Size = New System.Drawing.Size(80, 42)
         Me.loginMenu.Text = "登录"
         Me.loginMenu.ToolTipText = "登录或切换当前用户"
+        Me.FileMenu.ForeColor = System.Drawing.Color.White
+        Me.EditMenu.ForeColor = System.Drawing.Color.White
+        Me.TStripMenuInQuery.ForeColor = System.Drawing.Color.White
+        Me.calibrationMenu.ForeColor = System.Drawing.Color.White
+        Me.EMS上传ToolStripMenuItem.ForeColor = System.Drawing.Color.White
+        Me.loginMenu.ForeColor = System.Drawing.Color.White
+        Me.FileMenu.Margin = New System.Windows.Forms.Padding(8, 0, 8, 0)
+        Me.EditMenu.Margin = New System.Windows.Forms.Padding(8, 0, 8, 0)
+        Me.TStripMenuInQuery.Margin = New System.Windows.Forms.Padding(8, 0, 8, 0)
+        Me.calibrationMenu.Margin = New System.Windows.Forms.Padding(8, 0, 8, 0)
+        Me.EMS上传ToolStripMenuItem.Margin = New System.Windows.Forms.Padding(8, 0, 8, 0)
+        Me.loginMenu.Margin = New System.Windows.Forms.Padding(8, 0, 8, 0)
         '
         'ToolStrip
         '
