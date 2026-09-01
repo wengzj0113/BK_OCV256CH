@@ -443,6 +443,9 @@
     <Compile Include="ChannelGridControl.vb">
       <SubType>UserControl</SubType>
     </Compile>
+    <Compile Include="ChannelGridControl.Designer.vb">
+      <DependentUpon>ChannelGridControl.vb</DependentUpon>
+    </Compile>
     <Compile Include="BottomStatusControl.vb">
       <SubType>UserControl</SubType>
     </Compile>
