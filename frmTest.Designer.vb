@@ -929,10 +929,6 @@ Partial Class frmTest
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
         Me.BackColor = System.Drawing.Color.FromArgb(CType(CType(243, Byte), Integer), CType(CType(246, Byte), Integer), CType(CType(250, Byte), Integer))
         Me.ClientSize = New System.Drawing.Size(1464, 902)
-        Me.Controls.Add(Me.channelGrid)
-        Me.Controls.Add(Me.statisticsControl)
-        Me.Controls.Add(Me.Panel1)
-        Me.Controls.Add(Me.Pic_Bat)
         Me.Name = "frmTest"
         Me.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen
         Me.Text = "测试"
@@ -1629,10 +1625,10 @@ Partial Class frmTest
         Me.Panel1.Controls.Add(Me.GroupBox2)
         Me.Panel1.Controls.Add(Me.leftContentPanel)
         Me.Pic_Bat.Visible = False
-        Me.Controls.Add(Me.Pic_Bat)
-        Me.Controls.Add(Me.rootLayout)
         Me.rootLayout.Controls.Add(Me.Panel1, 0, 0)
         Me.rootLayout.Controls.Add(Me.rightLayout, 1, 0)
+        Me.Controls.Add(Me.Pic_Bat)
+        Me.Controls.Add(Me.rootLayout)
         Me.GroupBox3.ResumeLayout(False)
         Me.GroupBox1.ResumeLayout(False)
         Me.grpChannelSelection.ResumeLayout(False)

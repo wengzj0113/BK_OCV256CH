@@ -100,10 +100,24 @@ for ($index = 0; $index -lt $frmLines.Count; $index++) {
 if ($rootFormAddIndex -lt 0) {
     $violations.Add('frmTest.Designer.vb: missing final form-level rootLayout add')
 } else {
+    $rootChildNames = @('Panel1', 'rightLayout')
+    foreach ($child in $rootChildNames) {
+        $rootChildIndex = -1
+        for ($index = 0; $index -lt $rootFormAddIndex; $index++) {
+            if ($frmLines[$index] -match "Me\.rootLayout\.Controls\.Add\(Me\.$([regex]::Escape($child)),") {
+                $rootChildIndex = $index
+                break
+            }
+        }
+        if ($rootChildIndex -lt 0) {
+            $violations.Add("frmTest.Designer.vb: missing rootLayout child '$child' add before the form-level rootLayout add")
+        }
+    }
+
     foreach ($child in @('channelGrid', 'statisticsControl', 'Panel1')) {
-        for ($index = $rootFormAddIndex + 1; $index -lt $frmLines.Count; $index++) {
+        for ($index = 0; $index -lt $frmLines.Count; $index++) {
             if ($frmLines[$index] -match "Me\.Controls\.Add\(Me\.$([regex]::Escape($child))\)") {
-                $violations.Add("frmTest.Designer.vb:$($index + 1): '$child' is added to the form after rootLayout and would detach it from the designer tree")
+                $violations.Add("frmTest.Designer.vb:$($index + 1): '$child' is added directly to the form; it must only be under rootLayout")
             }
         }
     }
