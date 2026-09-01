@@ -43,73 +43,73 @@ Partial Class StatisticsControl
         Me.SuspendLayout()
         Me.statisticsLayout.SuspendLayout()
         Me.legend.SuspendLayout()
-        Me.totalTitle.BackColor = UiTheme.CardBackground
+        Me.totalTitle.BackColor = System.Drawing.Color.White
         Me.totalTitle.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.totalTitle.Font = UiTheme.UiFontBold
-        Me.totalTitle.ForeColor = UiTheme.TextSecondary
+        Me.totalTitle.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
+        Me.totalTitle.ForeColor = System.Drawing.Color.FromArgb(99, 112, 132)
         Me.totalTitle.Name = "totalTitle"
         Me.totalTitle.Text = "通道总数"
         Me.totalTitle.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
-        Me.passTitle.BackColor = UiTheme.CardBackground
+        Me.passTitle.BackColor = System.Drawing.Color.White
         Me.passTitle.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.passTitle.Font = UiTheme.UiFontBold
-        Me.passTitle.ForeColor = UiTheme.TextSecondary
+        Me.passTitle.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
+        Me.passTitle.ForeColor = System.Drawing.Color.FromArgb(99, 112, 132)
         Me.passTitle.Name = "passTitle"
         Me.passTitle.Text = "PASS"
         Me.passTitle.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
-        Me.ngTitle.BackColor = UiTheme.CardBackground
+        Me.ngTitle.BackColor = System.Drawing.Color.White
         Me.ngTitle.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.ngTitle.Font = UiTheme.UiFontBold
-        Me.ngTitle.ForeColor = UiTheme.TextSecondary
+        Me.ngTitle.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
+        Me.ngTitle.ForeColor = System.Drawing.Color.FromArgb(99, 112, 132)
         Me.ngTitle.Name = "ngTitle"
         Me.ngTitle.Text = "NG"
         Me.ngTitle.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
-        Me.testingTitle.BackColor = UiTheme.CardBackground
+        Me.testingTitle.BackColor = System.Drawing.Color.White
         Me.testingTitle.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.testingTitle.Font = UiTheme.UiFontBold
-        Me.testingTitle.ForeColor = UiTheme.TextSecondary
+        Me.testingTitle.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
+        Me.testingTitle.ForeColor = System.Drawing.Color.FromArgb(99, 112, 132)
         Me.testingTitle.Name = "testingTitle"
         Me.testingTitle.Text = "测试中"
         Me.testingTitle.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
-        Me.idleTitle.BackColor = UiTheme.CardBackground
+        Me.idleTitle.BackColor = System.Drawing.Color.White
         Me.idleTitle.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.idleTitle.Font = UiTheme.UiFontBold
-        Me.idleTitle.ForeColor = UiTheme.TextSecondary
+        Me.idleTitle.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
+        Me.idleTitle.ForeColor = System.Drawing.Color.FromArgb(99, 112, 132)
         Me.idleTitle.Name = "idleTitle"
         Me.idleTitle.Text = "空闲"
         Me.idleTitle.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
         Me.totalValue.AutoEllipsis = False
         Me.totalValue.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.totalValue.Font = UiTheme.UiFontMetric
-        Me.totalValue.ForeColor = UiTheme.Primary
+        Me.totalValue.Font = New System.Drawing.Font("Microsoft YaHei UI", 20.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
+        Me.totalValue.ForeColor = System.Drawing.Color.FromArgb(23, 105, 232)
         Me.totalValue.Name = "totalValue"
         Me.totalValue.Padding = New System.Windows.Forms.Padding(0, 0, 4, 0)
         Me.totalValue.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
         Me.passValue.AutoEllipsis = False
         Me.passValue.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.passValue.Font = UiTheme.UiFontMetric
-        Me.passValue.ForeColor = UiTheme.Success
+        Me.passValue.Font = New System.Drawing.Font("Microsoft YaHei UI", 20.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
+        Me.passValue.ForeColor = System.Drawing.Color.FromArgb(31, 164, 99)
         Me.passValue.Name = "passValue"
         Me.passValue.Padding = New System.Windows.Forms.Padding(0, 0, 4, 0)
         Me.passValue.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
         Me.ngValue.AutoEllipsis = False
         Me.ngValue.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.ngValue.Font = UiTheme.UiFontMetric
-        Me.ngValue.ForeColor = UiTheme.Danger
+        Me.ngValue.Font = New System.Drawing.Font("Microsoft YaHei UI", 20.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
+        Me.ngValue.ForeColor = System.Drawing.Color.FromArgb(239, 62, 62)
         Me.ngValue.Name = "ngValue"
         Me.ngValue.Padding = New System.Windows.Forms.Padding(0, 0, 4, 0)
         Me.ngValue.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
         Me.testingValue.AutoEllipsis = False
         Me.testingValue.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.testingValue.Font = UiTheme.UiFontMetric
-        Me.testingValue.ForeColor = UiTheme.Primary
+        Me.testingValue.Font = New System.Drawing.Font("Microsoft YaHei UI", 20.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
+        Me.testingValue.ForeColor = System.Drawing.Color.FromArgb(23, 105, 232)
         Me.testingValue.Name = "testingValue"
         Me.testingValue.Padding = New System.Windows.Forms.Padding(0, 0, 4, 0)
         Me.testingValue.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
         Me.idleValue.AutoEllipsis = False
         Me.idleValue.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.idleValue.Font = UiTheme.UiFontMetric
-        Me.idleValue.ForeColor = UiTheme.TextSecondary
+        Me.idleValue.Font = New System.Drawing.Font("Microsoft YaHei UI", 20.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
+        Me.idleValue.ForeColor = System.Drawing.Color.FromArgb(99, 112, 132)
         Me.idleValue.Name = "idleValue"
         Me.idleValue.Padding = New System.Windows.Forms.Padding(0, 0, 4, 0)
         Me.idleValue.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
@@ -119,13 +119,13 @@ Partial Class StatisticsControl
         Me.passLegend.Name = "passLegend"
         Me.passLegend.Padding = New System.Windows.Forms.Padding(0, 2, 0, 0)
         Me.passLegend.WrapContents = False
-        Me.passSwatch.BackColor = UiTheme.Success
+        Me.passSwatch.BackColor = System.Drawing.Color.FromArgb(31, 164, 99)
         Me.passSwatch.Margin = New System.Windows.Forms.Padding(0, 2, 4, 0)
         Me.passSwatch.Name = "passSwatch"
         Me.passSwatch.Size = New System.Drawing.Size(11, 11)
         Me.passLegendText.AutoSize = True
-        Me.passLegendText.Font = UiTheme.UiFont
-        Me.passLegendText.ForeColor = UiTheme.TextPrimary
+        Me.passLegendText.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
+        Me.passLegendText.ForeColor = System.Drawing.Color.FromArgb(36, 49, 66)
         Me.passLegendText.Name = "passLegendText"
         Me.passLegendText.Text = "PASS"
         Me.passLegend.Controls.Add(Me.passSwatch)
@@ -136,13 +136,13 @@ Partial Class StatisticsControl
         Me.ngLegend.Name = "ngLegend"
         Me.ngLegend.Padding = New System.Windows.Forms.Padding(0, 2, 0, 0)
         Me.ngLegend.WrapContents = False
-        Me.ngSwatch.BackColor = UiTheme.Danger
+        Me.ngSwatch.BackColor = System.Drawing.Color.FromArgb(239, 62, 62)
         Me.ngSwatch.Margin = New System.Windows.Forms.Padding(0, 2, 4, 0)
         Me.ngSwatch.Name = "ngSwatch"
         Me.ngSwatch.Size = New System.Drawing.Size(11, 11)
         Me.ngLegendText.AutoSize = True
-        Me.ngLegendText.Font = UiTheme.UiFont
-        Me.ngLegendText.ForeColor = UiTheme.TextPrimary
+        Me.ngLegendText.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
+        Me.ngLegendText.ForeColor = System.Drawing.Color.FromArgb(36, 49, 66)
         Me.ngLegendText.Name = "ngLegendText"
         Me.ngLegendText.Text = "NG"
         Me.ngLegend.Controls.Add(Me.ngSwatch)
@@ -153,13 +153,13 @@ Partial Class StatisticsControl
         Me.testingLegend.Name = "testingLegend"
         Me.testingLegend.Padding = New System.Windows.Forms.Padding(0, 2, 0, 0)
         Me.testingLegend.WrapContents = False
-        Me.testingSwatch.BackColor = UiTheme.Primary
+        Me.testingSwatch.BackColor = System.Drawing.Color.FromArgb(23, 105, 232)
         Me.testingSwatch.Margin = New System.Windows.Forms.Padding(0, 2, 4, 0)
         Me.testingSwatch.Name = "testingSwatch"
         Me.testingSwatch.Size = New System.Drawing.Size(11, 11)
         Me.testingLegendText.AutoSize = True
-        Me.testingLegendText.Font = UiTheme.UiFont
-        Me.testingLegendText.ForeColor = UiTheme.TextPrimary
+        Me.testingLegendText.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
+        Me.testingLegendText.ForeColor = System.Drawing.Color.FromArgb(36, 49, 66)
         Me.testingLegendText.Name = "testingLegendText"
         Me.testingLegendText.Text = "测试中"
         Me.testingLegend.Controls.Add(Me.testingSwatch)
@@ -170,18 +170,18 @@ Partial Class StatisticsControl
         Me.idleLegend.Name = "idleLegend"
         Me.idleLegend.Padding = New System.Windows.Forms.Padding(0, 2, 0, 0)
         Me.idleLegend.WrapContents = False
-        Me.idleSwatch.BackColor = UiTheme.TextSecondary
+        Me.idleSwatch.BackColor = System.Drawing.Color.FromArgb(99, 112, 132)
         Me.idleSwatch.Margin = New System.Windows.Forms.Padding(0, 2, 4, 0)
         Me.idleSwatch.Name = "idleSwatch"
         Me.idleSwatch.Size = New System.Drawing.Size(11, 11)
         Me.idleLegendText.AutoSize = True
-        Me.idleLegendText.Font = UiTheme.UiFont
-        Me.idleLegendText.ForeColor = UiTheme.TextPrimary
+        Me.idleLegendText.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
+        Me.idleLegendText.ForeColor = System.Drawing.Color.FromArgb(36, 49, 66)
         Me.idleLegendText.Name = "idleLegendText"
         Me.idleLegendText.Text = "空闲"
         Me.idleLegend.Controls.Add(Me.idleSwatch)
         Me.idleLegend.Controls.Add(Me.idleLegendText)
-        Me.statisticsLayout.BackColor = UiTheme.CardBackground
+        Me.statisticsLayout.BackColor = System.Drawing.Color.White
         Me.statisticsLayout.CellBorderStyle = System.Windows.Forms.TableLayoutPanelCellBorderStyle.None
         Me.statisticsLayout.ColumnCount = 6
         Me.statisticsLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 14.0!))
@@ -212,7 +212,7 @@ Partial Class StatisticsControl
         Me.statisticsLayout.Size = New System.Drawing.Size(528, 80)
         Me.statisticsLayout.TabIndex = 0
         Me.statisticsLayout.SetRowSpan(Me.legend, 2)
-        Me.legend.BackColor = UiTheme.CardBackground
+        Me.legend.BackColor = System.Drawing.Color.White
         Me.legend.ColumnCount = 2
         Me.legend.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50.0!))
         Me.legend.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50.0!))
@@ -230,7 +230,7 @@ Partial Class StatisticsControl
         Me.legend.Size = New System.Drawing.Size(95, 80)
         Me.legend.TabIndex = 1
         Me.DoubleBuffered = True
-        Me.BackColor = UiTheme.CardBackground
+        Me.BackColor = System.Drawing.Color.White
         Me.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
         Me.Controls.Add(Me.statisticsLayout)
         Me.Dock = System.Windows.Forms.DockStyle.Fill

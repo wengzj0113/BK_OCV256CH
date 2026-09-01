@@ -51,6 +51,9 @@ foreach ($file in $designerFiles) {
         if ($lines[$index] -match '\.Controls\.(Clear|Remove)\s*\(') {
             $violations.Add("${file}:$($index + 1): control tree is rebuilt with Controls.Clear/Remove")
         }
+        if ($lines[$index] -match '\bUiTheme\.') {
+            $violations.Add("${file}:$($index + 1): Designer code must use serializable literal theme values instead of UiTheme references")
+        }
     }
 }
 

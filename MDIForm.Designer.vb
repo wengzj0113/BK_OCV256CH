@@ -76,7 +76,7 @@ Partial Class MDIForm
         '
         'MenuStrip
         '
-        Me.MenuStrip.BackColor = UiTheme.HeaderBackground
+        Me.MenuStrip.BackColor = System.Drawing.Color.FromArgb(6, 29, 59)
         Me.MenuStrip.ForeColor = System.Drawing.Color.White
         Me.MenuStrip.Font = New System.Drawing.Font("Microsoft YaHei UI", 10.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
         Me.MenuStrip.ImageScalingSize = New System.Drawing.Size(20, 20)
