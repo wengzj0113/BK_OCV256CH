@@ -439,6 +439,9 @@
     <Compile Include="StatisticsControl.vb">
       <SubType>UserControl</SubType>
     </Compile>
+    <Compile Include="StatisticsControl.Designer.vb">
+      <DependentUpon>StatisticsControl.vb</DependentUpon>
+    </Compile>
     <Compile Include="ChannelTileControl.vb" />
     <Compile Include="ChannelGridControl.vb">
       <SubType>UserControl</SubType>
