@@ -40,6 +40,9 @@ Partial Class MDIForm
         Me.TlStripMenuG = New System.Windows.Forms.ToolStripMenuItem()
         Me.TlStripMenuLog = New System.Windows.Forms.ToolStripMenuItem()
         Me.EMS上传ToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
+        Me.calibrationMenu = New System.Windows.Forms.ToolStripMenuItem()
+        Me.loginMenu = New System.Windows.Forms.ToolStripMenuItem()
+        Me.bottomStatusControl = New BottomStatusControl()
         Me.ToolStrip = New System.Windows.Forms.ToolStrip()
         Me.btnInit = New System.Windows.Forms.ToolStripButton()
         Me.ToolDebug = New System.Windows.Forms.ToolStripButton()
@@ -73,13 +76,16 @@ Partial Class MDIForm
         '
         'MenuStrip
         '
-        Me.MenuStrip.Font = New System.Drawing.Font("Microsoft YaHei UI", 12.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
+        Me.MenuStrip.BackColor = UiTheme.HeaderBackground
+        Me.MenuStrip.ForeColor = System.Drawing.Color.White
+        Me.MenuStrip.Font = New System.Drawing.Font("Microsoft YaHei UI", 10.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
         Me.MenuStrip.ImageScalingSize = New System.Drawing.Size(20, 20)
-        Me.MenuStrip.Items.AddRange(New System.Windows.Forms.ToolStripItem() {Me.FileMenu, Me.EditMenu, Me.TStripMenuInQuery, Me.EMS上传ToolStripMenuItem})
+        Me.MenuStrip.Items.AddRange(New System.Windows.Forms.ToolStripItem() {Me.FileMenu, Me.EditMenu, Me.TStripMenuInQuery, Me.calibrationMenu, Me.EMS上传ToolStripMenuItem, Me.loginMenu})
         Me.MenuStrip.Location = New System.Drawing.Point(0, 0)
         Me.MenuStrip.Name = "MenuStrip"
-        Me.MenuStrip.Padding = New System.Windows.Forms.Padding(4, 2, 0, 2)
-        Me.MenuStrip.Size = New System.Drawing.Size(1429, 29)
+        Me.MenuStrip.AutoSize = False
+        Me.MenuStrip.Padding = New System.Windows.Forms.Padding(16, 0, 0, 0)
+        Me.MenuStrip.Size = New System.Drawing.Size(1429, 46)
         Me.MenuStrip.TabIndex = 5
         Me.MenuStrip.Text = "MenuStrip"
         '
@@ -186,6 +192,32 @@ Partial Class MDIForm
         Me.EMS上传ToolStripMenuItem.Name = "EMS上传ToolStripMenuItem"
         Me.EMS上传ToolStripMenuItem.Size = New System.Drawing.Size(88, 25)
         Me.EMS上传ToolStripMenuItem.Text = "MES上传"
+        '
+        'calibrationMenu
+        '
+        Me.calibrationMenu.Name = "calibrationMenu"
+        Me.calibrationMenu.Size = New System.Drawing.Size(80, 42)
+        Me.calibrationMenu.Text = "校准"
+        Me.calibrationMenu.ToolTipText = "通道校准"
+        '
+        'loginMenu
+        '
+        Me.loginMenu.Name = "loginMenu"
+        Me.loginMenu.Size = New System.Drawing.Size(80, 42)
+        Me.loginMenu.Text = "登录"
+        Me.loginMenu.ToolTipText = "登录或切换当前用户"
+        Me.FileMenu.ForeColor = System.Drawing.Color.White
+        Me.EditMenu.ForeColor = System.Drawing.Color.White
+        Me.TStripMenuInQuery.ForeColor = System.Drawing.Color.White
+        Me.calibrationMenu.ForeColor = System.Drawing.Color.White
+        Me.EMS上传ToolStripMenuItem.ForeColor = System.Drawing.Color.White
+        Me.loginMenu.ForeColor = System.Drawing.Color.White
+        Me.FileMenu.Margin = New System.Windows.Forms.Padding(8, 0, 8, 0)
+        Me.EditMenu.Margin = New System.Windows.Forms.Padding(8, 0, 8, 0)
+        Me.TStripMenuInQuery.Margin = New System.Windows.Forms.Padding(8, 0, 8, 0)
+        Me.calibrationMenu.Margin = New System.Windows.Forms.Padding(8, 0, 8, 0)
+        Me.EMS上传ToolStripMenuItem.Margin = New System.Windows.Forms.Padding(8, 0, 8, 0)
+        Me.loginMenu.Margin = New System.Windows.Forms.Padding(8, 0, 8, 0)
         '
         'ToolStrip
         '
@@ -355,6 +387,7 @@ Partial Class MDIForm
         Me.Controls.Add(Me.ToolStrip)
         Me.Controls.Add(Me.MenuStrip)
         Me.Controls.Add(Me.StatusStrip)
+        Me.Controls.Add(Me.bottomStatusControl)
         Me.Icon = CType(resources.GetObject("$this.Icon"), System.Drawing.Icon)
         Me.IsMdiContainer = True
         Me.MainMenuStrip = Me.MenuStrip
@@ -412,4 +445,7 @@ Partial Class MDIForm
     Friend WithEvents userMenage As ToolStripMenuItem
     Friend WithEvents txtTesting As Label
     Friend WithEvents EMS上传ToolStripMenuItem As ToolStripMenuItem
+    Friend WithEvents calibrationMenu As ToolStripMenuItem
+    Friend WithEvents loginMenu As ToolStripMenuItem
+    Friend WithEvents bottomStatusControl As BottomStatusControl
 End Class

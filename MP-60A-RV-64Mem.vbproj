@@ -435,16 +435,24 @@
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="UiTheme.vb" />
-    <Compile Include="ResponsiveTestLayout.vb" />
     <Compile Include="StatisticsControl.vb">
       <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="StatisticsControl.Designer.vb">
+      <DependentUpon>StatisticsControl.vb</DependentUpon>
     </Compile>
     <Compile Include="ChannelTileControl.vb" />
     <Compile Include="ChannelGridControl.vb">
       <SubType>UserControl</SubType>
     </Compile>
+    <Compile Include="ChannelGridControl.Designer.vb">
+      <DependentUpon>ChannelGridControl.vb</DependentUpon>
+    </Compile>
     <Compile Include="BottomStatusControl.vb">
       <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="BottomStatusControl.Designer.vb">
+      <DependentUpon>BottomStatusControl.vb</DependentUpon>
     </Compile>
     <Compile Include="UiUpdateService.vb" />
     <Compile Include="frmUserManage.Designer.vb">

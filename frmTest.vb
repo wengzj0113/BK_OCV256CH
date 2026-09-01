@@ -32,10 +32,6 @@ Public Class frmTest
     '窗体是否已加载完成（用于屏蔽 Resize 期间重绘，避免初始化阶段空引用）
     Private _isLoaded As Boolean = False
     Private shutdownPrepared As Boolean = False
-    Private responsiveLayout As ResponsiveTestLayout
-    Private grpTestMode As GroupBox
-    Private chkAutoTest As CheckBox
-    Private chkManualTest As CheckBox
     Private modeChangeInProgress As Boolean
     Private deferredStartupScheduled As Boolean
     Private deferredStartupCompleted As Boolean
@@ -86,9 +82,6 @@ Public Class frmTest
         StartupTiming.Mark("frmTest-read-init")
         ConfigureStationControls()
         StartupTiming.Mark("frmTest-station-controls")
-        '首屏只建立必要容器和尺寸，完整样式延后到第一次 Paint 之后。
-        ApplyFrmTestEssentialLayout()
-        StartupTiming.Mark("frmTest-essential-layout")
         '合格范围
         txtMaxV.Text = Initsetting.upVoltage
         txtMinV.Text = Initsetting.downVoltage
@@ -186,10 +179,6 @@ Public Class frmTest
         timer3.Start()
         Timer4.Start()
 
-        '完整样式不属于首屏必要路径，放在首次 Paint 之后执行。
-        If responsiveLayout IsNot Nothing Then responsiveLayout.ApplyDeferredStructuredLayouts()
-        ApplyFrmTestDeferredVisualStyle()
-        StartupTiming.Mark("frmTest-deferred-style")
         StartupTiming.Mark("frmTest-deferred-complete")
     End Sub
 
@@ -220,8 +209,9 @@ Public Class frmTest
     Private Sub SetSelectionModeButton(ByVal activeButton As Button)
         Dim buttons() As Button = {btnChannelSelectAll, btnChannelClear, btnChannelRectangle, btnChannelSelectSingle}
         For Each button As Button In buttons
-            button.BackColor = If(button Is activeButton, UiTheme.Primary, SystemColors.Control)
-            button.ForeColor = If(button Is activeButton, Color.White, SystemColors.ControlText)
+            button.BackColor = If(button Is activeButton, UiTheme.Primary, UiTheme.CardBackground)
+            button.ForeColor = If(button Is activeButton, Color.White, UiTheme.TextPrimary)
+            button.FlatAppearance.BorderColor = If(button Is activeButton, UiTheme.Primary, UiTheme.CardBorder)
         Next
     End Sub
 
@@ -2379,137 +2369,6 @@ exit_sub:
 
 
 
-    ''' <summary>
-    ''' Applies the visual layer to existing controls without changing their
-    ''' event bindings or business behavior.
-    ''' </summary>
-    Private Sub ApplyFrmTestVisualStyle()
-        ApplyFrmTestEssentialLayout()
-        If responsiveLayout IsNot Nothing Then responsiveLayout.ApplyDeferredStructuredLayouts()
-        ApplyFrmTestDeferredVisualStyle()
-    End Sub
-
-    Private Sub ApplyFrmTestEssentialLayout()
-        MinimumSize = New Size(0, 0)
-        If Panel1 Is Nothing Then Return
-
-        SuspendLayout()
-        Try
-            '首屏不切换窗体字体/AutoScaleMode，避免设计器控件整体重新缩放。
-            StartupTiming.Mark("frmTest-essential-before-controls")
-            EnsureTestModeControls()
-            ConfigureCompactLeftControls()
-            StartupTiming.Mark("frmTest-essential-before-responsive")
-            If responsiveLayout Is Nothing Then responsiveLayout = New ResponsiveTestLayout()
-            responsiveLayout.Apply(Me, Panel1, statisticsControl, channelGrid, Pic_Bat, False)
-            StartupTiming.Mark("frmTest-essential-after-responsive")
-        Finally
-            ResumeLayout(False)
-        End Try
-    End Sub
-
-    Private Sub ApplyFrmTestDeferredVisualStyle()
-        MinimumSize = New Size(0, 0)
-        If Panel1 Is Nothing Then Return
-
-        SuspendLayout()
-        Try
-            '结构化左侧布局不加入首屏后的同步工作，避免首次显示后再次长时间占用 UI 线程。
-            '首屏先沿用设计器控件布局；后续 Resize/布局刷新时再由 ResponsiveTestLayout 处理。
-            Me.BackColor = UiTheme.PageBackground
-            Me.DoubleBuffered = True
-            Panel1.BackColor = UiTheme.PageBackground
-            Pic_Bat.BackColor = UiTheme.CardBackground
-
-            Dim cards As GroupBox() = {
-                grpTestMode, GroupBox1, GroupBox3,
-                GroupBox5, GroupBox6, GroupBox7, GroupBox8
-            }
-            For Each card As GroupBox In cards
-                UiTheme.ApplyCardStyle(card)
-            Next
-
-            Dim inputs As TextBox() = {
-                txtTray, txtFirstNum, txtLastNum,
-                txtMinV, txtMaxV, txtMinR, txtMaxR,
-                txtTestR, txtCaliR, txtJiajuR, txtAlarm,
-                t1, t2, t3, t4, txtTotle, txtUsed, txtRemain
-            }
-            For Each input As TextBox In inputs
-                UiTheme.ApplyTextBoxStyle(input)
-            Next
-
-            Dim fieldLabels As Label() = {
-                Label2, Label5, Label7, Label12,
-                Label1, Label14, Label15, Label16,
-                Label19, Label17, Label28, Label26, Label29
-            }
-            For Each fieldLabel As Label In fieldLabels
-                UiTheme.ApplyFieldLabelStyle(fieldLabel)
-            Next
-
-            UiTheme.ApplyCheckBoxStyle(chkAutoTest)
-            UiTheme.ApplyCheckBoxStyle(chkManualTest)
-            UiTheme.ApplyRadioButtonStyle(Rbtn1)
-            UiTheme.ApplyRadioButtonStyle(Rbtn2)
-            UiTheme.ApplyRadioButtonStyle(Rbtn3)
-            Dim currentStationButton As RadioButton = {Rbtn1, Rbtn2, Rbtn3}.FirstOrDefault(Function(button) button.Checked)
-            UiTheme.ApplyStationButtonStyle(currentStationButton)
-
-            UiTheme.ApplyButtonStyle(CmdStart, UiTheme.ButtonRole.Primary)
-            UiTheme.ApplyButtonStyle(btnStop, UiTheme.ButtonRole.Danger)
-            UiTheme.ApplyButtonStyle(btnNGTest, UiTheme.ButtonRole.Warning)
-            UiTheme.ApplyButtonStyle(btnTrayState, UiTheme.ButtonRole.Neutral)
-            UiTheme.ApplyButtonStyle(btnOpen, UiTheme.ButtonRole.Neutral)
-            UiTheme.ApplyButtonStyle(btnClose, UiTheme.ButtonRole.Neutral)
-            'UiTheme.ApplyButtonStyle(btn_ZeroAdjustment, UiTheme.ButtonRole.Neutral)
-            UiTheme.ApplyButtonStyle(btn_ChCalibrate, UiTheme.ButtonRole.Primary)
-            'UiTheme.ApplyButtonStyle(btnScanTray, UiTheme.ButtonRole.Neutral)
-            UiTheme.ApplyButtonStyle(btnChannelSelectAll, UiTheme.ButtonRole.Primary)
-            UiTheme.ApplyButtonStyle(btnChannelClear, UiTheme.ButtonRole.Neutral)
-            UiTheme.ApplyButtonStyle(btnChannelRectangle, UiTheme.ButtonRole.Neutral)
-            UiTheme.ApplyButtonStyle(btnChannelSelectSingle, UiTheme.ButtonRole.Neutral)
-            UiTheme.ApplyButtonStyle(Button2, UiTheme.ButtonRole.Danger)
-            If responsiveLayout IsNot Nothing Then responsiveLayout.RefreshLeftContent(Panel1)
-        Finally
-            ResumeLayout(False)
-        End Try
-    End Sub
-
-    Private Sub EnsureTestModeControls()
-        If grpTestMode IsNot Nothing Then Return
-
-        grpTestMode = New GroupBox With {
-            .Name = "grpTestMode",
-            .Text = "测试控制",
-            .BackColor = UiTheme.CardBackground,
-            .Size = New Size(306, 42),
-            .TabStop = False
-        }
-        chkAutoTest = New CheckBox With {
-            .Name = "chkAutoTest",
-            .Text = "自动",
-            .AutoSize = True,
-            .Checked = True,
-            .Location = New Point(55, 15),
-            .TabIndex = 0
-        }
-        chkManualTest = New CheckBox With {
-            .Name = "chkManualTest",
-            .Text = "手动",
-            .AutoSize = True,
-            .Checked = False,
-            .Location = New Point(190, 15),
-            .TabIndex = 1
-        }
-        AddHandler chkAutoTest.CheckedChanged, AddressOf TestModeCheckedChanged
-        AddHandler chkManualTest.CheckedChanged, AddressOf TestModeCheckedChanged
-        grpTestMode.Controls.Add(chkAutoTest)
-        grpTestMode.Controls.Add(chkManualTest)
-        Panel1.Controls.Add(grpTestMode)
-        SetTestMode(True)
-    End Sub
-
     Private Sub TestModeCheckedChanged(ByVal sender As Object, ByVal e As EventArgs)
         If modeChangeInProgress Then Return
 
@@ -2550,6 +2409,7 @@ exit_sub:
     End Sub
 
     Private Sub ConfigureStationControls()
+        currentStationButton.Visible = True
         Rbtn1.Text = "OCV0"
         Rbtn2.Text = "OCV1"
         Rbtn3.Text = "OCV2"
@@ -2571,12 +2431,15 @@ exit_sub:
             Case 1
                 Rbtn2.Checked = True
                 Rbtn2.Visible = True
+                currentStationButton.Text = "OCV1"
             Case 2
                 Rbtn3.Checked = True
                 Rbtn3.Visible = True
+                currentStationButton.Text = "OCV2"
             Case Else
                 Rbtn1.Checked = True
                 Rbtn1.Visible = True
+                currentStationButton.Text = "OCV0"
         End Select
         UpdateCurrentOcvSelection()
         UiTheme.ApplyToggleStateStyle(Rbtn1, Rbtn1.Checked)
@@ -2594,20 +2457,9 @@ exit_sub:
         End If
     End Sub
 
-    Private Sub ConfigureCompactLeftControls()
-        '控件的父子关系和尺寸由 ResponsiveTestLayout 的结构化布局统一管理。
-        '这里仅保留报警复位按钮的视觉尺寸，避免恢复旧的固定坐标布局。
-        If Button2 IsNot Nothing Then Button2.Size = New Size(133, 34)
-    End Sub
-
     Private Sub ResetLeftPanelScroll()
         If Panel1 Is Nothing OrElse Panel1.IsDisposed Then Return
         Panel1.AutoScrollPosition = New Point(0, 0)
-    End Sub
-
-    Private Sub frmTest_Resize(ByVal sender As Object, ByVal e As EventArgs) Handles MyBase.Resize
-        If Not _isLoaded OrElse responsiveLayout Is Nothing OrElse Panel1 Is Nothing Then Return
-        responsiveLayout.RefreshLeftContent(Panel1)
     End Sub
 
     Private Sub SetTestStatus(ByVal message As String)

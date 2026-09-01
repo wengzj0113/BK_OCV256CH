@@ -13,8 +13,6 @@ Public Class ChannelGridControl
     Private Const GridSize As Integer = 16
     Private Const TotalChannels As Integer = GridSize * GridSize
     Private ReadOnly displayDataByChannel As New Dictionary(Of Integer, ChannelDisplayData)()
-    Private ReadOnly gridSurface As New ChannelGridSurface()
-    Private ReadOnly hoverDetailsLabel As Label
     Private ReadOnly selectedChannels As New HashSet(Of Integer)()
     Private batchUpdateDepth As Integer
     Private batchGridWasVisible As Boolean
@@ -28,105 +26,12 @@ Public Class ChannelGridControl
     Public Event SelectedChannelsChanged As EventHandler
 
     Public Sub New()
-        BackColor = UiTheme.CardBackground
-        BorderStyle = BorderStyle.FixedSingle
-        Padding = New Padding(10, 8, 10, 10)
-
-        Dim outerLayout As New TableLayoutPanel With {
-            .Dock = DockStyle.Fill,
-            .AutoSize = False,
-            .MinimumSize = New Size(0, 0),
-            .ColumnCount = 2,
-            .RowCount = 3,
-            .BackColor = UiTheme.CardBackground,
-            .Padding = New Padding(0)
-        }
-        outerLayout.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, 44.0F))
-        outerLayout.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100.0F))
-        outerLayout.RowStyles.Add(New RowStyle(SizeType.Absolute, 34.0F))
-        outerLayout.RowStyles.Add(New RowStyle(SizeType.Percent, 6.0F))
-        outerLayout.RowStyles.Add(New RowStyle(SizeType.Percent, 89.0F))
-
-        Dim title As New Label With {
-            .Dock = DockStyle.Fill,
-            .AutoSize = False,
-            .Text = "256通道状态总览（16 × 16）",
-            .TextAlign = ContentAlignment.MiddleLeft,
-            .Font = UiTheme.UiFontBold,
-            .ForeColor = UiTheme.Primary,
-            .BackColor = UiTheme.CardBackground
-        }
-        hoverDetailsLabel = New Label With {
-            .Dock = DockStyle.Fill,
-            .AutoSize = False,
-            .AutoEllipsis = True,
-            .TextAlign = ContentAlignment.MiddleRight,
-            .Font = UiTheme.UiFont,
-            .ForeColor = UiTheme.TextPrimary,
-            .BackColor = UiTheme.CardBackground,
-            .Padding = New Padding(8, 0, 4, 0)
-        }
-        Dim titleLayout As New TableLayoutPanel With {
-            .Dock = DockStyle.Fill,
-            .ColumnCount = 2,
-            .RowCount = 1,
-            .BackColor = UiTheme.CardBackground,
-            .Margin = New Padding(0)
-        }
-        titleLayout.ColumnStyles.Add(New ColumnStyle(SizeType.AutoSize))
-        titleLayout.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100.0F))
-        titleLayout.Controls.Add(title, 0, 0)
-        titleLayout.Controls.Add(hoverDetailsLabel, 1, 0)
-        outerLayout.Controls.Add(titleLayout, 0, 0)
-        outerLayout.SetColumnSpan(titleLayout, 2)
-
-        Dim corner As New Label With {
-            .Dock = DockStyle.Fill,
-            .AutoSize = True,
-            .BackColor = UiTheme.CardBackground,
-            .Text = "状态",
-            .TextAlign = ContentAlignment.MiddleCenter,
-            .Font = UiTheme.UiFontBold,
-            .ForeColor = UiTheme.TextSecondary
-        }
-        outerLayout.Controls.Add(corner, 0, 1)
-
-        Dim columnHeader As New TableLayoutPanel With {
-            .Dock = DockStyle.Fill,
-            .ColumnCount = GridSize,
-            .RowCount = 1,
-            .BackColor = UiTheme.CardBackground,
-            .Margin = New Padding(0)
-        }
-        For column As Integer = 1 To GridSize
-            columnHeader.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100.0F / GridSize))
-            columnHeader.Controls.Add(CreateCoordinateLabel(column.ToString()), column - 1, 0)
-        Next
-        outerLayout.Controls.Add(columnHeader, 1, 1)
-
-        Dim rowHeader As New TableLayoutPanel With {
-            .Dock = DockStyle.Fill,
-            .ColumnCount = 1,
-            .RowCount = GridSize,
-            .BackColor = UiTheme.CardBackground
-        }
-        rowHeader.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100.0F))
-        For row As Integer = 1 To GridSize
-            rowHeader.RowStyles.Add(New RowStyle(SizeType.Percent, 100.0F / GridSize))
-            rowHeader.Controls.Add(CreateCoordinateLabel(row.ToString()), 0, row - 1)
-        Next
-        outerLayout.Controls.Add(rowHeader, 0, 2)
-
-        gridSurface.Dock = DockStyle.Fill
-        gridSurface.BackColor = UiTheme.CardBackground
-        gridSurface.Margin = New Padding(0)
+        InitializeComponent()
         AddHandler gridSurface.Paint, AddressOf HandleGridPaint
         AddHandler gridSurface.MouseDown, AddressOf HandleGridMouseDown
         AddHandler gridSurface.MouseMove, AddressOf HandleGridMouseMove
         AddHandler gridSurface.MouseUp, AddressOf HandleGridMouseUp
         AddHandler gridSurface.MouseLeave, AddressOf HandleGridMouseLeave
-        outerLayout.Controls.Add(gridSurface, 1, 2)
-        Controls.Add(outerLayout)
     End Sub
 
     Public ReadOnly Property TileCount As Integer
@@ -367,17 +272,6 @@ Public Class ChannelGridControl
         Dim statusText As String = If(String.IsNullOrWhiteSpace(data.StatusText), "IDLE", data.StatusText)
         Dim resultText As String = If(String.IsNullOrWhiteSpace(data.ResultText), "-", data.ResultText)
         Return String.Format("通道 {0}-{1}：{2}，电池条码：{3}，OCV1：{4}，IR1：{5}，结果：{6}", data.Row, data.Column, statusText, barcode, ocvText, irText, resultText)
-    End Function
-
-    Private Shared Function CreateCoordinateLabel(ByVal text As String) As Label
-        Return New Label With {
-            .Text = text,
-            .Dock = DockStyle.Fill,
-            .TextAlign = ContentAlignment.MiddleCenter,
-            .Font = UiTheme.UiFontBold,
-            .ForeColor = UiTheme.Primary,
-            .BackColor = UiTheme.CardBackground
-        }
     End Function
 
     Private NotInheritable Class ChannelGridSurface
