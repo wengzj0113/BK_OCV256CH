@@ -89,6 +89,26 @@ foreach ($entry in $requiredNames.GetEnumerator()) {
     }
 }
 
+$frmLines = Get-Content -LiteralPath 'frmTest.Designer.vb'
+$rootFormAddIndex = -1
+for ($index = 0; $index -lt $frmLines.Count; $index++) {
+    if ($frmLines[$index] -match 'Me\.Controls\.Add\(Me\.rootLayout\)') {
+        $rootFormAddIndex = $index
+        break
+    }
+}
+if ($rootFormAddIndex -lt 0) {
+    $violations.Add('frmTest.Designer.vb: missing final form-level rootLayout add')
+} else {
+    foreach ($child in @('channelGrid', 'statisticsControl', 'Panel1')) {
+        for ($index = $rootFormAddIndex + 1; $index -lt $frmLines.Count; $index++) {
+            if ($frmLines[$index] -match "Me\.Controls\.Add\(Me\.$([regex]::Escape($child))\)") {
+                $violations.Add("frmTest.Designer.vb:$($index + 1): '$child' is added to the form after rootLayout and would detach it from the designer tree")
+            }
+        }
+    }
+}
+
 if ($violations.Count -gt 0) {
     $violations | ForEach-Object { Write-Output "FAIL: $_" }
     exit 1
