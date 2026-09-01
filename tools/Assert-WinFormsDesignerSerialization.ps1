@@ -19,6 +19,10 @@ $anyCpuPattern = 'Condition="[^"]*Debug\|AnyCPU[^"]*"[\s\S]*?<PlatformTarget>Any
 if ($projectContent -notmatch $anyCpuPattern) {
     $projectViolations = "${projectFile}: Debug|AnyCPU must be available as a separate Designer-compatible configuration"
 }
+$x86DesignerPattern = 'Condition="[^"]*Debug\|x86[^"]*"[\s\S]*?<PlatformTarget>AnyCPU</PlatformTarget>[\s\S]*?<Prefer32Bit>true</Prefer32Bit>'
+if ($projectContent -notmatch $x86DesignerPattern) {
+    $projectViolations = "${projectFile}: the default Debug|x86 configuration must emit AnyCPU with Prefer32Bit for VS 17.8 Designer compatibility"
+}
 
 $forbiddenCalls = @(
     'BuildDesignerLayout',
