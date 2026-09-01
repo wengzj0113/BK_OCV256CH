@@ -452,6 +452,9 @@
     <Compile Include="BottomStatusControl.vb">
       <SubType>UserControl</SubType>
     </Compile>
+    <Compile Include="BottomStatusControl.Designer.vb">
+      <DependentUpon>BottomStatusControl.vb</DependentUpon>
+    </Compile>
     <Compile Include="UiUpdateService.vb" />
     <Compile Include="frmUserManage.Designer.vb">
       <DependentUpon>frmUserManage.vb</DependentUpon>

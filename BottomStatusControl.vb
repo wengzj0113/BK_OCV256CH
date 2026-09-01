@@ -4,56 +4,8 @@ Imports System.Windows.Forms
 Public Class BottomStatusControl
     Inherits UserControl
 
-    Private ReadOnly stationLabel As Label
-    Private ReadOnly plcLabel As Label
-    Private ReadOnly controlBoardLabel As Label
-    Private ReadOnly voltageLabel As Label
-    Private ReadOnly resistanceLabel As Label
-    Private ReadOnly databaseLabel As Label
-    Private ReadOnly mesLabel As Label
-    Private ReadOnly userLabel As Label
-    Private ReadOnly timeLabel As Label
-
     Public Sub New()
-        Dock = DockStyle.Bottom
-        Height = 40
-        BackColor = UiTheme.HeaderBackground
-        Padding = New Padding(24, 0, 24, 0)
-
-        Dim layout As New TableLayoutPanel With {
-            .Dock = DockStyle.Fill,
-            .ColumnCount = 9,
-            .RowCount = 1,
-            .BackColor = UiTheme.HeaderBackground,
-            .Margin = New Padding(0),
-            .Padding = New Padding(0)
-        }
-        Dim widths() As Single = {10.0F, 12.0F, 12.0F, 11.0F, 11.0F, 11.0F, 11.0F, 12.0F, 10.0F}
-        For Each width As Single In widths
-            layout.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, width))
-        Next
-
-        stationLabel = CreateStatusLabel()
-        plcLabel = CreateStatusLabel()
-        controlBoardLabel = CreateStatusLabel()
-        voltageLabel = CreateStatusLabel()
-        resistanceLabel = CreateStatusLabel()
-        databaseLabel = CreateStatusLabel()
-        mesLabel = CreateStatusLabel()
-        userLabel = CreateStatusLabel()
-        timeLabel = CreateStatusLabel()
-        timeLabel.TextAlign = ContentAlignment.MiddleRight
-
-        layout.Controls.Add(stationLabel, 0, 0)
-        layout.Controls.Add(controlBoardLabel, 1, 0)
-        layout.Controls.Add(plcLabel, 2, 0)
-        layout.Controls.Add(voltageLabel, 3, 0)
-        layout.Controls.Add(resistanceLabel, 4, 0)
-        layout.Controls.Add(databaseLabel, 5, 0)
-        layout.Controls.Add(mesLabel, 6, 0)
-        layout.Controls.Add(userLabel, 7, 0)
-        layout.Controls.Add(timeLabel, 8, 0)
-        Controls.Add(layout)
+        InitializeComponent()
     End Sub
 
     Public Sub UpdateStatus(ByVal station As String, ByVal controlBoard As String, ByVal plc As String, ByVal voltageMeter As String, ByVal resistanceMeter As String, ByVal database As String, ByVal mes As String, ByVal userName As String, ByVal timestamp As DateTime)
@@ -75,16 +27,6 @@ Public Class BottomStatusControl
         ApplyConnectionColor(databaseLabel, database)
         ApplyConnectionColor(mesLabel, mes)
     End Sub
-
-    Private Shared Function CreateStatusLabel() As Label
-        Return New Label With {
-            .Dock = DockStyle.Fill,
-            .ForeColor = Color.White,
-            .Font = UiTheme.UiFont,
-            .TextAlign = ContentAlignment.MiddleLeft,
-            .AutoEllipsis = True
-        }
-    End Function
 
     Private Shared Function FormatStatus(ByVal title As String, ByVal value As String) As String
         Return "● " & title & "：" & If(String.IsNullOrWhiteSpace(value), "-", value)

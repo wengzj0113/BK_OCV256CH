@@ -11,12 +11,10 @@ Imports System.Threading
 Imports System.Reflection.Emit
 
 Public Class MDIForm
-    Private bottomStatusControl As BottomStatusControl
     Private ngRetestForm As FrmNgRetest
     Private applyingMdiClientLayout As Boolean
     Private mdiLayoutOrderApplied As Boolean
     Private mdiChildCreationInProgress As Boolean
-    Private loginMenu As ToolStripMenuItem
     Private ReadOnly resizeDebounceTimer As New System.Windows.Forms.Timer()
     Private databaseHealthCheckStarted As Integer
     'Dim adoCnn As SqlConnection
@@ -144,17 +142,6 @@ Public Class MDIForm
         End Using
     End Sub
 
-    Private Sub EnsureLoginMenu()
-        If loginMenu IsNot Nothing Then Return
-
-        loginMenu = New ToolStripMenuItem("登录") With {
-            .Name = "LoginToolStripMenuItem",
-            .ToolTipText = "登录或切换当前用户"
-        }
-        AddHandler loginMenu.Click, AddressOf LoginToolStripMenuItem_Click
-        MenuStrip.Items.Add(loginMenu)
-    End Sub
-
     Private Sub NgRetestToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles NgRetestToolStripMenuItem.Click
         If ngRetestForm Is Nothing OrElse ngRetestForm.IsDisposed Then
             ngRetestForm = New FrmNgRetest()
@@ -163,7 +150,7 @@ Public Class MDIForm
         ngRetestForm.Activate()
     End Sub
 
-    Private Sub LoginToolStripMenuItem_Click(sender As Object, e As EventArgs)
+    Private Sub LoginToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles loginMenu.Click
         Using login As New FrmLoginNew()
             If login.ShowDialog(Me) <> DialogResult.OK Then Return
 
@@ -236,8 +223,6 @@ Public Class MDIForm
         resizeDebounceTimer.Interval = ResizeDebounceMs
         AddHandler resizeDebounceTimer.Tick, AddressOf ResizeDebounceTimer_Tick
         ApplyReferenceChrome()
-        EnsureCalibrationMenu()
-        EnsureLoginMenu()
         EnsureBottomStatusControl()
         ApplyMdiClientLayout()
 
@@ -309,34 +294,10 @@ Public Class MDIForm
     End Sub
 
     Private Sub ApplyReferenceChrome()
-        Me.BackColor = UiTheme.PageBackground
-        Me.IsMdiContainer = True
-        Me.AutoSize = False
-
-        MenuStrip.BackColor = UiTheme.HeaderBackground
-        MenuStrip.ForeColor = Color.White
         MenuStrip.Renderer = New HeaderMenuRenderer()
-        MenuStrip.Font = New Font("Microsoft YaHei UI", 10.0F, FontStyle.Regular)
-        MenuStrip.AutoSize = False
-        MenuStrip.Padding = New Padding(16, 0, 0, 0)
-        MenuStrip.Height = 46
-        For Each item As ToolStripMenuItem In MenuStrip.Items.OfType(Of ToolStripMenuItem)()
-            item.ForeColor = Color.White
-            item.Margin = New Padding(8, 0, 8, 0)
-        Next
-
-        ' The reference UI uses one compact navigation band. The existing
-        ' toolbar actions remain available through the menu and events.
-        ToolStrip.Visible = False
-        StatusStrip.Visible = False
     End Sub
 
     Private Sub EnsureBottomStatusControl()
-        If bottomStatusControl Is Nothing Then
-            bottomStatusControl = New BottomStatusControl()
-            Controls.Add(bottomStatusControl)
-            bottomStatusControl.BringToFront()
-        End If
         UpdateBottomStatus()
     End Sub
 
@@ -680,35 +641,7 @@ Public Class MDIForm
         FrmMesTask.ShowDialog()
         FrmMesTask.Activate()
     End Sub
-    Private Sub EnsureCalibrationMenu()
-        For Each item As ToolStripItem In MenuStrip.Items
-            If item.Name = "CalibrationToolStripMenuItem" Then
-                Return
-            End If
-        Next
-
-        Dim calibrationMenu As New ToolStripMenuItem(ChrW(&H6821) & ChrW(&H51C6))
-        calibrationMenu.Name = "CalibrationToolStripMenuItem"
-        AddHandler calibrationMenu.Click, AddressOf CalibrationToolStripMenuItem_Click
-
-        Dim insertIndex As Integer = -1
-        For i As Integer = 0 To MenuStrip.Items.Count - 1
-            If MenuStrip.Items(i).Text.StartsWith("MES") Then
-                insertIndex = i
-                RemoveHandler MenuStrip.Items(i).Click, AddressOf EMS涓婁紶ToolStripMenuItem_Click
-                AddHandler MenuStrip.Items(i).Click, AddressOf EMS涓婁紶ToolStripMenuItem_Click
-                Exit For
-            End If
-        Next
-
-        If insertIndex < 0 Then
-            MenuStrip.Items.Add(calibrationMenu)
-        Else
-            MenuStrip.Items.Insert(insertIndex, calibrationMenu)
-        End If
-    End Sub
-
-    Private Sub CalibrationToolStripMenuItem_Click(sender As Object, e As EventArgs)
+    Private Sub CalibrationToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles calibrationMenu.Click
         Dim calibrationForm As FrmChannelCalibration = Nothing
         For Each child As Form In Me.MdiChildren
             If TypeOf child Is FrmChannelCalibration Then
