@@ -28,15 +28,60 @@ Partial Class BottomStatusControl
         Me.timeLabel = New System.Windows.Forms.Label()
         Me.SuspendLayout()
         Me.statusLayout.SuspendLayout()
-        ConfigureStatusLabel(Me.stationLabel)
-        ConfigureStatusLabel(Me.controlBoardLabel)
-        ConfigureStatusLabel(Me.plcLabel)
-        ConfigureStatusLabel(Me.voltageLabel)
-        ConfigureStatusLabel(Me.resistanceLabel)
-        ConfigureStatusLabel(Me.databaseLabel)
-        ConfigureStatusLabel(Me.mesLabel)
-        ConfigureStatusLabel(Me.userLabel)
-        ConfigureStatusLabel(Me.timeLabel)
+        Me.stationLabel.AutoEllipsis = True
+        Me.stationLabel.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.stationLabel.Font = UiTheme.UiFont
+        Me.stationLabel.ForeColor = System.Drawing.Color.White
+        Me.stationLabel.Name = "stationLabel"
+        Me.stationLabel.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
+        Me.controlBoardLabel.AutoEllipsis = True
+        Me.controlBoardLabel.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.controlBoardLabel.Font = UiTheme.UiFont
+        Me.controlBoardLabel.ForeColor = System.Drawing.Color.White
+        Me.controlBoardLabel.Name = "controlBoardLabel"
+        Me.controlBoardLabel.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
+        Me.plcLabel.AutoEllipsis = True
+        Me.plcLabel.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.plcLabel.Font = UiTheme.UiFont
+        Me.plcLabel.ForeColor = System.Drawing.Color.White
+        Me.plcLabel.Name = "plcLabel"
+        Me.plcLabel.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
+        Me.voltageLabel.AutoEllipsis = True
+        Me.voltageLabel.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.voltageLabel.Font = UiTheme.UiFont
+        Me.voltageLabel.ForeColor = System.Drawing.Color.White
+        Me.voltageLabel.Name = "voltageLabel"
+        Me.voltageLabel.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
+        Me.resistanceLabel.AutoEllipsis = True
+        Me.resistanceLabel.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.resistanceLabel.Font = UiTheme.UiFont
+        Me.resistanceLabel.ForeColor = System.Drawing.Color.White
+        Me.resistanceLabel.Name = "resistanceLabel"
+        Me.resistanceLabel.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
+        Me.databaseLabel.AutoEllipsis = True
+        Me.databaseLabel.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.databaseLabel.Font = UiTheme.UiFont
+        Me.databaseLabel.ForeColor = System.Drawing.Color.White
+        Me.databaseLabel.Name = "databaseLabel"
+        Me.databaseLabel.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
+        Me.mesLabel.AutoEllipsis = True
+        Me.mesLabel.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.mesLabel.Font = UiTheme.UiFont
+        Me.mesLabel.ForeColor = System.Drawing.Color.White
+        Me.mesLabel.Name = "mesLabel"
+        Me.mesLabel.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
+        Me.userLabel.AutoEllipsis = True
+        Me.userLabel.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.userLabel.Font = UiTheme.UiFont
+        Me.userLabel.ForeColor = System.Drawing.Color.White
+        Me.userLabel.Name = "userLabel"
+        Me.userLabel.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
+        Me.timeLabel.AutoEllipsis = True
+        Me.timeLabel.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.timeLabel.Font = UiTheme.UiFont
+        Me.timeLabel.ForeColor = System.Drawing.Color.White
+        Me.timeLabel.Name = "timeLabel"
+        Me.timeLabel.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
         Me.timeLabel.TextAlign = System.Drawing.ContentAlignment.MiddleRight
         Me.statusLayout.BackColor = UiTheme.HeaderBackground
         Me.statusLayout.ColumnCount = 9
@@ -75,14 +120,6 @@ Partial Class BottomStatusControl
         Me.Size = New System.Drawing.Size(1000, 40)
         Me.statusLayout.ResumeLayout(False)
         Me.ResumeLayout(False)
-    End Sub
-
-    Private Sub ConfigureStatusLabel(ByVal label As System.Windows.Forms.Label)
-        label.AutoEllipsis = True
-        label.Dock = System.Windows.Forms.DockStyle.Fill
-        label.Font = UiTheme.UiFont
-        label.ForeColor = System.Drawing.Color.White
-        label.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
     End Sub
 
     Private statusLayout As System.Windows.Forms.TableLayoutPanel

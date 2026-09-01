@@ -937,7 +937,721 @@ Partial Class frmTest
         Me.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen
         Me.Text = "测试"
         CType(Me.Pic_Bat, System.ComponentModel.ISupportInitialize).EndInit()
-        BuildDesignerLayout()
+        Me.DoubleBuffered = True
+        Me.rootLayout = New System.Windows.Forms.TableLayoutPanel()
+        Me.rootLayout.BackColor = UiTheme.PageBackground
+        Me.rootLayout.ColumnCount = 2
+        Me.rootLayout.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.rootLayout.Margin = New System.Windows.Forms.Padding(0)
+        Me.rootLayout.Name = "rootLayout"
+        Me.rootLayout.Padding = New System.Windows.Forms.Padding(0)
+        Me.rootLayout.RowCount = 1
+        Me.rootLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 350.0!))
+        Me.rootLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100.0!))
+        Me.rootLayout.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100.0!))
+        Me.rightLayout = New System.Windows.Forms.TableLayoutPanel()
+        Me.rightLayout.BackColor = UiTheme.PageBackground
+        Me.rightLayout.ColumnCount = 1
+        Me.rightLayout.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.rightLayout.Margin = New System.Windows.Forms.Padding(0)
+        Me.rightLayout.Name = "rightLayout"
+        Me.rightLayout.Padding = New System.Windows.Forms.Padding(0)
+        Me.rightLayout.RowCount = 2
+        Me.rightLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100.0!))
+        Me.rightLayout.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 14.0!))
+        Me.rightLayout.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 86.0!))
+        Me.statisticsControl.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.statisticsControl.Margin = New System.Windows.Forms.Padding(0)
+        Me.channelGrid.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.channelGrid.Margin = New System.Windows.Forms.Padding(0)
+        Me.rightLayout.Controls.Add(Me.statisticsControl, 0, 0)
+        Me.rightLayout.Controls.Add(Me.channelGrid, 0, 1)
+        Me.leftContentPanel = New System.Windows.Forms.TableLayoutPanel()
+        Me.leftContentPanel.AutoSize = True
+        Me.leftContentPanel.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink
+        Me.leftContentPanel.BackColor = UiTheme.PageBackground
+        Me.leftContentPanel.ColumnCount = 1
+        Me.leftContentPanel.Dock = System.Windows.Forms.DockStyle.Top
+        Me.leftContentPanel.Margin = New System.Windows.Forms.Padding(0)
+        Me.leftContentPanel.Name = "leftContentPanel"
+        Me.leftContentPanel.Padding = New System.Windows.Forms.Padding(UiTheme.LeftContentPadding)
+        Me.leftContentPanel.RowCount = 9
+        Me.leftContentPanel.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize, 0.0!))
+        Me.leftContentPanel.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize, 0.0!))
+        Me.leftContentPanel.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize, 0.0!))
+        Me.leftContentPanel.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize, 0.0!))
+        Me.leftContentPanel.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize, 0.0!))
+        Me.leftContentPanel.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize, 0.0!))
+        Me.leftContentPanel.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize, 0.0!))
+        Me.leftContentPanel.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize, 0.0!))
+        Me.leftContentPanel.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize, 0.0!))
+        Me.grpTestMode = New System.Windows.Forms.GroupBox()
+        Me.grpTestMode.BackColor = UiTheme.CardBackground
+        Me.grpTestMode.Font = UiTheme.UiFontBold
+        Me.grpTestMode.ForeColor = UiTheme.Primary
+        Me.grpTestMode.Name = "grpTestMode"
+        Me.grpTestMode.Padding = New System.Windows.Forms.Padding(6, 15, 6, 6)
+        Me.grpTestMode.Size = New System.Drawing.Size(334, 50)
+        Me.grpTestMode.TabStop = False
+        Me.grpTestMode.Text = "测试控制"
+        Me.testModeLayout = New System.Windows.Forms.TableLayoutPanel()
+        Me.testModeLayout.ColumnCount = 2
+        Me.testModeLayout.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.testModeLayout.Margin = New System.Windows.Forms.Padding(0)
+        Me.testModeLayout.Name = "testModeLayout"
+        Me.testModeLayout.RowCount = 1
+        Me.testModeLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50.0!))
+        Me.testModeLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50.0!))
+        Me.testModeLayout.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100.0!))
+        Me.chkAutoTest = New System.Windows.Forms.CheckBox()
+        Me.chkAutoTest.Appearance = System.Windows.Forms.Appearance.Button
+        Me.chkAutoTest.AutoSize = False
+        Me.chkAutoTest.BackColor = UiTheme.Primary
+        Me.chkAutoTest.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.chkAutoTest.FlatStyle = System.Windows.Forms.FlatStyle.Flat
+        Me.chkAutoTest.Font = UiTheme.UiFontBold
+        Me.chkAutoTest.ForeColor = System.Drawing.Color.White
+        Me.chkAutoTest.Name = "chkAutoTest"
+        Me.chkAutoTest.Text = "自动"
+        Me.chkAutoTest.TextAlign = System.Drawing.ContentAlignment.MiddleCenter
+        Me.chkAutoTest.UseVisualStyleBackColor = False
+        Me.chkAutoTest.Checked = True
+        Me.chkAutoTest.FlatAppearance.BorderColor = UiTheme.Primary
+        Me.chkAutoTest.FlatAppearance.BorderSize = 1
+        Me.chkManualTest = New System.Windows.Forms.CheckBox()
+        Me.chkManualTest.Appearance = System.Windows.Forms.Appearance.Button
+        Me.chkManualTest.AutoSize = False
+        Me.chkManualTest.BackColor = UiTheme.CardBackground
+        Me.chkManualTest.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.chkManualTest.FlatStyle = System.Windows.Forms.FlatStyle.Flat
+        Me.chkManualTest.Font = UiTheme.UiFontBold
+        Me.chkManualTest.ForeColor = UiTheme.TextPrimary
+        Me.chkManualTest.Name = "chkManualTest"
+        Me.chkManualTest.Text = "手动"
+        Me.chkManualTest.TextAlign = System.Drawing.ContentAlignment.MiddleCenter
+        Me.chkManualTest.UseVisualStyleBackColor = False
+        Me.chkManualTest.FlatAppearance.BorderColor = UiTheme.CardBorder
+        Me.chkManualTest.FlatAppearance.BorderSize = 1
+        Me.testModeLayout.Controls.Add(Me.chkAutoTest, 0, 0)
+        Me.testModeLayout.Controls.Add(Me.chkManualTest, 1, 0)
+        Me.grpTestMode.Controls.Add(Me.testModeLayout)
+        Me.currentStationButton = New System.Windows.Forms.RadioButton()
+        Me.currentStationButton.Appearance = System.Windows.Forms.Appearance.Button
+        Me.currentStationButton.AutoSize = False
+        Me.currentStationButton.BackColor = UiTheme.Primary
+        Me.currentStationButton.Dock = System.Windows.Forms.DockStyle.Top
+        Me.currentStationButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat
+        Me.currentStationButton.Font = UiTheme.UiFontTitle
+        Me.currentStationButton.ForeColor = System.Drawing.Color.White
+        Me.currentStationButton.Height = UiTheme.LeftStationButtonHeight
+        Me.currentStationButton.Name = "currentStationButton"
+        Me.currentStationButton.Text = "OCV1"
+        Me.currentStationButton.TextAlign = System.Drawing.ContentAlignment.MiddleCenter
+        Me.currentStationButton.UseVisualStyleBackColor = False
+        Me.currentStationButton.FlatAppearance.BorderColor = UiTheme.Primary
+        Me.currentStationButton.FlatAppearance.BorderSize = 1
+        Me.GroupBox1.AutoSize = True
+        Me.GroupBox1.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink
+        Me.GroupBox1.BackColor = UiTheme.CardBackground
+        Me.GroupBox1.Dock = System.Windows.Forms.DockStyle.Top
+        Me.GroupBox1.FlatStyle = System.Windows.Forms.FlatStyle.Flat
+        Me.GroupBox1.Font = UiTheme.UiFontBold
+        Me.GroupBox1.ForeColor = UiTheme.Primary
+        Me.GroupBox1.Margin = New System.Windows.Forms.Padding(0)
+        Me.GroupBox1.MinimumSize = New System.Drawing.Size(0, 0)
+        Me.GroupBox1.Padding = New System.Windows.Forms.Padding(6, 15, 6, 6)
+        Me.GroupBox3.AutoSize = True
+        Me.GroupBox3.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink
+        Me.GroupBox3.BackColor = UiTheme.CardBackground
+        Me.GroupBox3.Dock = System.Windows.Forms.DockStyle.Top
+        Me.GroupBox3.FlatStyle = System.Windows.Forms.FlatStyle.Flat
+        Me.GroupBox3.Font = UiTheme.UiFontBold
+        Me.GroupBox3.ForeColor = UiTheme.Primary
+        Me.GroupBox3.Margin = New System.Windows.Forms.Padding(0)
+        Me.GroupBox3.MinimumSize = New System.Drawing.Size(0, 0)
+        Me.GroupBox3.Padding = New System.Windows.Forms.Padding(6, 15, 6, 6)
+        Me.GroupBox5.AutoSize = True
+        Me.GroupBox5.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink
+        Me.GroupBox5.BackColor = UiTheme.CardBackground
+        Me.GroupBox5.Dock = System.Windows.Forms.DockStyle.Top
+        Me.GroupBox5.FlatStyle = System.Windows.Forms.FlatStyle.Flat
+        Me.GroupBox5.Font = UiTheme.UiFontBold
+        Me.GroupBox5.ForeColor = UiTheme.Primary
+        Me.GroupBox5.Margin = New System.Windows.Forms.Padding(0)
+        Me.GroupBox5.MinimumSize = New System.Drawing.Size(0, 0)
+        Me.GroupBox5.Padding = New System.Windows.Forms.Padding(6, 15, 6, 6)
+        Me.GroupBox7.AutoSize = True
+        Me.GroupBox7.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink
+        Me.GroupBox7.BackColor = UiTheme.CardBackground
+        Me.GroupBox7.Dock = System.Windows.Forms.DockStyle.Top
+        Me.GroupBox7.FlatStyle = System.Windows.Forms.FlatStyle.Flat
+        Me.GroupBox7.Font = UiTheme.UiFontBold
+        Me.GroupBox7.ForeColor = UiTheme.Primary
+        Me.GroupBox7.Margin = New System.Windows.Forms.Padding(0)
+        Me.GroupBox7.MinimumSize = New System.Drawing.Size(0, 0)
+        Me.GroupBox7.Padding = New System.Windows.Forms.Padding(6, 15, 6, 6)
+        Me.GroupBox8.AutoSize = True
+        Me.GroupBox8.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink
+        Me.GroupBox8.BackColor = UiTheme.CardBackground
+        Me.GroupBox8.Dock = System.Windows.Forms.DockStyle.Top
+        Me.GroupBox8.FlatStyle = System.Windows.Forms.FlatStyle.Flat
+        Me.GroupBox8.Font = UiTheme.UiFontBold
+        Me.GroupBox8.ForeColor = UiTheme.Primary
+        Me.GroupBox8.Margin = New System.Windows.Forms.Padding(0)
+        Me.GroupBox8.MinimumSize = New System.Drawing.Size(0, 0)
+        Me.GroupBox8.Padding = New System.Windows.Forms.Padding(6, 15, 6, 6)
+        Me.grpChannelSelection.AutoSize = True
+        Me.grpChannelSelection.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink
+        Me.grpChannelSelection.BackColor = UiTheme.CardBackground
+        Me.grpChannelSelection.Dock = System.Windows.Forms.DockStyle.Top
+        Me.grpChannelSelection.FlatStyle = System.Windows.Forms.FlatStyle.Flat
+        Me.grpChannelSelection.Font = UiTheme.UiFontBold
+        Me.grpChannelSelection.ForeColor = UiTheme.Primary
+        Me.grpChannelSelection.Margin = New System.Windows.Forms.Padding(0)
+        Me.grpChannelSelection.MinimumSize = New System.Drawing.Size(0, 0)
+        Me.grpChannelSelection.Padding = New System.Windows.Forms.Padding(6, 15, 6, 6)
+        Me.txtTray.BackColor = UiTheme.CardBackground
+        Me.txtTray.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
+        Me.txtTray.Font = UiTheme.UiFont
+        Me.txtTray.ForeColor = UiTheme.TextPrimary
+        Me.txtFirstNum.BackColor = UiTheme.CardBackground
+        Me.txtFirstNum.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
+        Me.txtFirstNum.Font = UiTheme.UiFont
+        Me.txtFirstNum.ForeColor = UiTheme.TextPrimary
+        Me.txtLastNum.BackColor = UiTheme.CardBackground
+        Me.txtLastNum.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
+        Me.txtLastNum.Font = UiTheme.UiFont
+        Me.txtLastNum.ForeColor = UiTheme.TextPrimary
+        Me.txtMinV.BackColor = UiTheme.CardBackground
+        Me.txtMinV.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
+        Me.txtMinV.Font = UiTheme.UiFont
+        Me.txtMinV.ForeColor = UiTheme.TextPrimary
+        Me.txtMaxV.BackColor = UiTheme.CardBackground
+        Me.txtMaxV.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
+        Me.txtMaxV.Font = UiTheme.UiFont
+        Me.txtMaxV.ForeColor = UiTheme.TextPrimary
+        Me.txtMinR.BackColor = UiTheme.CardBackground
+        Me.txtMinR.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
+        Me.txtMinR.Font = UiTheme.UiFont
+        Me.txtMinR.ForeColor = UiTheme.TextPrimary
+        Me.txtMaxR.BackColor = UiTheme.CardBackground
+        Me.txtMaxR.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
+        Me.txtMaxR.Font = UiTheme.UiFont
+        Me.txtMaxR.ForeColor = UiTheme.TextPrimary
+        Me.txtTestR.BackColor = UiTheme.CardBackground
+        Me.txtTestR.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
+        Me.txtTestR.Font = UiTheme.UiFont
+        Me.txtTestR.ForeColor = UiTheme.TextPrimary
+        Me.txtCaliR.BackColor = UiTheme.CardBackground
+        Me.txtCaliR.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
+        Me.txtCaliR.Font = UiTheme.UiFont
+        Me.txtCaliR.ForeColor = UiTheme.TextPrimary
+        Me.txtJiajuR.BackColor = UiTheme.CardBackground
+        Me.txtJiajuR.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
+        Me.txtJiajuR.Font = UiTheme.UiFont
+        Me.txtJiajuR.ForeColor = UiTheme.TextPrimary
+        Me.txtAlarm.BackColor = UiTheme.CardBackground
+        Me.txtAlarm.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
+        Me.txtAlarm.Font = UiTheme.UiFont
+        Me.txtAlarm.ForeColor = UiTheme.TextPrimary
+        Me.t1.BackColor = UiTheme.CardBackground
+        Me.t1.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
+        Me.t1.Font = UiTheme.UiFont
+        Me.t1.ForeColor = UiTheme.TextPrimary
+        Me.t2.BackColor = UiTheme.CardBackground
+        Me.t2.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
+        Me.t2.Font = UiTheme.UiFont
+        Me.t2.ForeColor = UiTheme.TextPrimary
+        Me.t3.BackColor = UiTheme.CardBackground
+        Me.t3.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
+        Me.t3.Font = UiTheme.UiFont
+        Me.t3.ForeColor = UiTheme.TextPrimary
+        Me.t4.BackColor = UiTheme.CardBackground
+        Me.t4.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
+        Me.t4.Font = UiTheme.UiFont
+        Me.t4.ForeColor = UiTheme.TextPrimary
+        Me.txtRemain.BackColor = UiTheme.CardBackground
+        Me.txtRemain.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
+        Me.txtRemain.Font = UiTheme.UiFont
+        Me.txtRemain.ForeColor = UiTheme.TextPrimary
+        Me.Label1.BackColor = UiTheme.CardBackground
+        Me.Label1.Font = UiTheme.UiFont
+        Me.Label1.ForeColor = UiTheme.TextPrimary
+        Me.Label2.BackColor = UiTheme.CardBackground
+        Me.Label2.Font = UiTheme.UiFont
+        Me.Label2.ForeColor = UiTheme.TextPrimary
+        Me.Label5.BackColor = UiTheme.CardBackground
+        Me.Label5.Font = UiTheme.UiFont
+        Me.Label5.ForeColor = UiTheme.TextPrimary
+        Me.Label7.BackColor = UiTheme.CardBackground
+        Me.Label7.Font = UiTheme.UiFont
+        Me.Label7.ForeColor = UiTheme.TextPrimary
+        Me.Label12.BackColor = UiTheme.CardBackground
+        Me.Label12.Font = UiTheme.UiFont
+        Me.Label12.ForeColor = UiTheme.TextPrimary
+        Me.Label14.BackColor = UiTheme.CardBackground
+        Me.Label14.Font = UiTheme.UiFont
+        Me.Label14.ForeColor = UiTheme.TextPrimary
+        Me.Label15.BackColor = UiTheme.CardBackground
+        Me.Label15.Font = UiTheme.UiFont
+        Me.Label15.ForeColor = UiTheme.TextPrimary
+        Me.Label16.BackColor = UiTheme.CardBackground
+        Me.Label16.Font = UiTheme.UiFont
+        Me.Label16.ForeColor = UiTheme.TextPrimary
+        Me.Label17.BackColor = UiTheme.CardBackground
+        Me.Label17.Font = UiTheme.UiFont
+        Me.Label17.ForeColor = UiTheme.TextPrimary
+        Me.Label19.BackColor = UiTheme.CardBackground
+        Me.Label19.Font = UiTheme.UiFont
+        Me.Label19.ForeColor = UiTheme.TextPrimary
+        Me.Label26.BackColor = UiTheme.CardBackground
+        Me.Label26.Font = UiTheme.UiFont
+        Me.Label26.ForeColor = UiTheme.TextPrimary
+        Me.Label28.BackColor = UiTheme.CardBackground
+        Me.Label28.Font = UiTheme.UiFont
+        Me.Label28.ForeColor = UiTheme.TextPrimary
+        Me.Label29.BackColor = UiTheme.CardBackground
+        Me.Label29.Font = UiTheme.UiFont
+        Me.Label29.ForeColor = UiTheme.TextPrimary
+        Me.CmdStart.BackColor = UiTheme.Primary
+        Me.CmdStart.FlatStyle = System.Windows.Forms.FlatStyle.Flat
+        Me.CmdStart.Font = UiTheme.UiFontBold
+        Me.CmdStart.ForeColor = System.Drawing.Color.White
+        Me.CmdStart.UseVisualStyleBackColor = False
+        Me.CmdStart.FlatAppearance.BorderColor = UiTheme.Primary
+        Me.CmdStart.FlatAppearance.BorderSize = 1
+        Me.btnStop.BackColor = System.Drawing.Color.White
+        Me.btnStop.FlatStyle = System.Windows.Forms.FlatStyle.Flat
+        Me.btnStop.Font = UiTheme.UiFontBold
+        Me.btnStop.ForeColor = UiTheme.Danger
+        Me.btnStop.UseVisualStyleBackColor = False
+        Me.btnStop.FlatAppearance.BorderColor = UiTheme.Danger
+        Me.btnStop.FlatAppearance.BorderSize = 1
+        Me.btnNGTest.BackColor = UiTheme.Warning
+        Me.btnNGTest.FlatStyle = System.Windows.Forms.FlatStyle.Flat
+        Me.btnNGTest.Font = UiTheme.UiFontBold
+        Me.btnNGTest.ForeColor = System.Drawing.Color.White
+        Me.btnNGTest.UseVisualStyleBackColor = False
+        Me.btnNGTest.FlatAppearance.BorderColor = UiTheme.Warning
+        Me.btnNGTest.FlatAppearance.BorderSize = 1
+        Me.btnTrayState.BackColor = System.Drawing.Color.White
+        Me.btnTrayState.FlatStyle = System.Windows.Forms.FlatStyle.Flat
+        Me.btnTrayState.Font = UiTheme.UiFontBold
+        Me.btnTrayState.ForeColor = UiTheme.TextPrimary
+        Me.btnTrayState.UseVisualStyleBackColor = False
+        Me.btnTrayState.FlatAppearance.BorderColor = UiTheme.CardBorder
+        Me.btnTrayState.FlatAppearance.BorderSize = 1
+        Me.btnOpen.BackColor = System.Drawing.Color.White
+        Me.btnOpen.FlatStyle = System.Windows.Forms.FlatStyle.Flat
+        Me.btnOpen.Font = UiTheme.UiFontBold
+        Me.btnOpen.ForeColor = UiTheme.TextPrimary
+        Me.btnOpen.UseVisualStyleBackColor = False
+        Me.btnOpen.FlatAppearance.BorderColor = UiTheme.CardBorder
+        Me.btnOpen.FlatAppearance.BorderSize = 1
+        Me.btnClose.BackColor = System.Drawing.Color.White
+        Me.btnClose.FlatStyle = System.Windows.Forms.FlatStyle.Flat
+        Me.btnClose.Font = UiTheme.UiFontBold
+        Me.btnClose.ForeColor = UiTheme.TextPrimary
+        Me.btnClose.UseVisualStyleBackColor = False
+        Me.btnClose.FlatAppearance.BorderColor = UiTheme.CardBorder
+        Me.btnClose.FlatAppearance.BorderSize = 1
+        Me.btnChannelSelectAll.BackColor = UiTheme.Primary
+        Me.btnChannelSelectAll.FlatStyle = System.Windows.Forms.FlatStyle.Flat
+        Me.btnChannelSelectAll.Font = UiTheme.UiFontBold
+        Me.btnChannelSelectAll.ForeColor = System.Drawing.Color.White
+        Me.btnChannelSelectAll.UseVisualStyleBackColor = False
+        Me.btnChannelSelectAll.FlatAppearance.BorderColor = UiTheme.Primary
+        Me.btnChannelSelectAll.FlatAppearance.BorderSize = 1
+        Me.btnChannelClear.BackColor = System.Drawing.Color.White
+        Me.btnChannelClear.FlatStyle = System.Windows.Forms.FlatStyle.Flat
+        Me.btnChannelClear.Font = UiTheme.UiFontBold
+        Me.btnChannelClear.ForeColor = UiTheme.TextPrimary
+        Me.btnChannelClear.UseVisualStyleBackColor = False
+        Me.btnChannelClear.FlatAppearance.BorderColor = UiTheme.CardBorder
+        Me.btnChannelClear.FlatAppearance.BorderSize = 1
+        Me.btnChannelRectangle.BackColor = System.Drawing.Color.White
+        Me.btnChannelRectangle.FlatStyle = System.Windows.Forms.FlatStyle.Flat
+        Me.btnChannelRectangle.Font = UiTheme.UiFontBold
+        Me.btnChannelRectangle.ForeColor = UiTheme.TextPrimary
+        Me.btnChannelRectangle.UseVisualStyleBackColor = False
+        Me.btnChannelRectangle.FlatAppearance.BorderColor = UiTheme.CardBorder
+        Me.btnChannelRectangle.FlatAppearance.BorderSize = 1
+        Me.btnChannelSelectSingle.BackColor = System.Drawing.Color.White
+        Me.btnChannelSelectSingle.FlatStyle = System.Windows.Forms.FlatStyle.Flat
+        Me.btnChannelSelectSingle.Font = UiTheme.UiFontBold
+        Me.btnChannelSelectSingle.ForeColor = UiTheme.TextPrimary
+        Me.btnChannelSelectSingle.UseVisualStyleBackColor = False
+        Me.btnChannelSelectSingle.FlatAppearance.BorderColor = UiTheme.CardBorder
+        Me.btnChannelSelectSingle.FlatAppearance.BorderSize = 1
+        Me.Button2.BackColor = System.Drawing.Color.White
+        Me.Button2.FlatStyle = System.Windows.Forms.FlatStyle.Flat
+        Me.Button2.Font = UiTheme.UiFontBold
+        Me.Button2.ForeColor = UiTheme.Danger
+        Me.Button2.UseVisualStyleBackColor = False
+        Me.Button2.FlatAppearance.BorderColor = UiTheme.Danger
+        Me.Button2.FlatAppearance.BorderSize = 1
+        Me.GroupBox2.Visible = False
+        Me.GroupBox2.Enabled = False
+        Me.GroupBox6.Visible = False
+        Me.txtUsed.Visible = False
+        Me.txtTotle.Visible = False
+        Me.controlBoardLayout = New System.Windows.Forms.TableLayoutPanel()
+        Me.controlBoardLayout.AutoSize = True
+        Me.controlBoardLayout.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink
+        Me.controlBoardLayout.BackColor = UiTheme.CardBackground
+        Me.controlBoardLayout.ColumnCount = 3
+        Me.controlBoardLayout.Dock = System.Windows.Forms.DockStyle.Top
+        Me.controlBoardLayout.Margin = New System.Windows.Forms.Padding(0)
+        Me.controlBoardLayout.Padding = New System.Windows.Forms.Padding(0)
+        Me.controlBoardLayout.RowCount = 4
+        Me.controlBoardLayout.Name = "controlBoardLayout"
+        Me.controlBoardLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 33.3333!))
+        Me.controlBoardLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 33.3333!))
+        Me.controlBoardLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 33.3333!))
+        Me.controlBoardLayout.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize, 0.0!))
+        Me.controlBoardLayout.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize, 0.0!))
+        Me.controlBoardLayout.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize, 0.0!))
+        Me.controlBoardLayout.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize, 0.0!))
+        Me.Label2.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.Label2.Margin = New System.Windows.Forms.Padding(2)
+        Me.controlBoardLayout.Controls.Add(Me.Label2, 0, 0)
+        Me.txtTray.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.txtTray.Margin = New System.Windows.Forms.Padding(2)
+        Me.controlBoardLayout.Controls.Add(Me.txtTray, 1, 0)
+        Me.controlBoardLayout.SetColumnSpan(Me.txtTray, 2)
+        Me.Label5.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.Label5.Margin = New System.Windows.Forms.Padding(2)
+        Me.controlBoardLayout.Controls.Add(Me.Label5, 0, 1)
+        Me.lblBarNum.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.lblBarNum.Margin = New System.Windows.Forms.Padding(2)
+        Me.controlBoardLayout.Controls.Add(Me.lblBarNum, 1, 1)
+        Me.CmdStart.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.CmdStart.Margin = New System.Windows.Forms.Padding(2)
+        Me.controlBoardLayout.Controls.Add(Me.CmdStart, 0, 2)
+        Me.btnStop.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.btnStop.Margin = New System.Windows.Forms.Padding(2)
+        Me.controlBoardLayout.Controls.Add(Me.btnStop, 1, 2)
+        Me.btnNGTest.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.btnNGTest.Margin = New System.Windows.Forms.Padding(2)
+        Me.controlBoardLayout.Controls.Add(Me.btnNGTest, 2, 2)
+        Me.btnTrayState.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.btnTrayState.Margin = New System.Windows.Forms.Padding(2)
+        Me.controlBoardLayout.Controls.Add(Me.btnTrayState, 0, 3)
+        Me.btnOpen.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.btnOpen.Margin = New System.Windows.Forms.Padding(2)
+        Me.controlBoardLayout.Controls.Add(Me.btnOpen, 1, 3)
+        Me.btnClose.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.btnClose.Margin = New System.Windows.Forms.Padding(2)
+        Me.controlBoardLayout.Controls.Add(Me.btnClose, 2, 3)
+        Me.Label2.TextAlign = System.Drawing.ContentAlignment.MiddleRight
+        Me.Label5.TextAlign = System.Drawing.ContentAlignment.MiddleRight
+        Me.GroupBox1.Controls.Add(Me.controlBoardLayout)
+        Me.channelSelectionLayout = New System.Windows.Forms.TableLayoutPanel()
+        Me.channelSelectionLayout.AutoSize = True
+        Me.channelSelectionLayout.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink
+        Me.channelSelectionLayout.BackColor = UiTheme.CardBackground
+        Me.channelSelectionLayout.ColumnCount = 4
+        Me.channelSelectionLayout.Dock = System.Windows.Forms.DockStyle.Top
+        Me.channelSelectionLayout.Margin = New System.Windows.Forms.Padding(0)
+        Me.channelSelectionLayout.Padding = New System.Windows.Forms.Padding(0)
+        Me.channelSelectionLayout.RowCount = 1
+        Me.channelSelectionLayout.Name = "channelSelectionLayout"
+        Me.channelSelectionLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 25.0!))
+        Me.channelSelectionLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 25.0!))
+        Me.channelSelectionLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 25.0!))
+        Me.channelSelectionLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 25.0!))
+        Me.channelSelectionLayout.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize, 0.0!))
+        Me.btnChannelSelectAll.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.btnChannelSelectAll.Margin = New System.Windows.Forms.Padding(2)
+        Me.channelSelectionLayout.Controls.Add(Me.btnChannelSelectAll, 0, 0)
+        Me.btnChannelClear.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.btnChannelClear.Margin = New System.Windows.Forms.Padding(2)
+        Me.channelSelectionLayout.Controls.Add(Me.btnChannelClear, 1, 0)
+        Me.btnChannelRectangle.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.btnChannelRectangle.Margin = New System.Windows.Forms.Padding(2)
+        Me.channelSelectionLayout.Controls.Add(Me.btnChannelRectangle, 2, 0)
+        Me.btnChannelSelectSingle.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.btnChannelSelectSingle.Margin = New System.Windows.Forms.Padding(2)
+        Me.channelSelectionLayout.Controls.Add(Me.btnChannelSelectSingle, 3, 0)
+        Me.grpChannelSelection.Controls.Add(Me.channelSelectionLayout)
+        Me.rangeSettingsLayout = New System.Windows.Forms.TableLayoutPanel()
+        Me.rangeSettingsLayout.AutoSize = True
+        Me.rangeSettingsLayout.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink
+        Me.rangeSettingsLayout.BackColor = UiTheme.CardBackground
+        Me.rangeSettingsLayout.ColumnCount = 3
+        Me.rangeSettingsLayout.Dock = System.Windows.Forms.DockStyle.Top
+        Me.rangeSettingsLayout.Margin = New System.Windows.Forms.Padding(0)
+        Me.rangeSettingsLayout.Padding = New System.Windows.Forms.Padding(0)
+        Me.rangeSettingsLayout.RowCount = 3
+        Me.rangeSettingsLayout.Name = "rangeSettingsLayout"
+        Me.rangeSettingsLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.AutoSize, 0.0!))
+        Me.rangeSettingsLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50.0!))
+        Me.rangeSettingsLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50.0!))
+        Me.rangeSettingsLayout.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize, 0.0!))
+        Me.rangeSettingsLayout.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize, 0.0!))
+        Me.rangeSettingsLayout.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize, 0.0!))
+        Me.Label9.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.Label9.Margin = New System.Windows.Forms.Padding(2)
+        Me.rangeSettingsLayout.Controls.Add(Me.Label9, 1, 0)
+        Me.Label8.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.Label8.Margin = New System.Windows.Forms.Padding(2)
+        Me.rangeSettingsLayout.Controls.Add(Me.Label8, 2, 0)
+        Me.Label7.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.Label7.Margin = New System.Windows.Forms.Padding(2)
+        Me.rangeSettingsLayout.Controls.Add(Me.Label7, 0, 1)
+        Me.txtMinV.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.txtMinV.Margin = New System.Windows.Forms.Padding(2)
+        Me.rangeSettingsLayout.Controls.Add(Me.txtMinV, 1, 1)
+        Me.txtMaxV.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.txtMaxV.Margin = New System.Windows.Forms.Padding(2)
+        Me.rangeSettingsLayout.Controls.Add(Me.txtMaxV, 2, 1)
+        Me.Label12.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.Label12.Margin = New System.Windows.Forms.Padding(2)
+        Me.rangeSettingsLayout.Controls.Add(Me.Label12, 0, 2)
+        Me.txtMinR.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.txtMinR.Margin = New System.Windows.Forms.Padding(2)
+        Me.rangeSettingsLayout.Controls.Add(Me.txtMinR, 1, 2)
+        Me.txtMaxR.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.txtMaxR.Margin = New System.Windows.Forms.Padding(2)
+        Me.rangeSettingsLayout.Controls.Add(Me.txtMaxR, 2, 2)
+        Me.Label7.TextAlign = System.Drawing.ContentAlignment.MiddleRight
+        Me.Label12.TextAlign = System.Drawing.ContentAlignment.MiddleRight
+        Me.Label9.TextAlign = System.Drawing.ContentAlignment.MiddleCenter
+        Me.Label8.TextAlign = System.Drawing.ContentAlignment.MiddleCenter
+        Me.GroupBox3.Controls.Add(Me.rangeSettingsLayout)
+        Me.alarmSectionLayout = New System.Windows.Forms.TableLayoutPanel()
+        Me.alarmSectionLayout.AutoSize = True
+        Me.alarmSectionLayout.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink
+        Me.alarmSectionLayout.BackColor = UiTheme.CardBackground
+        Me.alarmSectionLayout.ColumnCount = 1
+        Me.alarmSectionLayout.Dock = System.Windows.Forms.DockStyle.Top
+        Me.alarmSectionLayout.Margin = New System.Windows.Forms.Padding(0)
+        Me.alarmSectionLayout.Padding = New System.Windows.Forms.Padding(0)
+        Me.alarmSectionLayout.RowCount = 2
+        Me.alarmSectionLayout.Name = "alarmSectionLayout"
+        Me.alarmSectionLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100.0!))
+        Me.alarmSectionLayout.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize, 0.0!))
+        Me.alarmSectionLayout.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize, 0.0!))
+        Me.Panel2.BorderStyle = System.Windows.Forms.BorderStyle.None
+        Me.Panel2.AutoSize = True
+        Me.Panel2.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink
+        Me.Panel2.Padding = New System.Windows.Forms.Padding(0)
+        Me.Panel3.BorderStyle = System.Windows.Forms.BorderStyle.None
+        Me.Panel3.AutoSize = True
+        Me.Panel3.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink
+        Me.Panel3.Padding = New System.Windows.Forms.Padding(0)
+        Me.Panel2.Margin = New System.Windows.Forms.Padding(0)
+        Me.Panel3.Margin = New System.Windows.Forms.Padding(0, 4, 0, 0)
+        Me.Panel2.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.Panel2.Margin = New System.Windows.Forms.Padding(2)
+        Me.alarmSectionLayout.Controls.Add(Me.Panel2, 0, 0)
+        Me.Panel3.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.Panel3.Margin = New System.Windows.Forms.Padding(2)
+        Me.alarmSectionLayout.Controls.Add(Me.Panel3, 0, 1)
+        Me.alarmTemperatureLayout = New System.Windows.Forms.TableLayoutPanel()
+        Me.alarmTemperatureLayout.AutoSize = True
+        Me.alarmTemperatureLayout.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink
+        Me.alarmTemperatureLayout.BackColor = UiTheme.CardBackground
+        Me.alarmTemperatureLayout.ColumnCount = 4
+        Me.alarmTemperatureLayout.Dock = System.Windows.Forms.DockStyle.Top
+        Me.alarmTemperatureLayout.Margin = New System.Windows.Forms.Padding(0)
+        Me.alarmTemperatureLayout.Padding = New System.Windows.Forms.Padding(0)
+        Me.alarmTemperatureLayout.RowCount = 2
+        Me.alarmTemperatureLayout.Name = "alarmTemperatureLayout"
+        Me.alarmTemperatureLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 25.0!))
+        Me.alarmTemperatureLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 25.0!))
+        Me.alarmTemperatureLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 25.0!))
+        Me.alarmTemperatureLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 25.0!))
+        Me.alarmTemperatureLayout.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize, 0.0!))
+        Me.alarmTemperatureLayout.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize, 0.0!))
+        Me.Label1.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.Label1.Margin = New System.Windows.Forms.Padding(2)
+        Me.alarmTemperatureLayout.Controls.Add(Me.Label1, 0, 0)
+        Me.t1.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.t1.Margin = New System.Windows.Forms.Padding(2)
+        Me.alarmTemperatureLayout.Controls.Add(Me.t1, 1, 0)
+        Me.Label14.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.Label14.Margin = New System.Windows.Forms.Padding(2)
+        Me.alarmTemperatureLayout.Controls.Add(Me.Label14, 2, 0)
+        Me.t2.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.t2.Margin = New System.Windows.Forms.Padding(2)
+        Me.alarmTemperatureLayout.Controls.Add(Me.t2, 3, 0)
+        Me.Label15.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.Label15.Margin = New System.Windows.Forms.Padding(2)
+        Me.alarmTemperatureLayout.Controls.Add(Me.Label15, 0, 1)
+        Me.t3.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.t3.Margin = New System.Windows.Forms.Padding(2)
+        Me.alarmTemperatureLayout.Controls.Add(Me.t3, 1, 1)
+        Me.Label16.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.Label16.Margin = New System.Windows.Forms.Padding(2)
+        Me.alarmTemperatureLayout.Controls.Add(Me.Label16, 2, 1)
+        Me.t4.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.t4.Margin = New System.Windows.Forms.Padding(2)
+        Me.alarmTemperatureLayout.Controls.Add(Me.t4, 3, 1)
+        Me.Panel2.Controls.Add(Me.alarmTemperatureLayout)
+        Me.alarmStatusLayout = New System.Windows.Forms.TableLayoutPanel()
+        Me.alarmStatusLayout.AutoSize = True
+        Me.alarmStatusLayout.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink
+        Me.alarmStatusLayout.BackColor = UiTheme.CardBackground
+        Me.alarmStatusLayout.ColumnCount = 3
+        Me.alarmStatusLayout.Dock = System.Windows.Forms.DockStyle.Top
+        Me.alarmStatusLayout.Margin = New System.Windows.Forms.Padding(0)
+        Me.alarmStatusLayout.Padding = New System.Windows.Forms.Padding(0)
+        Me.alarmStatusLayout.RowCount = 1
+        Me.alarmStatusLayout.Name = "alarmStatusLayout"
+        Me.alarmStatusLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 24.0!))
+        Me.alarmStatusLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 24.0!))
+        Me.alarmStatusLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 52.0!))
+        Me.alarmStatusLayout.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize, 0.0!))
+        Me.smokeOneLayout = New System.Windows.Forms.FlowLayoutPanel()
+        Me.smokeOneLayout.AutoSize = True
+        Me.smokeOneLayout.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink
+        Me.smokeOneLayout.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.smokeOneLayout.FlowDirection = System.Windows.Forms.FlowDirection.LeftToRight
+        Me.smokeOneLayout.Margin = New System.Windows.Forms.Padding(2)
+        Me.smokeOneLayout.Padding = New System.Windows.Forms.Padding(0)
+        Me.smokeOneLayout.WrapContents = False
+        Me.smokeOneLayout.Name = "smokeOneLayout"
+        Me.smokeTwoLayout = New System.Windows.Forms.FlowLayoutPanel()
+        Me.smokeTwoLayout.AutoSize = True
+        Me.smokeTwoLayout.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink
+        Me.smokeTwoLayout.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.smokeTwoLayout.FlowDirection = System.Windows.Forms.FlowDirection.LeftToRight
+        Me.smokeTwoLayout.Margin = New System.Windows.Forms.Padding(2)
+        Me.smokeTwoLayout.Padding = New System.Windows.Forms.Padding(0)
+        Me.smokeTwoLayout.WrapContents = False
+        Me.smokeTwoLayout.Name = "smokeTwoLayout"
+        Me.deviceStatusLayout = New System.Windows.Forms.FlowLayoutPanel()
+        Me.deviceStatusLayout.AutoSize = True
+        Me.deviceStatusLayout.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink
+        Me.deviceStatusLayout.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.deviceStatusLayout.FlowDirection = System.Windows.Forms.FlowDirection.LeftToRight
+        Me.deviceStatusLayout.Margin = New System.Windows.Forms.Padding(2)
+        Me.deviceStatusLayout.Padding = New System.Windows.Forms.Padding(0)
+        Me.deviceStatusLayout.WrapContents = False
+        Me.deviceStatusLayout.Name = "deviceStatusLayout"
+        Me.Label19.Margin = New System.Windows.Forms.Padding(2)
+        Me.smokeAlarm1.Margin = New System.Windows.Forms.Padding(2)
+        Me.Label17.Margin = New System.Windows.Forms.Padding(2)
+        Me.smokeAlarm2.Margin = New System.Windows.Forms.Padding(2)
+        Me.Label28.Margin = New System.Windows.Forms.Padding(2)
+        Me.LabelRun.Margin = New System.Windows.Forms.Padding(2)
+        Me.LabelAlarm.Margin = New System.Windows.Forms.Padding(2)
+        Me.smokeOneLayout.Controls.Add(Me.Label19)
+        Me.smokeOneLayout.Controls.Add(Me.smokeAlarm1)
+        Me.smokeTwoLayout.Controls.Add(Me.Label17)
+        Me.smokeTwoLayout.Controls.Add(Me.smokeAlarm2)
+        Me.deviceStatusLayout.Controls.Add(Me.Label28)
+        Me.deviceStatusLayout.Controls.Add(Me.LabelRun)
+        Me.deviceStatusLayout.Controls.Add(Me.LabelAlarm)
+        Me.alarmStatusLayout.Controls.Add(Me.smokeOneLayout, 0, 0)
+        Me.alarmStatusLayout.Controls.Add(Me.smokeTwoLayout, 1, 0)
+        Me.alarmStatusLayout.Controls.Add(Me.deviceStatusLayout, 2, 0)
+        Me.Panel3.Controls.Add(Me.alarmStatusLayout)
+        Me.GroupBox5.Controls.Add(Me.alarmSectionLayout)
+        Me.probeUsageLayout = New System.Windows.Forms.TableLayoutPanel()
+        Me.probeUsageLayout.AutoSize = True
+        Me.probeUsageLayout.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink
+        Me.probeUsageLayout.BackColor = UiTheme.CardBackground
+        Me.probeUsageLayout.ColumnCount = 3
+        Me.probeUsageLayout.Dock = System.Windows.Forms.DockStyle.Top
+        Me.probeUsageLayout.Margin = New System.Windows.Forms.Padding(0)
+        Me.probeUsageLayout.Padding = New System.Windows.Forms.Padding(0)
+        Me.probeUsageLayout.RowCount = 1
+        Me.probeUsageLayout.Name = "probeUsageLayout"
+        Me.probeUsageLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.AutoSize, 0.0!))
+        Me.probeUsageLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100.0!))
+        Me.probeUsageLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.AutoSize, 0.0!))
+        Me.probeUsageLayout.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize, 0.0!))
+        Me.Label26.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.Label26.Margin = New System.Windows.Forms.Padding(2)
+        Me.probeUsageLayout.Controls.Add(Me.Label26, 0, 0)
+        Me.txtRemain.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.txtRemain.Margin = New System.Windows.Forms.Padding(2)
+        Me.probeUsageLayout.Controls.Add(Me.txtRemain, 1, 0)
+        Me.Label29.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.Label29.Margin = New System.Windows.Forms.Padding(2)
+        Me.probeUsageLayout.Controls.Add(Me.Label29, 2, 0)
+        Me.Label26.TextAlign = System.Drawing.ContentAlignment.MiddleRight
+        Me.Label29.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
+        Me.GroupBox8.Controls.Add(Me.probeUsageLayout)
+        Me.GroupBox7.AutoSize = False
+        Me.GroupBox7.Height = 82
+        Me.GroupBox7.MinimumSize = New System.Drawing.Size(0, 82)
+        Me.txtAlarm.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.txtAlarm.Margin = New System.Windows.Forms.Padding(0)
+        Me.resetAlarmLayout = New System.Windows.Forms.TableLayoutPanel()
+        Me.resetAlarmLayout.ColumnCount = 1
+        Me.resetAlarmLayout.Dock = System.Windows.Forms.DockStyle.Top
+        Me.resetAlarmLayout.Margin = New System.Windows.Forms.Padding(0)
+        Me.resetAlarmLayout.Name = "resetAlarmLayout"
+        Me.resetAlarmLayout.RowCount = 1
+        Me.resetAlarmLayout.Size = New System.Drawing.Size(334, 38)
+        Me.resetAlarmLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100.0!))
+        Me.resetAlarmLayout.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 34.0!))
+        Me.Button2.Dock = System.Windows.Forms.DockStyle.None
+        Me.Button2.Anchor = System.Windows.Forms.AnchorStyles.None
+        Me.Button2.Margin = New System.Windows.Forms.Padding(0)
+        Me.Button2.Size = New System.Drawing.Size(133, 34)
+        Me.resetAlarmLayout.Controls.Add(Me.Button2, 0, 0)
+        Me.currentStationButton.Dock = System.Windows.Forms.DockStyle.Top
+        Me.currentStationButton.Margin = New System.Windows.Forms.Padding(0, 0, 0, UiTheme.LeftSectionGap)
+        Me.leftContentPanel.Controls.Add(Me.currentStationButton, 0, 0)
+        Me.grpTestMode.Dock = System.Windows.Forms.DockStyle.Top
+        Me.grpTestMode.Margin = New System.Windows.Forms.Padding(0, 0, 0, UiTheme.LeftSectionGap)
+        Me.leftContentPanel.Controls.Add(Me.grpTestMode, 0, 1)
+        Me.GroupBox1.Dock = System.Windows.Forms.DockStyle.Top
+        Me.GroupBox1.Margin = New System.Windows.Forms.Padding(0, 0, 0, UiTheme.LeftSectionGap)
+        Me.leftContentPanel.Controls.Add(Me.GroupBox1, 0, 2)
+        Me.grpChannelSelection.Dock = System.Windows.Forms.DockStyle.Top
+        Me.grpChannelSelection.Margin = New System.Windows.Forms.Padding(0, 0, 0, UiTheme.LeftSectionGap)
+        Me.leftContentPanel.Controls.Add(Me.grpChannelSelection, 0, 3)
+        Me.GroupBox3.Dock = System.Windows.Forms.DockStyle.Top
+        Me.GroupBox3.Margin = New System.Windows.Forms.Padding(0, 0, 0, UiTheme.LeftSectionGap)
+        Me.leftContentPanel.Controls.Add(Me.GroupBox3, 0, 4)
+        Me.GroupBox5.Dock = System.Windows.Forms.DockStyle.Top
+        Me.GroupBox5.Margin = New System.Windows.Forms.Padding(0, 0, 0, UiTheme.LeftSectionGap)
+        Me.leftContentPanel.Controls.Add(Me.GroupBox5, 0, 5)
+        Me.GroupBox8.Dock = System.Windows.Forms.DockStyle.Top
+        Me.GroupBox8.Margin = New System.Windows.Forms.Padding(0, 0, 0, UiTheme.LeftSectionGap)
+        Me.leftContentPanel.Controls.Add(Me.GroupBox8, 0, 6)
+        Me.GroupBox7.Dock = System.Windows.Forms.DockStyle.Top
+        Me.GroupBox7.Margin = New System.Windows.Forms.Padding(0, 0, 0, UiTheme.LeftSectionGap)
+        Me.leftContentPanel.Controls.Add(Me.GroupBox7, 0, 7)
+        Me.resetAlarmLayout.Dock = System.Windows.Forms.DockStyle.Top
+        Me.resetAlarmLayout.Margin = New System.Windows.Forms.Padding(0, 0, 0, UiTheme.LeftSectionGap)
+        Me.leftContentPanel.Controls.Add(Me.resetAlarmLayout, 0, 8)
+        Me.Panel1.BackColor = UiTheme.PageBackground
+        Me.Panel1.AutoScroll = True
+        Me.Panel1.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.Panel1.Margin = New System.Windows.Forms.Padding(0)
+        Me.Panel1.Padding = New System.Windows.Forms.Padding(0)
+        Me.Panel1.Controls.Add(Me.GroupBox2)
+        Me.Panel1.Controls.Add(Me.leftContentPanel)
+        Me.Pic_Bat.Visible = False
+        Me.Controls.Add(Me.Pic_Bat)
+        Me.Controls.Add(Me.rootLayout)
+        Me.rootLayout.Controls.Add(Me.Panel1, 0, 0)
+        Me.rootLayout.Controls.Add(Me.rightLayout, 1, 0)
+        Me.GroupBox3.ResumeLayout(False)
+        Me.GroupBox1.ResumeLayout(False)
+        Me.grpChannelSelection.ResumeLayout(False)
+        Me.GroupBox2.ResumeLayout(False)
+        Me.GroupBox5.ResumeLayout(False)
+        Me.Panel3.ResumeLayout(False)
+        Me.Panel2.ResumeLayout(False)
+        Me.GroupBox7.ResumeLayout(False)
+        Me.Panel1.ResumeLayout(False)
+        Me.GroupBox8.ResumeLayout(False)
+        Me.GroupBox3.PerformLayout()
+        Me.GroupBox1.PerformLayout()
+        Me.GroupBox2.PerformLayout()
+        Me.GroupBox5.PerformLayout()
+        Me.Panel3.PerformLayout()
+        Me.Panel2.PerformLayout()
+        Me.GroupBox7.PerformLayout()
+        Me.GroupBox8.PerformLayout()
+        Me.ResumeLayout(False)
         Me.GroupBox3.ResumeLayout(False)
         Me.GroupBox3.PerformLayout()
         Me.GroupBox1.ResumeLayout(False)
@@ -959,426 +1673,6 @@ Partial Class frmTest
 
     End Sub
 
-    Private Sub BuildDesignerLayout()
-        Me.rootLayout = New TableLayoutPanel With {
-            .BackColor = UiTheme.PageBackground,
-            .ColumnCount = 2,
-            .Dock = DockStyle.Fill,
-            .Margin = New Padding(0),
-            .Padding = New Padding(0),
-            .RowCount = 1
-        }
-        Me.rootLayout.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, 350.0F))
-        Me.rootLayout.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100.0F))
-        Me.rootLayout.RowStyles.Add(New RowStyle(SizeType.Percent, 100.0F))
-
-        Me.rightLayout = New TableLayoutPanel With {
-            .BackColor = UiTheme.PageBackground,
-            .ColumnCount = 1,
-            .Dock = DockStyle.Fill,
-            .Margin = New Padding(0),
-            .Padding = New Padding(0),
-            .RowCount = 2
-        }
-        Me.rightLayout.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100.0F))
-        Me.rightLayout.RowStyles.Add(New RowStyle(SizeType.Percent, 14.0F))
-        Me.rightLayout.RowStyles.Add(New RowStyle(SizeType.Percent, 86.0F))
-        Me.statisticsControl.Dock = DockStyle.Fill
-        Me.statisticsControl.Margin = New Padding(0)
-        Me.channelGrid.Dock = DockStyle.Fill
-        Me.channelGrid.Margin = New Padding(0)
-        Me.rightLayout.Controls.Add(Me.statisticsControl, 0, 0)
-        Me.rightLayout.Controls.Add(Me.channelGrid, 0, 1)
-
-        Me.leftContentPanel = New TableLayoutPanel With {
-            .AutoSize = True,
-            .AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            .BackColor = UiTheme.PageBackground,
-            .ColumnCount = 1,
-            .Dock = DockStyle.Top,
-            .Margin = New Padding(0),
-            .Padding = New Padding(UiTheme.LeftContentPadding),
-            .RowCount = 0
-        }
-
-        Me.grpTestMode = New GroupBox With {
-            .BackColor = UiTheme.CardBackground,
-            .Font = UiTheme.UiFontBold,
-            .ForeColor = UiTheme.Primary,
-            .Name = "grpTestMode",
-            .Padding = New Padding(6, 15, 6, 6),
-            .Size = New Size(334, 50),
-            .TabStop = False,
-            .Text = "测试控制"
-        }
-        Me.testModeLayout = New TableLayoutPanel With {
-            .ColumnCount = 2,
-            .Dock = DockStyle.Fill,
-            .Margin = New Padding(0),
-            .RowCount = 1
-        }
-        Me.testModeLayout.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 50.0F))
-        Me.testModeLayout.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 50.0F))
-        Me.chkAutoTest = New CheckBox With {
-            .Appearance = Appearance.Button,
-            .AutoSize = False,
-            .BackColor = UiTheme.Primary,
-            .Dock = DockStyle.Fill,
-            .FlatStyle = FlatStyle.Flat,
-            .Font = UiTheme.UiFontBold,
-            .ForeColor = Color.White,
-            .Name = "chkAutoTest",
-            .Text = "自动",
-            .TextAlign = ContentAlignment.MiddleCenter,
-            .UseVisualStyleBackColor = False
-        }
-        Me.chkAutoTest.FlatAppearance.BorderColor = UiTheme.Primary
-        Me.chkAutoTest.FlatAppearance.BorderSize = 1
-        Me.chkManualTest = New CheckBox With {
-            .Appearance = Appearance.Button,
-            .AutoSize = False,
-            .BackColor = UiTheme.CardBackground,
-            .Dock = DockStyle.Fill,
-            .FlatStyle = FlatStyle.Flat,
-            .Font = UiTheme.UiFontBold,
-            .ForeColor = UiTheme.TextPrimary,
-            .Name = "chkManualTest",
-            .Text = "手动",
-            .TextAlign = ContentAlignment.MiddleCenter,
-            .UseVisualStyleBackColor = False
-        }
-        Me.chkManualTest.FlatAppearance.BorderColor = UiTheme.CardBorder
-        Me.chkManualTest.FlatAppearance.BorderSize = 1
-        Me.chkAutoTest.Checked = True
-        Me.testModeLayout.Controls.Add(Me.chkAutoTest, 0, 0)
-        Me.testModeLayout.Controls.Add(Me.chkManualTest, 1, 0)
-        Me.grpTestMode.Controls.Add(Me.testModeLayout)
-        AddHandler Me.chkAutoTest.CheckedChanged, AddressOf TestModeCheckedChanged
-        AddHandler Me.chkManualTest.CheckedChanged, AddressOf TestModeCheckedChanged
-
-        Me.currentStationButton = New RadioButton With {
-            .Appearance = Appearance.Button,
-            .AutoSize = False,
-            .BackColor = UiTheme.Primary,
-            .Dock = DockStyle.Top,
-            .FlatStyle = FlatStyle.Flat,
-            .Font = UiTheme.UiFontTitle,
-            .ForeColor = Color.White,
-            .Height = UiTheme.LeftStationButtonHeight,
-            .Name = "currentStationButton",
-            .Text = "OCV1",
-            .TextAlign = ContentAlignment.MiddleCenter,
-            .UseVisualStyleBackColor = False
-        }
-        Me.currentStationButton.FlatAppearance.BorderColor = UiTheme.Primary
-        Me.currentStationButton.FlatAppearance.BorderSize = 1
-
-        ConfigureDesignerCard(Me.GroupBox1)
-        ConfigureDesignerCard(Me.GroupBox3)
-        ConfigureDesignerCard(Me.GroupBox5)
-        ConfigureDesignerCard(Me.GroupBox7)
-        ConfigureDesignerCard(Me.GroupBox8)
-        ConfigureDesignerCard(Me.grpChannelSelection)
-        Me.GroupBox2.Visible = False
-        Me.GroupBox2.Enabled = False
-        Me.GroupBox6.Visible = False
-        Me.txtUsed.Visible = False
-        Me.txtTotle.Visible = False
-        ConfigureDesignerInput(Me.txtTray)
-        ConfigureDesignerInput(Me.txtFirstNum)
-        ConfigureDesignerInput(Me.txtLastNum)
-        ConfigureDesignerInput(Me.txtMinV)
-        ConfigureDesignerInput(Me.txtMaxV)
-        ConfigureDesignerInput(Me.txtMinR)
-        ConfigureDesignerInput(Me.txtMaxR)
-        ConfigureDesignerInput(Me.txtTestR)
-        ConfigureDesignerInput(Me.txtCaliR)
-        ConfigureDesignerInput(Me.txtJiajuR)
-        ConfigureDesignerInput(Me.txtAlarm)
-        ConfigureDesignerInput(Me.t1)
-        ConfigureDesignerInput(Me.t2)
-        ConfigureDesignerInput(Me.t3)
-        ConfigureDesignerInput(Me.t4)
-        ConfigureDesignerInput(Me.txtRemain)
-        For Each label As Label In {Me.Label1, Me.Label2, Me.Label5, Me.Label7, Me.Label12, Me.Label14, Me.Label15, Me.Label16, Me.Label17, Me.Label19, Me.Label26, Me.Label28, Me.Label29}
-            ConfigureDesignerLabel(label)
-        Next
-        ConfigureDesignerButton(Me.CmdStart, UiTheme.Primary, Color.White, UiTheme.Primary)
-        ConfigureDesignerButton(Me.btnStop, Color.White, UiTheme.Danger, UiTheme.Danger)
-        ConfigureDesignerButton(Me.btnNGTest, UiTheme.Warning, Color.White, UiTheme.Warning)
-        ConfigureDesignerButton(Me.btnTrayState, Color.White, UiTheme.TextPrimary, UiTheme.CardBorder)
-        ConfigureDesignerButton(Me.btnOpen, Color.White, UiTheme.TextPrimary, UiTheme.CardBorder)
-        ConfigureDesignerButton(Me.btnClose, Color.White, UiTheme.TextPrimary, UiTheme.CardBorder)
-        ConfigureDesignerButton(Me.btnChannelSelectAll, UiTheme.Primary, Color.White, UiTheme.Primary)
-        ConfigureDesignerButton(Me.btnChannelClear, Color.White, UiTheme.TextPrimary, UiTheme.CardBorder)
-        ConfigureDesignerButton(Me.btnChannelRectangle, Color.White, UiTheme.TextPrimary, UiTheme.CardBorder)
-        ConfigureDesignerButton(Me.btnChannelSelectSingle, Color.White, UiTheme.TextPrimary, UiTheme.CardBorder)
-        ConfigureDesignerButton(Me.Button2, Color.White, UiTheme.Danger, UiTheme.Danger)
-
-        BuildDesignerTestModeLayout()
-        BuildDesignerControlBoardLayout()
-        BuildDesignerChannelSelectionLayout()
-        BuildDesignerRangeLayout()
-        BuildDesignerAlarmLayout()
-        BuildDesignerProbeUsageLayout()
-        BuildDesignerEventLogLayout()
-
-        Me.resetAlarmLayout = New TableLayoutPanel With {
-            .ColumnCount = 1,
-            .Dock = DockStyle.Top,
-            .Margin = New Padding(0),
-            .RowCount = 1,
-            .Size = New Size(334, 38)
-        }
-        Me.resetAlarmLayout.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100.0F))
-        Me.resetAlarmLayout.RowStyles.Add(New RowStyle(SizeType.Absolute, 34.0F))
-        Me.Button2.Dock = DockStyle.None
-        Me.Button2.Anchor = AnchorStyles.None
-        Me.Button2.Margin = New Padding(0)
-        Me.Button2.Size = New Size(133, 34)
-        Me.resetAlarmLayout.Controls.Add(Me.Button2, 0, 0)
-
-        AddLeftContentItem(Me.currentStationButton)
-        AddLeftContentItem(Me.grpTestMode)
-        AddLeftContentItem(Me.GroupBox1)
-        AddLeftContentItem(Me.grpChannelSelection)
-        AddLeftContentItem(Me.GroupBox3)
-        AddLeftContentItem(Me.GroupBox5)
-        AddLeftContentItem(Me.GroupBox8)
-        AddLeftContentItem(Me.GroupBox7)
-        AddLeftContentItem(Me.resetAlarmLayout)
-        Me.Panel1.Controls.Clear()
-        Me.Panel1.BackColor = UiTheme.PageBackground
-        Me.Panel1.AutoScroll = True
-        Me.Panel1.Dock = DockStyle.Fill
-        Me.Panel1.Margin = New Padding(0)
-        Me.Panel1.Padding = New Padding(0)
-        Me.Panel1.Controls.Add(Me.GroupBox2)
-        Me.Panel1.Controls.Add(Me.leftContentPanel)
-        Me.leftContentPanel.BringToFront()
-        Me.Controls.Clear()
-        Me.Pic_Bat.Visible = False
-        Me.Controls.Add(Me.Pic_Bat)
-        Me.Controls.Add(Me.rootLayout)
-        Me.rootLayout.Controls.Add(Me.Panel1, 0, 0)
-        Me.rootLayout.Controls.Add(Me.rightLayout, 1, 0)
-    End Sub
-
-    Private Sub AddLeftContentItem(ByVal control As Control)
-        control.Dock = DockStyle.Top
-        control.Margin = New Padding(0, 0, 0, UiTheme.LeftSectionGap)
-        Me.leftContentPanel.RowStyles.Add(New RowStyle(SizeType.AutoSize))
-        Me.leftContentPanel.Controls.Add(control, 0, Me.leftContentPanel.RowCount)
-        Me.leftContentPanel.RowCount += 1
-    End Sub
-
-    Private Sub ConfigureDesignerCard(ByVal card As GroupBox)
-        card.AutoSize = True
-        card.AutoSizeMode = AutoSizeMode.GrowAndShrink
-        card.BackColor = UiTheme.CardBackground
-        card.Dock = DockStyle.Top
-        card.FlatStyle = FlatStyle.Flat
-        card.Font = UiTheme.UiFontBold
-        card.ForeColor = UiTheme.Primary
-        card.Margin = New Padding(0)
-        card.MinimumSize = New Size(0, 0)
-        card.Padding = New Padding(6, 15, 6, 6)
-    End Sub
-
-    Private Sub ConfigureDesignerInput(ByVal input As TextBox)
-        input.BackColor = UiTheme.CardBackground
-        input.BorderStyle = BorderStyle.FixedSingle
-        input.Font = UiTheme.UiFont
-        input.ForeColor = UiTheme.TextPrimary
-    End Sub
-
-    Private Sub ConfigureDesignerLabel(ByVal label As Label)
-        label.BackColor = UiTheme.CardBackground
-        label.Font = UiTheme.UiFont
-        label.ForeColor = UiTheme.TextPrimary
-    End Sub
-
-    Private Sub ConfigureDesignerButton(ByVal button As Button, ByVal backColor As Color, ByVal foreColor As Color, ByVal borderColor As Color)
-        button.BackColor = backColor
-        button.FlatStyle = FlatStyle.Flat
-        button.Font = UiTheme.UiFontBold
-        button.ForeColor = foreColor
-        button.UseVisualStyleBackColor = False
-        button.FlatAppearance.BorderColor = borderColor
-        button.FlatAppearance.BorderSize = 1
-    End Sub
-
-    Private Sub ConfigureDesignerTable(ByVal table As TableLayoutPanel, ByVal columns As Integer, ByVal rows As Integer)
-        table.AutoSize = True
-        table.AutoSizeMode = AutoSizeMode.GrowAndShrink
-        table.BackColor = UiTheme.CardBackground
-        table.ColumnCount = columns
-        table.Dock = DockStyle.Top
-        table.Margin = New Padding(0)
-        table.Padding = New Padding(0)
-        table.RowCount = rows
-        For index As Integer = 0 To columns - 1
-            table.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100.0F / columns))
-        Next
-        For index As Integer = 0 To rows - 1
-            table.RowStyles.Add(New RowStyle(SizeType.AutoSize))
-        Next
-    End Sub
-
-    Private Sub PutDesignerControl(ByVal parent As Control, ByVal table As TableLayoutPanel, ByVal control As Control, ByVal column As Integer, ByVal row As Integer, Optional ByVal columnSpan As Integer = 1)
-        parent.Controls.Remove(control)
-        control.Dock = DockStyle.Fill
-        control.Margin = New Padding(2)
-        table.Controls.Add(control, column, row)
-        If columnSpan > 1 Then table.SetColumnSpan(control, columnSpan)
-    End Sub
-
-    Private Sub BuildDesignerTestModeLayout()
-        Me.testModeLayout.ColumnStyles.Clear()
-        Me.testModeLayout.RowStyles.Clear()
-        Me.testModeLayout.ColumnCount = 2
-        Me.testModeLayout.RowCount = 1
-        Me.testModeLayout.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 50.0F))
-        Me.testModeLayout.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 50.0F))
-        Me.testModeLayout.RowStyles.Add(New RowStyle(SizeType.Percent, 100.0F))
-    End Sub
-
-    Private Sub BuildDesignerControlBoardLayout()
-        Me.controlBoardLayout = New TableLayoutPanel()
-        ConfigureDesignerTable(Me.controlBoardLayout, 3, 4)
-        PutDesignerControl(Me.GroupBox1, Me.controlBoardLayout, Me.Label2, 0, 0)
-        PutDesignerControl(Me.GroupBox1, Me.controlBoardLayout, Me.txtTray, 1, 0, 2)
-        PutDesignerControl(Me.GroupBox1, Me.controlBoardLayout, Me.Label5, 0, 1)
-        PutDesignerControl(Me.GroupBox1, Me.controlBoardLayout, Me.lblBarNum, 1, 1)
-        PutDesignerControl(Me.GroupBox1, Me.controlBoardLayout, Me.CmdStart, 0, 2)
-        PutDesignerControl(Me.GroupBox1, Me.controlBoardLayout, Me.btnStop, 1, 2)
-        PutDesignerControl(Me.GroupBox1, Me.controlBoardLayout, Me.btnNGTest, 2, 2)
-        PutDesignerControl(Me.GroupBox1, Me.controlBoardLayout, Me.btnTrayState, 0, 3)
-        PutDesignerControl(Me.GroupBox1, Me.controlBoardLayout, Me.btnOpen, 1, 3)
-        PutDesignerControl(Me.GroupBox1, Me.controlBoardLayout, Me.btnClose, 2, 3)
-        Me.Label2.TextAlign = ContentAlignment.MiddleRight
-        Me.Label5.TextAlign = ContentAlignment.MiddleRight
-        Me.GroupBox1.Controls.Add(Me.controlBoardLayout)
-    End Sub
-
-    Private Sub BuildDesignerChannelSelectionLayout()
-        Me.channelSelectionLayout = New TableLayoutPanel()
-        ConfigureDesignerTable(Me.channelSelectionLayout, 4, 1)
-        PutDesignerControl(Me.grpChannelSelection, Me.channelSelectionLayout, Me.btnChannelSelectAll, 0, 0)
-        PutDesignerControl(Me.grpChannelSelection, Me.channelSelectionLayout, Me.btnChannelClear, 1, 0)
-        PutDesignerControl(Me.grpChannelSelection, Me.channelSelectionLayout, Me.btnChannelRectangle, 2, 0)
-        PutDesignerControl(Me.grpChannelSelection, Me.channelSelectionLayout, Me.btnChannelSelectSingle, 3, 0)
-        Me.grpChannelSelection.Controls.Add(Me.channelSelectionLayout)
-    End Sub
-
-    Private Sub BuildDesignerRangeLayout()
-        Me.rangeSettingsLayout = New TableLayoutPanel()
-        ConfigureDesignerTable(Me.rangeSettingsLayout, 3, 3)
-        Me.rangeSettingsLayout.ColumnStyles.Clear()
-        Me.rangeSettingsLayout.ColumnStyles.Add(New ColumnStyle(SizeType.AutoSize))
-        Me.rangeSettingsLayout.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 50.0F))
-        Me.rangeSettingsLayout.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 50.0F))
-        PutDesignerControl(Me.GroupBox3, Me.rangeSettingsLayout, Me.Label9, 1, 0)
-        PutDesignerControl(Me.GroupBox3, Me.rangeSettingsLayout, Me.Label8, 2, 0)
-        PutDesignerControl(Me.GroupBox3, Me.rangeSettingsLayout, Me.Label7, 0, 1)
-        PutDesignerControl(Me.GroupBox3, Me.rangeSettingsLayout, Me.txtMinV, 1, 1)
-        PutDesignerControl(Me.GroupBox3, Me.rangeSettingsLayout, Me.txtMaxV, 2, 1)
-        PutDesignerControl(Me.GroupBox3, Me.rangeSettingsLayout, Me.Label12, 0, 2)
-        PutDesignerControl(Me.GroupBox3, Me.rangeSettingsLayout, Me.txtMinR, 1, 2)
-        PutDesignerControl(Me.GroupBox3, Me.rangeSettingsLayout, Me.txtMaxR, 2, 2)
-        Me.Label7.TextAlign = ContentAlignment.MiddleRight
-        Me.Label12.TextAlign = ContentAlignment.MiddleRight
-        Me.Label9.TextAlign = ContentAlignment.MiddleCenter
-        Me.Label8.TextAlign = ContentAlignment.MiddleCenter
-        Me.GroupBox3.Controls.Add(Me.rangeSettingsLayout)
-    End Sub
-
-    Private Sub BuildDesignerAlarmLayout()
-        Me.alarmSectionLayout = New TableLayoutPanel()
-        ConfigureDesignerTable(Me.alarmSectionLayout, 1, 2)
-        Me.Panel2.BorderStyle = BorderStyle.None
-        Me.Panel2.AutoSize = True
-        Me.Panel2.AutoSizeMode = AutoSizeMode.GrowAndShrink
-        Me.Panel2.Margin = New Padding(0)
-        Me.Panel2.Padding = New Padding(0)
-        Me.Panel3.BorderStyle = BorderStyle.None
-        Me.Panel3.AutoSize = True
-        Me.Panel3.AutoSizeMode = AutoSizeMode.GrowAndShrink
-        Me.Panel3.Margin = New Padding(0, 4, 0, 0)
-        Me.Panel3.Padding = New Padding(0)
-        PutDesignerControl(Me.GroupBox5, Me.alarmSectionLayout, Me.Panel2, 0, 0)
-        PutDesignerControl(Me.GroupBox5, Me.alarmSectionLayout, Me.Panel3, 0, 1)
-        BuildDesignerTemperatureLayout()
-        BuildDesignerAlarmStatusLayout()
-        Me.GroupBox5.Controls.Add(Me.alarmSectionLayout)
-    End Sub
-
-    Private Sub BuildDesignerTemperatureLayout()
-        Me.alarmTemperatureLayout = New TableLayoutPanel()
-        ConfigureDesignerTable(Me.alarmTemperatureLayout, 4, 2)
-        PutDesignerControl(Me.Panel2, Me.alarmTemperatureLayout, Me.Label1, 0, 0)
-        PutDesignerControl(Me.Panel2, Me.alarmTemperatureLayout, Me.t1, 1, 0)
-        PutDesignerControl(Me.Panel2, Me.alarmTemperatureLayout, Me.Label14, 2, 0)
-        PutDesignerControl(Me.Panel2, Me.alarmTemperatureLayout, Me.t2, 3, 0)
-        PutDesignerControl(Me.Panel2, Me.alarmTemperatureLayout, Me.Label15, 0, 1)
-        PutDesignerControl(Me.Panel2, Me.alarmTemperatureLayout, Me.t3, 1, 1)
-        PutDesignerControl(Me.Panel2, Me.alarmTemperatureLayout, Me.Label16, 2, 1)
-        PutDesignerControl(Me.Panel2, Me.alarmTemperatureLayout, Me.t4, 3, 1)
-        Me.Panel2.Controls.Add(Me.alarmTemperatureLayout)
-    End Sub
-
-    Private Sub BuildDesignerAlarmStatusLayout()
-        Me.alarmStatusLayout = New TableLayoutPanel()
-        ConfigureDesignerTable(Me.alarmStatusLayout, 3, 1)
-        Me.alarmStatusLayout.ColumnStyles.Clear()
-        Me.alarmStatusLayout.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 24.0F))
-        Me.alarmStatusLayout.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 24.0F))
-        Me.alarmStatusLayout.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 52.0F))
-        Me.smokeOneLayout = New FlowLayoutPanel With {.AutoSize = True, .AutoSizeMode = AutoSizeMode.GrowAndShrink, .Dock = DockStyle.Fill, .FlowDirection = FlowDirection.LeftToRight, .Margin = New Padding(2), .Padding = New Padding(0), .WrapContents = False}
-        Me.smokeTwoLayout = New FlowLayoutPanel With {.AutoSize = True, .AutoSizeMode = AutoSizeMode.GrowAndShrink, .Dock = DockStyle.Fill, .FlowDirection = FlowDirection.LeftToRight, .Margin = New Padding(2), .Padding = New Padding(0), .WrapContents = False}
-        Me.deviceStatusLayout = New FlowLayoutPanel With {.AutoSize = True, .AutoSizeMode = AutoSizeMode.GrowAndShrink, .Dock = DockStyle.Fill, .FlowDirection = FlowDirection.LeftToRight, .Margin = New Padding(2), .Padding = New Padding(0), .WrapContents = False}
-        Me.Label19.Margin = New Padding(2)
-        Me.smokeAlarm1.Margin = New Padding(2)
-        Me.Label17.Margin = New Padding(2)
-        Me.smokeAlarm2.Margin = New Padding(2)
-        Me.Label28.Margin = New Padding(2)
-        Me.LabelRun.Margin = New Padding(2)
-        Me.LabelAlarm.Margin = New Padding(2)
-        Me.smokeOneLayout.Controls.Add(Me.Label19)
-        Me.smokeOneLayout.Controls.Add(Me.smokeAlarm1)
-        Me.smokeTwoLayout.Controls.Add(Me.Label17)
-        Me.smokeTwoLayout.Controls.Add(Me.smokeAlarm2)
-        Me.deviceStatusLayout.Controls.Add(Me.Label28)
-        Me.deviceStatusLayout.Controls.Add(Me.LabelRun)
-        Me.deviceStatusLayout.Controls.Add(Me.LabelAlarm)
-        Me.alarmStatusLayout.Controls.Add(Me.smokeOneLayout, 0, 0)
-        Me.alarmStatusLayout.Controls.Add(Me.smokeTwoLayout, 1, 0)
-        Me.alarmStatusLayout.Controls.Add(Me.deviceStatusLayout, 2, 0)
-        Me.Panel3.Controls.Add(Me.alarmStatusLayout)
-    End Sub
-
-    Private Sub BuildDesignerProbeUsageLayout()
-        Me.probeUsageLayout = New TableLayoutPanel()
-        ConfigureDesignerTable(Me.probeUsageLayout, 3, 1)
-        Me.probeUsageLayout.ColumnStyles.Clear()
-        Me.probeUsageLayout.ColumnStyles.Add(New ColumnStyle(SizeType.AutoSize))
-        Me.probeUsageLayout.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100.0F))
-        Me.probeUsageLayout.ColumnStyles.Add(New ColumnStyle(SizeType.AutoSize))
-        PutDesignerControl(Me.GroupBox8, Me.probeUsageLayout, Me.Label26, 0, 0)
-        PutDesignerControl(Me.GroupBox8, Me.probeUsageLayout, Me.txtRemain, 1, 0)
-        PutDesignerControl(Me.GroupBox8, Me.probeUsageLayout, Me.Label29, 2, 0)
-        Me.Label26.TextAlign = ContentAlignment.MiddleRight
-        Me.Label29.TextAlign = ContentAlignment.MiddleLeft
-        Me.GroupBox8.Controls.Add(Me.probeUsageLayout)
-    End Sub
-
-    Private Sub BuildDesignerEventLogLayout()
-        Me.GroupBox7.AutoSize = False
-        Me.GroupBox7.Height = 82
-        Me.GroupBox7.MinimumSize = New Size(0, 82)
-        Me.txtAlarm.Dock = DockStyle.Fill
-        Me.txtAlarm.Margin = New Padding(0)
-    End Sub
     Private rootLayout As TableLayoutPanel
     Private rightLayout As TableLayoutPanel
     Private leftContentPanel As TableLayoutPanel
@@ -1395,8 +1689,8 @@ Partial Class frmTest
     Private smokeTwoLayout As FlowLayoutPanel
     Private deviceStatusLayout As FlowLayoutPanel
     Private grpTestMode As GroupBox
-    Private chkAutoTest As CheckBox
-    Private chkManualTest As CheckBox
+    Friend WithEvents chkAutoTest As CheckBox
+    Friend WithEvents chkManualTest As CheckBox
     Private currentStationButton As RadioButton
     Friend WithEvents Pic_Bat As System.Windows.Forms.PictureBox
     Friend WithEvents SaveFileDialog1 As System.Windows.Forms.SaveFileDialog

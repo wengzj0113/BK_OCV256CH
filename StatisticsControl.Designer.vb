@@ -22,11 +22,11 @@ Partial Class StatisticsControl
         Me.ngTitle = New System.Windows.Forms.Label()
         Me.testingTitle = New System.Windows.Forms.Label()
         Me.idleTitle = New System.Windows.Forms.Label()
-        Me.totalValue = CreateValueLabel(UiTheme.Primary)
-        Me.passValue = CreateValueLabel(UiTheme.Success)
-        Me.ngValue = CreateValueLabel(UiTheme.Danger)
-        Me.testingValue = CreateValueLabel(UiTheme.Primary)
-        Me.idleValue = CreateValueLabel(UiTheme.TextSecondary)
+        Me.totalValue = New System.Windows.Forms.Label()
+        Me.passValue = New System.Windows.Forms.Label()
+        Me.ngValue = New System.Windows.Forms.Label()
+        Me.testingValue = New System.Windows.Forms.Label()
+        Me.idleValue = New System.Windows.Forms.Label()
         Me.legend = New System.Windows.Forms.TableLayoutPanel()
         Me.passLegend = New System.Windows.Forms.FlowLayoutPanel()
         Me.ngLegend = New System.Windows.Forms.FlowLayoutPanel()
@@ -43,15 +43,144 @@ Partial Class StatisticsControl
         Me.SuspendLayout()
         Me.statisticsLayout.SuspendLayout()
         Me.legend.SuspendLayout()
-        ConfigureTitleLabel(Me.totalTitle, "通道总数")
-        ConfigureTitleLabel(Me.passTitle, "PASS")
-        ConfigureTitleLabel(Me.ngTitle, "NG")
-        ConfigureTitleLabel(Me.testingTitle, "测试中")
-        ConfigureTitleLabel(Me.idleTitle, "空闲")
-        ConfigureLegendItem(Me.passLegend, Me.passSwatch, Me.passLegendText, "PASS", UiTheme.Success)
-        ConfigureLegendItem(Me.ngLegend, Me.ngSwatch, Me.ngLegendText, "NG", UiTheme.Danger)
-        ConfigureLegendItem(Me.testingLegend, Me.testingSwatch, Me.testingLegendText, "测试中", UiTheme.Primary)
-        ConfigureLegendItem(Me.idleLegend, Me.idleSwatch, Me.idleLegendText, "空闲", UiTheme.TextSecondary)
+        Me.totalTitle.BackColor = UiTheme.CardBackground
+        Me.totalTitle.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.totalTitle.Font = UiTheme.UiFontBold
+        Me.totalTitle.ForeColor = UiTheme.TextSecondary
+        Me.totalTitle.Name = "totalTitle"
+        Me.totalTitle.Text = "通道总数"
+        Me.totalTitle.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
+        Me.passTitle.BackColor = UiTheme.CardBackground
+        Me.passTitle.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.passTitle.Font = UiTheme.UiFontBold
+        Me.passTitle.ForeColor = UiTheme.TextSecondary
+        Me.passTitle.Name = "passTitle"
+        Me.passTitle.Text = "PASS"
+        Me.passTitle.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
+        Me.ngTitle.BackColor = UiTheme.CardBackground
+        Me.ngTitle.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.ngTitle.Font = UiTheme.UiFontBold
+        Me.ngTitle.ForeColor = UiTheme.TextSecondary
+        Me.ngTitle.Name = "ngTitle"
+        Me.ngTitle.Text = "NG"
+        Me.ngTitle.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
+        Me.testingTitle.BackColor = UiTheme.CardBackground
+        Me.testingTitle.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.testingTitle.Font = UiTheme.UiFontBold
+        Me.testingTitle.ForeColor = UiTheme.TextSecondary
+        Me.testingTitle.Name = "testingTitle"
+        Me.testingTitle.Text = "测试中"
+        Me.testingTitle.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
+        Me.idleTitle.BackColor = UiTheme.CardBackground
+        Me.idleTitle.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.idleTitle.Font = UiTheme.UiFontBold
+        Me.idleTitle.ForeColor = UiTheme.TextSecondary
+        Me.idleTitle.Name = "idleTitle"
+        Me.idleTitle.Text = "空闲"
+        Me.idleTitle.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
+        Me.totalValue.AutoEllipsis = False
+        Me.totalValue.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.totalValue.Font = UiTheme.UiFontMetric
+        Me.totalValue.ForeColor = UiTheme.Primary
+        Me.totalValue.Name = "totalValue"
+        Me.totalValue.Padding = New System.Windows.Forms.Padding(0, 0, 4, 0)
+        Me.totalValue.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
+        Me.passValue.AutoEllipsis = False
+        Me.passValue.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.passValue.Font = UiTheme.UiFontMetric
+        Me.passValue.ForeColor = UiTheme.Success
+        Me.passValue.Name = "passValue"
+        Me.passValue.Padding = New System.Windows.Forms.Padding(0, 0, 4, 0)
+        Me.passValue.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
+        Me.ngValue.AutoEllipsis = False
+        Me.ngValue.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.ngValue.Font = UiTheme.UiFontMetric
+        Me.ngValue.ForeColor = UiTheme.Danger
+        Me.ngValue.Name = "ngValue"
+        Me.ngValue.Padding = New System.Windows.Forms.Padding(0, 0, 4, 0)
+        Me.ngValue.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
+        Me.testingValue.AutoEllipsis = False
+        Me.testingValue.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.testingValue.Font = UiTheme.UiFontMetric
+        Me.testingValue.ForeColor = UiTheme.Primary
+        Me.testingValue.Name = "testingValue"
+        Me.testingValue.Padding = New System.Windows.Forms.Padding(0, 0, 4, 0)
+        Me.testingValue.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
+        Me.idleValue.AutoEllipsis = False
+        Me.idleValue.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.idleValue.Font = UiTheme.UiFontMetric
+        Me.idleValue.ForeColor = UiTheme.TextSecondary
+        Me.idleValue.Name = "idleValue"
+        Me.idleValue.Padding = New System.Windows.Forms.Padding(0, 0, 4, 0)
+        Me.idleValue.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
+        Me.passLegend.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.passLegend.FlowDirection = System.Windows.Forms.FlowDirection.LeftToRight
+        Me.passLegend.Margin = New System.Windows.Forms.Padding(0)
+        Me.passLegend.Name = "passLegend"
+        Me.passLegend.Padding = New System.Windows.Forms.Padding(0, 2, 0, 0)
+        Me.passLegend.WrapContents = False
+        Me.passSwatch.BackColor = UiTheme.Success
+        Me.passSwatch.Margin = New System.Windows.Forms.Padding(0, 2, 4, 0)
+        Me.passSwatch.Name = "passSwatch"
+        Me.passSwatch.Size = New System.Drawing.Size(11, 11)
+        Me.passLegendText.AutoSize = True
+        Me.passLegendText.Font = UiTheme.UiFont
+        Me.passLegendText.ForeColor = UiTheme.TextPrimary
+        Me.passLegendText.Name = "passLegendText"
+        Me.passLegendText.Text = "PASS"
+        Me.passLegend.Controls.Add(Me.passSwatch)
+        Me.passLegend.Controls.Add(Me.passLegendText)
+        Me.ngLegend.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.ngLegend.FlowDirection = System.Windows.Forms.FlowDirection.LeftToRight
+        Me.ngLegend.Margin = New System.Windows.Forms.Padding(0)
+        Me.ngLegend.Name = "ngLegend"
+        Me.ngLegend.Padding = New System.Windows.Forms.Padding(0, 2, 0, 0)
+        Me.ngLegend.WrapContents = False
+        Me.ngSwatch.BackColor = UiTheme.Danger
+        Me.ngSwatch.Margin = New System.Windows.Forms.Padding(0, 2, 4, 0)
+        Me.ngSwatch.Name = "ngSwatch"
+        Me.ngSwatch.Size = New System.Drawing.Size(11, 11)
+        Me.ngLegendText.AutoSize = True
+        Me.ngLegendText.Font = UiTheme.UiFont
+        Me.ngLegendText.ForeColor = UiTheme.TextPrimary
+        Me.ngLegendText.Name = "ngLegendText"
+        Me.ngLegendText.Text = "NG"
+        Me.ngLegend.Controls.Add(Me.ngSwatch)
+        Me.ngLegend.Controls.Add(Me.ngLegendText)
+        Me.testingLegend.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.testingLegend.FlowDirection = System.Windows.Forms.FlowDirection.LeftToRight
+        Me.testingLegend.Margin = New System.Windows.Forms.Padding(0)
+        Me.testingLegend.Name = "testingLegend"
+        Me.testingLegend.Padding = New System.Windows.Forms.Padding(0, 2, 0, 0)
+        Me.testingLegend.WrapContents = False
+        Me.testingSwatch.BackColor = UiTheme.Primary
+        Me.testingSwatch.Margin = New System.Windows.Forms.Padding(0, 2, 4, 0)
+        Me.testingSwatch.Name = "testingSwatch"
+        Me.testingSwatch.Size = New System.Drawing.Size(11, 11)
+        Me.testingLegendText.AutoSize = True
+        Me.testingLegendText.Font = UiTheme.UiFont
+        Me.testingLegendText.ForeColor = UiTheme.TextPrimary
+        Me.testingLegendText.Name = "testingLegendText"
+        Me.testingLegendText.Text = "测试中"
+        Me.testingLegend.Controls.Add(Me.testingSwatch)
+        Me.testingLegend.Controls.Add(Me.testingLegendText)
+        Me.idleLegend.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.idleLegend.FlowDirection = System.Windows.Forms.FlowDirection.LeftToRight
+        Me.idleLegend.Margin = New System.Windows.Forms.Padding(0)
+        Me.idleLegend.Name = "idleLegend"
+        Me.idleLegend.Padding = New System.Windows.Forms.Padding(0, 2, 0, 0)
+        Me.idleLegend.WrapContents = False
+        Me.idleSwatch.BackColor = UiTheme.TextSecondary
+        Me.idleSwatch.Margin = New System.Windows.Forms.Padding(0, 2, 4, 0)
+        Me.idleSwatch.Name = "idleSwatch"
+        Me.idleSwatch.Size = New System.Drawing.Size(11, 11)
+        Me.idleLegendText.AutoSize = True
+        Me.idleLegendText.Font = UiTheme.UiFont
+        Me.idleLegendText.ForeColor = UiTheme.TextPrimary
+        Me.idleLegendText.Name = "idleLegendText"
+        Me.idleLegendText.Text = "空闲"
+        Me.idleLegend.Controls.Add(Me.idleSwatch)
+        Me.idleLegend.Controls.Add(Me.idleLegendText)
         Me.statisticsLayout.BackColor = UiTheme.CardBackground
         Me.statisticsLayout.CellBorderStyle = System.Windows.Forms.TableLayoutPanelCellBorderStyle.None
         Me.statisticsLayout.ColumnCount = 6
@@ -100,6 +229,7 @@ Partial Class StatisticsControl
         Me.legend.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50.0!))
         Me.legend.Size = New System.Drawing.Size(95, 80)
         Me.legend.TabIndex = 1
+        Me.DoubleBuffered = True
         Me.BackColor = UiTheme.CardBackground
         Me.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
         Me.Controls.Add(Me.statisticsLayout)
@@ -110,47 +240,6 @@ Partial Class StatisticsControl
         Me.statisticsLayout.ResumeLayout(False)
         Me.legend.ResumeLayout(False)
         Me.ResumeLayout(False)
-    End Sub
-
-    Private Function CreateValueLabel(ByVal color As Color) As System.Windows.Forms.Label
-        Return New System.Windows.Forms.Label With {
-            .AutoEllipsis = False,
-            .Dock = System.Windows.Forms.DockStyle.Fill,
-            .Font = UiTheme.UiFontMetric,
-            .ForeColor = color,
-            .Padding = New System.Windows.Forms.Padding(0, 0, 4, 0),
-            .TextAlign = System.Drawing.ContentAlignment.MiddleLeft
-        }
-    End Function
-
-    Private Sub ConfigureTitleLabel(ByVal label As System.Windows.Forms.Label, ByVal text As String)
-        label.BackColor = UiTheme.CardBackground
-        label.Dock = System.Windows.Forms.DockStyle.Fill
-        label.Font = UiTheme.UiFontBold
-        label.ForeColor = UiTheme.TextSecondary
-        label.Text = text
-        label.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
-    End Sub
-
-    Private Sub ConfigureLegendItem(ByVal flow As System.Windows.Forms.FlowLayoutPanel,
-                                    ByVal swatch As System.Windows.Forms.Label,
-                                    ByVal caption As System.Windows.Forms.Label,
-                                    ByVal text As String,
-                                    ByVal color As Color)
-        flow.Dock = System.Windows.Forms.DockStyle.Fill
-        flow.FlowDirection = System.Windows.Forms.FlowDirection.LeftToRight
-        flow.Margin = New System.Windows.Forms.Padding(0)
-        flow.Padding = New System.Windows.Forms.Padding(0, 2, 0, 0)
-        flow.WrapContents = False
-        swatch.BackColor = color
-        swatch.Margin = New System.Windows.Forms.Padding(0, 2, 4, 0)
-        swatch.Size = New System.Drawing.Size(11, 11)
-        caption.AutoSize = True
-        caption.Font = UiTheme.UiFont
-        caption.ForeColor = UiTheme.TextPrimary
-        caption.Text = text
-        flow.Controls.Add(swatch)
-        flow.Controls.Add(caption)
     End Sub
 
     Private statisticsLayout As System.Windows.Forms.TableLayoutPanel

@@ -2369,7 +2369,7 @@ exit_sub:
 
 
 
-    Private Sub TestModeCheckedChanged(ByVal sender As Object, ByVal e As EventArgs)
+    Private Sub TestModeCheckedChanged(ByVal sender As Object, ByVal e As EventArgs) Handles chkAutoTest.CheckedChanged, chkManualTest.CheckedChanged
         If modeChangeInProgress Then Return
 
         modeChangeInProgress = True
