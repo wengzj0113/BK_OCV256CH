@@ -937,6 +937,7 @@ Partial Class frmTest
         Me.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen
         Me.Text = "测试"
         CType(Me.Pic_Bat, System.ComponentModel.ISupportInitialize).EndInit()
+        BuildDesignerLayout()
         Me.GroupBox3.ResumeLayout(False)
         Me.GroupBox3.PerformLayout()
         Me.GroupBox1.ResumeLayout(False)
@@ -957,6 +958,446 @@ Partial Class frmTest
         Me.ResumeLayout(False)
 
     End Sub
+
+    Private Sub BuildDesignerLayout()
+        Me.rootLayout = New TableLayoutPanel With {
+            .BackColor = UiTheme.PageBackground,
+            .ColumnCount = 2,
+            .Dock = DockStyle.Fill,
+            .Margin = New Padding(0),
+            .Padding = New Padding(0),
+            .RowCount = 1
+        }
+        Me.rootLayout.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, 350.0F))
+        Me.rootLayout.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100.0F))
+        Me.rootLayout.RowStyles.Add(New RowStyle(SizeType.Percent, 100.0F))
+
+        Me.rightLayout = New TableLayoutPanel With {
+            .BackColor = UiTheme.PageBackground,
+            .ColumnCount = 1,
+            .Dock = DockStyle.Fill,
+            .Margin = New Padding(0),
+            .Padding = New Padding(0),
+            .RowCount = 2
+        }
+        Me.rightLayout.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100.0F))
+        Me.rightLayout.RowStyles.Add(New RowStyle(SizeType.Percent, 14.0F))
+        Me.rightLayout.RowStyles.Add(New RowStyle(SizeType.Percent, 86.0F))
+        Me.statisticsControl.Dock = DockStyle.Fill
+        Me.statisticsControl.Margin = New Padding(0)
+        Me.channelGrid.Dock = DockStyle.Fill
+        Me.channelGrid.Margin = New Padding(0)
+        Me.rightLayout.Controls.Add(Me.statisticsControl, 0, 0)
+        Me.rightLayout.Controls.Add(Me.channelGrid, 0, 1)
+
+        Me.leftContentPanel = New TableLayoutPanel With {
+            .AutoSize = True,
+            .AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            .BackColor = UiTheme.PageBackground,
+            .ColumnCount = 1,
+            .Dock = DockStyle.Top,
+            .Margin = New Padding(0),
+            .Padding = New Padding(UiTheme.LeftContentPadding),
+            .RowCount = 0
+        }
+
+        Me.grpTestMode = New GroupBox With {
+            .BackColor = UiTheme.CardBackground,
+            .Font = UiTheme.UiFontBold,
+            .ForeColor = UiTheme.Primary,
+            .Name = "grpTestMode",
+            .Padding = New Padding(6, 15, 6, 6),
+            .Size = New Size(334, 50),
+            .TabStop = False,
+            .Text = "测试控制"
+        }
+        Me.testModeLayout = New TableLayoutPanel With {
+            .ColumnCount = 2,
+            .Dock = DockStyle.Fill,
+            .Margin = New Padding(0),
+            .RowCount = 1
+        }
+        Me.testModeLayout.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 50.0F))
+        Me.testModeLayout.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 50.0F))
+        Me.chkAutoTest = New CheckBox With {
+            .Appearance = Appearance.Button,
+            .AutoSize = False,
+            .BackColor = UiTheme.Primary,
+            .Dock = DockStyle.Fill,
+            .FlatStyle = FlatStyle.Flat,
+            .Font = UiTheme.UiFontBold,
+            .ForeColor = Color.White,
+            .Name = "chkAutoTest",
+            .Text = "自动",
+            .TextAlign = ContentAlignment.MiddleCenter,
+            .UseVisualStyleBackColor = False
+        }
+        Me.chkAutoTest.FlatAppearance.BorderColor = UiTheme.Primary
+        Me.chkAutoTest.FlatAppearance.BorderSize = 1
+        Me.chkManualTest = New CheckBox With {
+            .Appearance = Appearance.Button,
+            .AutoSize = False,
+            .BackColor = UiTheme.CardBackground,
+            .Dock = DockStyle.Fill,
+            .FlatStyle = FlatStyle.Flat,
+            .Font = UiTheme.UiFontBold,
+            .ForeColor = UiTheme.TextPrimary,
+            .Name = "chkManualTest",
+            .Text = "手动",
+            .TextAlign = ContentAlignment.MiddleCenter,
+            .UseVisualStyleBackColor = False
+        }
+        Me.chkManualTest.FlatAppearance.BorderColor = UiTheme.CardBorder
+        Me.chkManualTest.FlatAppearance.BorderSize = 1
+        Me.chkAutoTest.Checked = True
+        Me.testModeLayout.Controls.Add(Me.chkAutoTest, 0, 0)
+        Me.testModeLayout.Controls.Add(Me.chkManualTest, 1, 0)
+        Me.grpTestMode.Controls.Add(Me.testModeLayout)
+        AddHandler Me.chkAutoTest.CheckedChanged, AddressOf TestModeCheckedChanged
+        AddHandler Me.chkManualTest.CheckedChanged, AddressOf TestModeCheckedChanged
+
+        Me.currentStationButton = New RadioButton With {
+            .Appearance = Appearance.Button,
+            .AutoSize = False,
+            .BackColor = UiTheme.Primary,
+            .Dock = DockStyle.Top,
+            .FlatStyle = FlatStyle.Flat,
+            .Font = UiTheme.UiFontTitle,
+            .ForeColor = Color.White,
+            .Height = UiTheme.LeftStationButtonHeight,
+            .Name = "currentStationButton",
+            .Text = "OCV1",
+            .TextAlign = ContentAlignment.MiddleCenter,
+            .UseVisualStyleBackColor = False
+        }
+        Me.currentStationButton.FlatAppearance.BorderColor = UiTheme.Primary
+        Me.currentStationButton.FlatAppearance.BorderSize = 1
+
+        ConfigureDesignerCard(Me.GroupBox1)
+        ConfigureDesignerCard(Me.GroupBox3)
+        ConfigureDesignerCard(Me.GroupBox5)
+        ConfigureDesignerCard(Me.GroupBox7)
+        ConfigureDesignerCard(Me.GroupBox8)
+        ConfigureDesignerCard(Me.grpChannelSelection)
+        Me.GroupBox2.Visible = False
+        Me.GroupBox2.Enabled = False
+        Me.GroupBox6.Visible = False
+        Me.txtUsed.Visible = False
+        Me.txtTotle.Visible = False
+        ConfigureDesignerInput(Me.txtTray)
+        ConfigureDesignerInput(Me.txtFirstNum)
+        ConfigureDesignerInput(Me.txtLastNum)
+        ConfigureDesignerInput(Me.txtMinV)
+        ConfigureDesignerInput(Me.txtMaxV)
+        ConfigureDesignerInput(Me.txtMinR)
+        ConfigureDesignerInput(Me.txtMaxR)
+        ConfigureDesignerInput(Me.txtTestR)
+        ConfigureDesignerInput(Me.txtCaliR)
+        ConfigureDesignerInput(Me.txtJiajuR)
+        ConfigureDesignerInput(Me.txtAlarm)
+        ConfigureDesignerInput(Me.t1)
+        ConfigureDesignerInput(Me.t2)
+        ConfigureDesignerInput(Me.t3)
+        ConfigureDesignerInput(Me.t4)
+        ConfigureDesignerInput(Me.txtRemain)
+        For Each label As Label In {Me.Label1, Me.Label2, Me.Label5, Me.Label7, Me.Label12, Me.Label14, Me.Label15, Me.Label16, Me.Label17, Me.Label19, Me.Label26, Me.Label28, Me.Label29}
+            ConfigureDesignerLabel(label)
+        Next
+        ConfigureDesignerButton(Me.CmdStart, UiTheme.Primary, Color.White, UiTheme.Primary)
+        ConfigureDesignerButton(Me.btnStop, Color.White, UiTheme.Danger, UiTheme.Danger)
+        ConfigureDesignerButton(Me.btnNGTest, UiTheme.Warning, Color.White, UiTheme.Warning)
+        ConfigureDesignerButton(Me.btnTrayState, Color.White, UiTheme.TextPrimary, UiTheme.CardBorder)
+        ConfigureDesignerButton(Me.btnOpen, Color.White, UiTheme.TextPrimary, UiTheme.CardBorder)
+        ConfigureDesignerButton(Me.btnClose, Color.White, UiTheme.TextPrimary, UiTheme.CardBorder)
+        ConfigureDesignerButton(Me.btnChannelSelectAll, UiTheme.Primary, Color.White, UiTheme.Primary)
+        ConfigureDesignerButton(Me.btnChannelClear, Color.White, UiTheme.TextPrimary, UiTheme.CardBorder)
+        ConfigureDesignerButton(Me.btnChannelRectangle, Color.White, UiTheme.TextPrimary, UiTheme.CardBorder)
+        ConfigureDesignerButton(Me.btnChannelSelectSingle, Color.White, UiTheme.TextPrimary, UiTheme.CardBorder)
+        ConfigureDesignerButton(Me.Button2, Color.White, UiTheme.Danger, UiTheme.Danger)
+
+        BuildDesignerTestModeLayout()
+        BuildDesignerControlBoardLayout()
+        BuildDesignerChannelSelectionLayout()
+        BuildDesignerRangeLayout()
+        BuildDesignerAlarmLayout()
+        BuildDesignerProbeUsageLayout()
+        BuildDesignerEventLogLayout()
+
+        Me.resetAlarmLayout = New TableLayoutPanel With {
+            .ColumnCount = 1,
+            .Dock = DockStyle.Top,
+            .Margin = New Padding(0),
+            .RowCount = 1,
+            .Size = New Size(334, 38)
+        }
+        Me.resetAlarmLayout.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100.0F))
+        Me.resetAlarmLayout.RowStyles.Add(New RowStyle(SizeType.Absolute, 34.0F))
+        Me.Button2.Dock = DockStyle.None
+        Me.Button2.Anchor = AnchorStyles.None
+        Me.Button2.Margin = New Padding(0)
+        Me.Button2.Size = New Size(133, 34)
+        Me.resetAlarmLayout.Controls.Add(Me.Button2, 0, 0)
+
+        AddLeftContentItem(Me.currentStationButton)
+        AddLeftContentItem(Me.grpTestMode)
+        AddLeftContentItem(Me.GroupBox1)
+        AddLeftContentItem(Me.grpChannelSelection)
+        AddLeftContentItem(Me.GroupBox3)
+        AddLeftContentItem(Me.GroupBox5)
+        AddLeftContentItem(Me.GroupBox8)
+        AddLeftContentItem(Me.GroupBox7)
+        AddLeftContentItem(Me.resetAlarmLayout)
+        Me.Panel1.Controls.Clear()
+        Me.Panel1.BackColor = UiTheme.PageBackground
+        Me.Panel1.AutoScroll = True
+        Me.Panel1.Dock = DockStyle.Fill
+        Me.Panel1.Margin = New Padding(0)
+        Me.Panel1.Padding = New Padding(0)
+        Me.Panel1.Controls.Add(Me.GroupBox2)
+        Me.Panel1.Controls.Add(Me.leftContentPanel)
+        Me.leftContentPanel.BringToFront()
+        Me.Controls.Clear()
+        Me.Pic_Bat.Visible = False
+        Me.Controls.Add(Me.Pic_Bat)
+        Me.Controls.Add(Me.rootLayout)
+        Me.rootLayout.Controls.Add(Me.Panel1, 0, 0)
+        Me.rootLayout.Controls.Add(Me.rightLayout, 1, 0)
+    End Sub
+
+    Private Sub AddLeftContentItem(ByVal control As Control)
+        control.Dock = DockStyle.Top
+        control.Margin = New Padding(0, 0, 0, UiTheme.LeftSectionGap)
+        Me.leftContentPanel.RowStyles.Add(New RowStyle(SizeType.AutoSize))
+        Me.leftContentPanel.Controls.Add(control, 0, Me.leftContentPanel.RowCount)
+        Me.leftContentPanel.RowCount += 1
+    End Sub
+
+    Private Sub ConfigureDesignerCard(ByVal card As GroupBox)
+        card.AutoSize = True
+        card.AutoSizeMode = AutoSizeMode.GrowAndShrink
+        card.BackColor = UiTheme.CardBackground
+        card.Dock = DockStyle.Top
+        card.FlatStyle = FlatStyle.Flat
+        card.Font = UiTheme.UiFontBold
+        card.ForeColor = UiTheme.Primary
+        card.Margin = New Padding(0)
+        card.MinimumSize = New Size(0, 0)
+        card.Padding = New Padding(6, 15, 6, 6)
+    End Sub
+
+    Private Sub ConfigureDesignerInput(ByVal input As TextBox)
+        input.BackColor = UiTheme.CardBackground
+        input.BorderStyle = BorderStyle.FixedSingle
+        input.Font = UiTheme.UiFont
+        input.ForeColor = UiTheme.TextPrimary
+    End Sub
+
+    Private Sub ConfigureDesignerLabel(ByVal label As Label)
+        label.BackColor = UiTheme.CardBackground
+        label.Font = UiTheme.UiFont
+        label.ForeColor = UiTheme.TextPrimary
+    End Sub
+
+    Private Sub ConfigureDesignerButton(ByVal button As Button, ByVal backColor As Color, ByVal foreColor As Color, ByVal borderColor As Color)
+        button.BackColor = backColor
+        button.FlatStyle = FlatStyle.Flat
+        button.Font = UiTheme.UiFontBold
+        button.ForeColor = foreColor
+        button.UseVisualStyleBackColor = False
+        button.FlatAppearance.BorderColor = borderColor
+        button.FlatAppearance.BorderSize = 1
+    End Sub
+
+    Private Sub ConfigureDesignerTable(ByVal table As TableLayoutPanel, ByVal columns As Integer, ByVal rows As Integer)
+        table.AutoSize = True
+        table.AutoSizeMode = AutoSizeMode.GrowAndShrink
+        table.BackColor = UiTheme.CardBackground
+        table.ColumnCount = columns
+        table.Dock = DockStyle.Top
+        table.Margin = New Padding(0)
+        table.Padding = New Padding(0)
+        table.RowCount = rows
+        For index As Integer = 0 To columns - 1
+            table.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100.0F / columns))
+        Next
+        For index As Integer = 0 To rows - 1
+            table.RowStyles.Add(New RowStyle(SizeType.AutoSize))
+        Next
+    End Sub
+
+    Private Sub PutDesignerControl(ByVal parent As Control, ByVal table As TableLayoutPanel, ByVal control As Control, ByVal column As Integer, ByVal row As Integer, Optional ByVal columnSpan As Integer = 1)
+        parent.Controls.Remove(control)
+        control.Dock = DockStyle.Fill
+        control.Margin = New Padding(2)
+        table.Controls.Add(control, column, row)
+        If columnSpan > 1 Then table.SetColumnSpan(control, columnSpan)
+    End Sub
+
+    Private Sub BuildDesignerTestModeLayout()
+        Me.testModeLayout.ColumnStyles.Clear()
+        Me.testModeLayout.RowStyles.Clear()
+        Me.testModeLayout.ColumnCount = 2
+        Me.testModeLayout.RowCount = 1
+        Me.testModeLayout.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 50.0F))
+        Me.testModeLayout.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 50.0F))
+        Me.testModeLayout.RowStyles.Add(New RowStyle(SizeType.Percent, 100.0F))
+    End Sub
+
+    Private Sub BuildDesignerControlBoardLayout()
+        Me.controlBoardLayout = New TableLayoutPanel()
+        ConfigureDesignerTable(Me.controlBoardLayout, 3, 4)
+        PutDesignerControl(Me.GroupBox1, Me.controlBoardLayout, Me.Label2, 0, 0)
+        PutDesignerControl(Me.GroupBox1, Me.controlBoardLayout, Me.txtTray, 1, 0, 2)
+        PutDesignerControl(Me.GroupBox1, Me.controlBoardLayout, Me.Label5, 0, 1)
+        PutDesignerControl(Me.GroupBox1, Me.controlBoardLayout, Me.lblBarNum, 1, 1)
+        PutDesignerControl(Me.GroupBox1, Me.controlBoardLayout, Me.CmdStart, 0, 2)
+        PutDesignerControl(Me.GroupBox1, Me.controlBoardLayout, Me.btnStop, 1, 2)
+        PutDesignerControl(Me.GroupBox1, Me.controlBoardLayout, Me.btnNGTest, 2, 2)
+        PutDesignerControl(Me.GroupBox1, Me.controlBoardLayout, Me.btnTrayState, 0, 3)
+        PutDesignerControl(Me.GroupBox1, Me.controlBoardLayout, Me.btnOpen, 1, 3)
+        PutDesignerControl(Me.GroupBox1, Me.controlBoardLayout, Me.btnClose, 2, 3)
+        Me.Label2.TextAlign = ContentAlignment.MiddleRight
+        Me.Label5.TextAlign = ContentAlignment.MiddleRight
+        Me.GroupBox1.Controls.Add(Me.controlBoardLayout)
+    End Sub
+
+    Private Sub BuildDesignerChannelSelectionLayout()
+        Me.channelSelectionLayout = New TableLayoutPanel()
+        ConfigureDesignerTable(Me.channelSelectionLayout, 4, 1)
+        PutDesignerControl(Me.grpChannelSelection, Me.channelSelectionLayout, Me.btnChannelSelectAll, 0, 0)
+        PutDesignerControl(Me.grpChannelSelection, Me.channelSelectionLayout, Me.btnChannelClear, 1, 0)
+        PutDesignerControl(Me.grpChannelSelection, Me.channelSelectionLayout, Me.btnChannelRectangle, 2, 0)
+        PutDesignerControl(Me.grpChannelSelection, Me.channelSelectionLayout, Me.btnChannelSelectSingle, 3, 0)
+        Me.grpChannelSelection.Controls.Add(Me.channelSelectionLayout)
+    End Sub
+
+    Private Sub BuildDesignerRangeLayout()
+        Me.rangeSettingsLayout = New TableLayoutPanel()
+        ConfigureDesignerTable(Me.rangeSettingsLayout, 3, 3)
+        Me.rangeSettingsLayout.ColumnStyles.Clear()
+        Me.rangeSettingsLayout.ColumnStyles.Add(New ColumnStyle(SizeType.AutoSize))
+        Me.rangeSettingsLayout.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 50.0F))
+        Me.rangeSettingsLayout.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 50.0F))
+        PutDesignerControl(Me.GroupBox3, Me.rangeSettingsLayout, Me.Label9, 1, 0)
+        PutDesignerControl(Me.GroupBox3, Me.rangeSettingsLayout, Me.Label8, 2, 0)
+        PutDesignerControl(Me.GroupBox3, Me.rangeSettingsLayout, Me.Label7, 0, 1)
+        PutDesignerControl(Me.GroupBox3, Me.rangeSettingsLayout, Me.txtMinV, 1, 1)
+        PutDesignerControl(Me.GroupBox3, Me.rangeSettingsLayout, Me.txtMaxV, 2, 1)
+        PutDesignerControl(Me.GroupBox3, Me.rangeSettingsLayout, Me.Label12, 0, 2)
+        PutDesignerControl(Me.GroupBox3, Me.rangeSettingsLayout, Me.txtMinR, 1, 2)
+        PutDesignerControl(Me.GroupBox3, Me.rangeSettingsLayout, Me.txtMaxR, 2, 2)
+        Me.Label7.TextAlign = ContentAlignment.MiddleRight
+        Me.Label12.TextAlign = ContentAlignment.MiddleRight
+        Me.Label9.TextAlign = ContentAlignment.MiddleCenter
+        Me.Label8.TextAlign = ContentAlignment.MiddleCenter
+        Me.GroupBox3.Controls.Add(Me.rangeSettingsLayout)
+    End Sub
+
+    Private Sub BuildDesignerAlarmLayout()
+        Me.alarmSectionLayout = New TableLayoutPanel()
+        ConfigureDesignerTable(Me.alarmSectionLayout, 1, 2)
+        Me.Panel2.BorderStyle = BorderStyle.None
+        Me.Panel2.AutoSize = True
+        Me.Panel2.AutoSizeMode = AutoSizeMode.GrowAndShrink
+        Me.Panel2.Margin = New Padding(0)
+        Me.Panel2.Padding = New Padding(0)
+        Me.Panel3.BorderStyle = BorderStyle.None
+        Me.Panel3.AutoSize = True
+        Me.Panel3.AutoSizeMode = AutoSizeMode.GrowAndShrink
+        Me.Panel3.Margin = New Padding(0, 4, 0, 0)
+        Me.Panel3.Padding = New Padding(0)
+        PutDesignerControl(Me.GroupBox5, Me.alarmSectionLayout, Me.Panel2, 0, 0)
+        PutDesignerControl(Me.GroupBox5, Me.alarmSectionLayout, Me.Panel3, 0, 1)
+        BuildDesignerTemperatureLayout()
+        BuildDesignerAlarmStatusLayout()
+        Me.GroupBox5.Controls.Add(Me.alarmSectionLayout)
+    End Sub
+
+    Private Sub BuildDesignerTemperatureLayout()
+        Me.alarmTemperatureLayout = New TableLayoutPanel()
+        ConfigureDesignerTable(Me.alarmTemperatureLayout, 4, 2)
+        PutDesignerControl(Me.Panel2, Me.alarmTemperatureLayout, Me.Label1, 0, 0)
+        PutDesignerControl(Me.Panel2, Me.alarmTemperatureLayout, Me.t1, 1, 0)
+        PutDesignerControl(Me.Panel2, Me.alarmTemperatureLayout, Me.Label14, 2, 0)
+        PutDesignerControl(Me.Panel2, Me.alarmTemperatureLayout, Me.t2, 3, 0)
+        PutDesignerControl(Me.Panel2, Me.alarmTemperatureLayout, Me.Label15, 0, 1)
+        PutDesignerControl(Me.Panel2, Me.alarmTemperatureLayout, Me.t3, 1, 1)
+        PutDesignerControl(Me.Panel2, Me.alarmTemperatureLayout, Me.Label16, 2, 1)
+        PutDesignerControl(Me.Panel2, Me.alarmTemperatureLayout, Me.t4, 3, 1)
+        Me.Panel2.Controls.Add(Me.alarmTemperatureLayout)
+    End Sub
+
+    Private Sub BuildDesignerAlarmStatusLayout()
+        Me.alarmStatusLayout = New TableLayoutPanel()
+        ConfigureDesignerTable(Me.alarmStatusLayout, 3, 1)
+        Me.alarmStatusLayout.ColumnStyles.Clear()
+        Me.alarmStatusLayout.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 24.0F))
+        Me.alarmStatusLayout.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 24.0F))
+        Me.alarmStatusLayout.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 52.0F))
+        Me.smokeOneLayout = New FlowLayoutPanel With {.AutoSize = True, .AutoSizeMode = AutoSizeMode.GrowAndShrink, .Dock = DockStyle.Fill, .FlowDirection = FlowDirection.LeftToRight, .Margin = New Padding(2), .Padding = New Padding(0), .WrapContents = False}
+        Me.smokeTwoLayout = New FlowLayoutPanel With {.AutoSize = True, .AutoSizeMode = AutoSizeMode.GrowAndShrink, .Dock = DockStyle.Fill, .FlowDirection = FlowDirection.LeftToRight, .Margin = New Padding(2), .Padding = New Padding(0), .WrapContents = False}
+        Me.deviceStatusLayout = New FlowLayoutPanel With {.AutoSize = True, .AutoSizeMode = AutoSizeMode.GrowAndShrink, .Dock = DockStyle.Fill, .FlowDirection = FlowDirection.LeftToRight, .Margin = New Padding(2), .Padding = New Padding(0), .WrapContents = False}
+        Me.Label19.Margin = New Padding(2)
+        Me.smokeAlarm1.Margin = New Padding(2)
+        Me.Label17.Margin = New Padding(2)
+        Me.smokeAlarm2.Margin = New Padding(2)
+        Me.Label28.Margin = New Padding(2)
+        Me.LabelRun.Margin = New Padding(2)
+        Me.LabelAlarm.Margin = New Padding(2)
+        Me.smokeOneLayout.Controls.Add(Me.Label19)
+        Me.smokeOneLayout.Controls.Add(Me.smokeAlarm1)
+        Me.smokeTwoLayout.Controls.Add(Me.Label17)
+        Me.smokeTwoLayout.Controls.Add(Me.smokeAlarm2)
+        Me.deviceStatusLayout.Controls.Add(Me.Label28)
+        Me.deviceStatusLayout.Controls.Add(Me.LabelRun)
+        Me.deviceStatusLayout.Controls.Add(Me.LabelAlarm)
+        Me.alarmStatusLayout.Controls.Add(Me.smokeOneLayout, 0, 0)
+        Me.alarmStatusLayout.Controls.Add(Me.smokeTwoLayout, 1, 0)
+        Me.alarmStatusLayout.Controls.Add(Me.deviceStatusLayout, 2, 0)
+        Me.Panel3.Controls.Add(Me.alarmStatusLayout)
+    End Sub
+
+    Private Sub BuildDesignerProbeUsageLayout()
+        Me.probeUsageLayout = New TableLayoutPanel()
+        ConfigureDesignerTable(Me.probeUsageLayout, 3, 1)
+        Me.probeUsageLayout.ColumnStyles.Clear()
+        Me.probeUsageLayout.ColumnStyles.Add(New ColumnStyle(SizeType.AutoSize))
+        Me.probeUsageLayout.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100.0F))
+        Me.probeUsageLayout.ColumnStyles.Add(New ColumnStyle(SizeType.AutoSize))
+        PutDesignerControl(Me.GroupBox8, Me.probeUsageLayout, Me.Label26, 0, 0)
+        PutDesignerControl(Me.GroupBox8, Me.probeUsageLayout, Me.txtRemain, 1, 0)
+        PutDesignerControl(Me.GroupBox8, Me.probeUsageLayout, Me.Label29, 2, 0)
+        Me.Label26.TextAlign = ContentAlignment.MiddleRight
+        Me.Label29.TextAlign = ContentAlignment.MiddleLeft
+        Me.GroupBox8.Controls.Add(Me.probeUsageLayout)
+    End Sub
+
+    Private Sub BuildDesignerEventLogLayout()
+        Me.GroupBox7.AutoSize = False
+        Me.GroupBox7.Height = 82
+        Me.GroupBox7.MinimumSize = New Size(0, 82)
+        Me.txtAlarm.Dock = DockStyle.Fill
+        Me.txtAlarm.Margin = New Padding(0)
+    End Sub
+    Private rootLayout As TableLayoutPanel
+    Private rightLayout As TableLayoutPanel
+    Private leftContentPanel As TableLayoutPanel
+    Private resetAlarmLayout As TableLayoutPanel
+    Private testModeLayout As TableLayoutPanel
+    Private controlBoardLayout As TableLayoutPanel
+    Private channelSelectionLayout As TableLayoutPanel
+    Private rangeSettingsLayout As TableLayoutPanel
+    Private alarmSectionLayout As TableLayoutPanel
+    Private alarmTemperatureLayout As TableLayoutPanel
+    Private alarmStatusLayout As TableLayoutPanel
+    Private probeUsageLayout As TableLayoutPanel
+    Private smokeOneLayout As FlowLayoutPanel
+    Private smokeTwoLayout As FlowLayoutPanel
+    Private deviceStatusLayout As FlowLayoutPanel
+    Private grpTestMode As GroupBox
+    Private chkAutoTest As CheckBox
+    Private chkManualTest As CheckBox
+    Private currentStationButton As RadioButton
     Friend WithEvents Pic_Bat As System.Windows.Forms.PictureBox
     Friend WithEvents SaveFileDialog1 As System.Windows.Forms.SaveFileDialog
     Friend WithEvents Timer1 As Timer
