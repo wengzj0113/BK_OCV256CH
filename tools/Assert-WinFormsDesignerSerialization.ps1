@@ -90,6 +90,13 @@ foreach ($entry in $requiredNames.GetEnumerator()) {
 }
 
 $frmLines = Get-Content -LiteralPath 'frmTest.Designer.vb'
+$frmContent = $frmLines -join [Environment]::NewLine
+foreach ($typeName in @('ChannelGridControl', 'StatisticsControl')) {
+    if ($frmContent -match "New\s+software\.$([regex]::Escape($typeName))\s*\(") {
+        $violations.Add("frmTest.Designer.vb: same-project control '$typeName' must use its local Designer type name, not 'software.$typeName'")
+    }
+}
+
 $rootFormAddIndex = -1
 for ($index = 0; $index -lt $frmLines.Count; $index++) {
     if ($frmLines[$index] -match 'Me\.Controls\.Add\(Me\.rootLayout\)') {
