@@ -103,7 +103,7 @@ ChannelGridControl
 - 控件父子关系、顺序和布局表格；
 - 颜色、字体、尺寸、边框、Padding、Margin；
 - 默认 `Visible`、`Enabled`、`Checked` 和 `ReadOnly` 状态；
-- `InitializeComponent` 内的事件绑定和组件容器初始化。
+- `InitializeComponent` 内需要由 Designer 持久化的事件绑定和组件容器初始化。
 
 ### 运行时代码文件
 
@@ -124,7 +124,7 @@ ChannelGridControl
 - `MDIForm.EnsureBottomStatusControl` 中的实例创建与 `Controls.Add`；
 - 会覆盖 Designer 静态属性的整套 `UiTheme.Apply...` 启动式调用。
 
-`ResponsiveTestLayout.vb` 在确认无其他调用者后删除，或保留为不参与主窗体初始化的历史兼容代码；最终实现以项目中不存在主界面运行时重排调用为验收条件。
+`ResponsiveTestLayout.vb` 当前仅服务于这套主界面运行时布局。迁移完成并确认无其他调用者后，将其从项目文件移除并删除；最终实现以项目中不存在主界面运行时重排调用为验收条件。
 
 ## 6. 样式策略
 
