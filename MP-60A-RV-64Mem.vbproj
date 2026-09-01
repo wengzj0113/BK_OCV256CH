@@ -435,7 +435,6 @@
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="UiTheme.vb" />
-    <Compile Include="ResponsiveTestLayout.vb" />
     <Compile Include="StatisticsControl.vb">
       <SubType>UserControl</SubType>
     </Compile>
