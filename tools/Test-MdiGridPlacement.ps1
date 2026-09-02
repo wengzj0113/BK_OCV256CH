@@ -55,10 +55,11 @@ try {
     foreach ($child in $grid.Controls) { $pending.Enqueue($child) }
     while ($pending.Count -gt 0 -and $null -eq $gridSurface) {
         $candidate = $pending.Dequeue()
-        if ($candidate.GetType().Name -eq 'ChannelGridSurface') { $gridSurface = $candidate; break }
+        if ($candidate.Name -eq 'gridSurface') { $gridSurface = $candidate; break }
         foreach ($nested in $candidate.Controls) { $pending.Enqueue($nested) }
     }
     if (-not $gridSurface) { throw 'Virtual channel surface not found.' }
+    if ($gridSurface -isnot [System.Windows.Forms.Panel]) { throw 'Virtual channel surface must be a framework Panel.' }
     $lastRect = $gridSurface.RectangleToScreen($gridSurface.ClientRectangle)
     $statusTopScreen = $status.PointToScreen([System.Drawing.Point]::Empty).Y
     if ($lastRect.Bottom -gt ($statusTopScreen + 1)) {

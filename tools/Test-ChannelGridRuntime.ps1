@@ -4,7 +4,9 @@ Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 $assemblyPath = if ($env:FRMTEST_EXE) { $env:FRMTEST_EXE } else { (Join-Path $PSScriptRoot '..\bin\Debug\XL_OCV_256CH.exe') }
 $assembly = [Reflection.Assembly]::LoadFrom($assemblyPath)
-$gridType = $assembly.GetType('software.ChannelGridControl', $true)
+$uiAssemblyPath = Join-Path ([IO.Path]::GetDirectoryName($assemblyPath)) 'XL_OCV_UIControls.dll'
+$uiAssembly = [Reflection.Assembly]::LoadFrom($uiAssemblyPath)
+$gridType = $uiAssembly.GetType('software.ChannelGridControl', $true)
 foreach ($size in @(@(876, 774), @(524, 555))) {
     $grid = [Activator]::CreateInstance($gridType)
     $grid.Size = New-Object System.Drawing.Size($size[0], $size[1])
@@ -16,10 +18,11 @@ foreach ($size in @(@(876, 774), @(524, 555))) {
     foreach ($child in $grid.Controls) { $pending.Enqueue($child) }
     while ($pending.Count -gt 0 -and $null -eq $gridSurface) {
         $candidate = $pending.Dequeue()
-        if ($candidate.GetType().Name -eq 'ChannelGridSurface') { $gridSurface = $candidate; break }
+        if ($candidate.Name -eq 'gridSurface') { $gridSurface = $candidate; break }
         foreach ($nested in $candidate.Controls) { $pending.Enqueue($nested) }
     }
     if ($null -eq $gridSurface) { throw "Virtual channel surface was not found at $($size[0])x$($size[1])." }
+    if ($gridSurface -isnot [System.Windows.Forms.Panel]) { throw 'Virtual channel surface must remain a framework Panel for Designer compatibility.' }
     if ($gridSurface.Dock -ne [System.Windows.Forms.DockStyle]::Fill) { throw 'Virtual channel surface must fill its host cell.' }
     if ($gridSurface.ClientSize.Width -le 0 -or $gridSurface.ClientSize.Height -le 0) { throw 'Virtual channel surface has no usable size.' }
     $outer = $grid.Controls | Where-Object { $_ -is [System.Windows.Forms.TableLayoutPanel] } | Select-Object -First 1

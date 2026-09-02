@@ -15,174 +15,41 @@ Partial Class StatisticsControl
 
     <System.Diagnostics.DebuggerStepThrough()>
     Private Sub InitializeComponent()
-        Me.components = New System.ComponentModel.Container()
         Me.statisticsLayout = New System.Windows.Forms.TableLayoutPanel()
         Me.totalTitle = New System.Windows.Forms.Label()
-        Me.passTitle = New System.Windows.Forms.Label()
-        Me.ngTitle = New System.Windows.Forms.Label()
-        Me.testingTitle = New System.Windows.Forms.Label()
-        Me.idleTitle = New System.Windows.Forms.Label()
         Me.totalValue = New System.Windows.Forms.Label()
+        Me.passTitle = New System.Windows.Forms.Label()
         Me.passValue = New System.Windows.Forms.Label()
+        Me.ngTitle = New System.Windows.Forms.Label()
         Me.ngValue = New System.Windows.Forms.Label()
+        Me.testingTitle = New System.Windows.Forms.Label()
         Me.testingValue = New System.Windows.Forms.Label()
+        Me.idleTitle = New System.Windows.Forms.Label()
         Me.idleValue = New System.Windows.Forms.Label()
         Me.legend = New System.Windows.Forms.TableLayoutPanel()
         Me.passLegend = New System.Windows.Forms.FlowLayoutPanel()
-        Me.ngLegend = New System.Windows.Forms.FlowLayoutPanel()
-        Me.testingLegend = New System.Windows.Forms.FlowLayoutPanel()
-        Me.idleLegend = New System.Windows.Forms.FlowLayoutPanel()
         Me.passSwatch = New System.Windows.Forms.Label()
-        Me.ngSwatch = New System.Windows.Forms.Label()
-        Me.testingSwatch = New System.Windows.Forms.Label()
-        Me.idleSwatch = New System.Windows.Forms.Label()
         Me.passLegendText = New System.Windows.Forms.Label()
+        Me.ngLegend = New System.Windows.Forms.FlowLayoutPanel()
+        Me.ngSwatch = New System.Windows.Forms.Label()
         Me.ngLegendText = New System.Windows.Forms.Label()
+        Me.testingLegend = New System.Windows.Forms.FlowLayoutPanel()
+        Me.testingSwatch = New System.Windows.Forms.Label()
         Me.testingLegendText = New System.Windows.Forms.Label()
+        Me.idleLegend = New System.Windows.Forms.FlowLayoutPanel()
+        Me.idleSwatch = New System.Windows.Forms.Label()
         Me.idleLegendText = New System.Windows.Forms.Label()
-        Me.SuspendLayout()
         Me.statisticsLayout.SuspendLayout()
         Me.legend.SuspendLayout()
-        Me.totalTitle.BackColor = System.Drawing.Color.White
-        Me.totalTitle.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.totalTitle.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.totalTitle.ForeColor = System.Drawing.Color.FromArgb(99, 112, 132)
-        Me.totalTitle.Name = "totalTitle"
-        Me.totalTitle.Text = "通道总数"
-        Me.totalTitle.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
-        Me.passTitle.BackColor = System.Drawing.Color.White
-        Me.passTitle.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.passTitle.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.passTitle.ForeColor = System.Drawing.Color.FromArgb(99, 112, 132)
-        Me.passTitle.Name = "passTitle"
-        Me.passTitle.Text = "PASS"
-        Me.passTitle.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
-        Me.ngTitle.BackColor = System.Drawing.Color.White
-        Me.ngTitle.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.ngTitle.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.ngTitle.ForeColor = System.Drawing.Color.FromArgb(99, 112, 132)
-        Me.ngTitle.Name = "ngTitle"
-        Me.ngTitle.Text = "NG"
-        Me.ngTitle.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
-        Me.testingTitle.BackColor = System.Drawing.Color.White
-        Me.testingTitle.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.testingTitle.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.testingTitle.ForeColor = System.Drawing.Color.FromArgb(99, 112, 132)
-        Me.testingTitle.Name = "testingTitle"
-        Me.testingTitle.Text = "测试中"
-        Me.testingTitle.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
-        Me.idleTitle.BackColor = System.Drawing.Color.White
-        Me.idleTitle.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.idleTitle.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.idleTitle.ForeColor = System.Drawing.Color.FromArgb(99, 112, 132)
-        Me.idleTitle.Name = "idleTitle"
-        Me.idleTitle.Text = "空闲"
-        Me.idleTitle.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
-        Me.totalValue.AutoEllipsis = False
-        Me.totalValue.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.totalValue.Font = New System.Drawing.Font("Microsoft YaHei UI", 20.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.totalValue.ForeColor = System.Drawing.Color.FromArgb(23, 105, 232)
-        Me.totalValue.Name = "totalValue"
-        Me.totalValue.Padding = New System.Windows.Forms.Padding(0, 0, 4, 0)
-        Me.totalValue.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
-        Me.passValue.AutoEllipsis = False
-        Me.passValue.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.passValue.Font = New System.Drawing.Font("Microsoft YaHei UI", 20.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.passValue.ForeColor = System.Drawing.Color.FromArgb(31, 164, 99)
-        Me.passValue.Name = "passValue"
-        Me.passValue.Padding = New System.Windows.Forms.Padding(0, 0, 4, 0)
-        Me.passValue.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
-        Me.ngValue.AutoEllipsis = False
-        Me.ngValue.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.ngValue.Font = New System.Drawing.Font("Microsoft YaHei UI", 20.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.ngValue.ForeColor = System.Drawing.Color.FromArgb(239, 62, 62)
-        Me.ngValue.Name = "ngValue"
-        Me.ngValue.Padding = New System.Windows.Forms.Padding(0, 0, 4, 0)
-        Me.ngValue.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
-        Me.testingValue.AutoEllipsis = False
-        Me.testingValue.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.testingValue.Font = New System.Drawing.Font("Microsoft YaHei UI", 20.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.testingValue.ForeColor = System.Drawing.Color.FromArgb(23, 105, 232)
-        Me.testingValue.Name = "testingValue"
-        Me.testingValue.Padding = New System.Windows.Forms.Padding(0, 0, 4, 0)
-        Me.testingValue.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
-        Me.idleValue.AutoEllipsis = False
-        Me.idleValue.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.idleValue.Font = New System.Drawing.Font("Microsoft YaHei UI", 20.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.idleValue.ForeColor = System.Drawing.Color.FromArgb(99, 112, 132)
-        Me.idleValue.Name = "idleValue"
-        Me.idleValue.Padding = New System.Windows.Forms.Padding(0, 0, 4, 0)
-        Me.idleValue.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
-        Me.passLegend.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.passLegend.FlowDirection = System.Windows.Forms.FlowDirection.LeftToRight
-        Me.passLegend.Margin = New System.Windows.Forms.Padding(0)
-        Me.passLegend.Name = "passLegend"
-        Me.passLegend.Padding = New System.Windows.Forms.Padding(0, 2, 0, 0)
-        Me.passLegend.WrapContents = False
-        Me.passSwatch.BackColor = System.Drawing.Color.FromArgb(31, 164, 99)
-        Me.passSwatch.Margin = New System.Windows.Forms.Padding(0, 2, 4, 0)
-        Me.passSwatch.Name = "passSwatch"
-        Me.passSwatch.Size = New System.Drawing.Size(11, 11)
-        Me.passLegendText.AutoSize = True
-        Me.passLegendText.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.passLegendText.ForeColor = System.Drawing.Color.FromArgb(36, 49, 66)
-        Me.passLegendText.Name = "passLegendText"
-        Me.passLegendText.Text = "PASS"
-        Me.passLegend.Controls.Add(Me.passSwatch)
-        Me.passLegend.Controls.Add(Me.passLegendText)
-        Me.ngLegend.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.ngLegend.FlowDirection = System.Windows.Forms.FlowDirection.LeftToRight
-        Me.ngLegend.Margin = New System.Windows.Forms.Padding(0)
-        Me.ngLegend.Name = "ngLegend"
-        Me.ngLegend.Padding = New System.Windows.Forms.Padding(0, 2, 0, 0)
-        Me.ngLegend.WrapContents = False
-        Me.ngSwatch.BackColor = System.Drawing.Color.FromArgb(239, 62, 62)
-        Me.ngSwatch.Margin = New System.Windows.Forms.Padding(0, 2, 4, 0)
-        Me.ngSwatch.Name = "ngSwatch"
-        Me.ngSwatch.Size = New System.Drawing.Size(11, 11)
-        Me.ngLegendText.AutoSize = True
-        Me.ngLegendText.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.ngLegendText.ForeColor = System.Drawing.Color.FromArgb(36, 49, 66)
-        Me.ngLegendText.Name = "ngLegendText"
-        Me.ngLegendText.Text = "NG"
-        Me.ngLegend.Controls.Add(Me.ngSwatch)
-        Me.ngLegend.Controls.Add(Me.ngLegendText)
-        Me.testingLegend.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.testingLegend.FlowDirection = System.Windows.Forms.FlowDirection.LeftToRight
-        Me.testingLegend.Margin = New System.Windows.Forms.Padding(0)
-        Me.testingLegend.Name = "testingLegend"
-        Me.testingLegend.Padding = New System.Windows.Forms.Padding(0, 2, 0, 0)
-        Me.testingLegend.WrapContents = False
-        Me.testingSwatch.BackColor = System.Drawing.Color.FromArgb(23, 105, 232)
-        Me.testingSwatch.Margin = New System.Windows.Forms.Padding(0, 2, 4, 0)
-        Me.testingSwatch.Name = "testingSwatch"
-        Me.testingSwatch.Size = New System.Drawing.Size(11, 11)
-        Me.testingLegendText.AutoSize = True
-        Me.testingLegendText.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.testingLegendText.ForeColor = System.Drawing.Color.FromArgb(36, 49, 66)
-        Me.testingLegendText.Name = "testingLegendText"
-        Me.testingLegendText.Text = "测试中"
-        Me.testingLegend.Controls.Add(Me.testingSwatch)
-        Me.testingLegend.Controls.Add(Me.testingLegendText)
-        Me.idleLegend.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.idleLegend.FlowDirection = System.Windows.Forms.FlowDirection.LeftToRight
-        Me.idleLegend.Margin = New System.Windows.Forms.Padding(0)
-        Me.idleLegend.Name = "idleLegend"
-        Me.idleLegend.Padding = New System.Windows.Forms.Padding(0, 2, 0, 0)
-        Me.idleLegend.WrapContents = False
-        Me.idleSwatch.BackColor = System.Drawing.Color.FromArgb(99, 112, 132)
-        Me.idleSwatch.Margin = New System.Windows.Forms.Padding(0, 2, 4, 0)
-        Me.idleSwatch.Name = "idleSwatch"
-        Me.idleSwatch.Size = New System.Drawing.Size(11, 11)
-        Me.idleLegendText.AutoSize = True
-        Me.idleLegendText.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.idleLegendText.ForeColor = System.Drawing.Color.FromArgb(36, 49, 66)
-        Me.idleLegendText.Name = "idleLegendText"
-        Me.idleLegendText.Text = "空闲"
-        Me.idleLegend.Controls.Add(Me.idleSwatch)
-        Me.idleLegend.Controls.Add(Me.idleLegendText)
+        Me.passLegend.SuspendLayout()
+        Me.ngLegend.SuspendLayout()
+        Me.testingLegend.SuspendLayout()
+        Me.idleLegend.SuspendLayout()
+        Me.SuspendLayout()
+        '
+        'statisticsLayout
+        '
         Me.statisticsLayout.BackColor = System.Drawing.Color.White
-        Me.statisticsLayout.CellBorderStyle = System.Windows.Forms.TableLayoutPanelCellBorderStyle.None
         Me.statisticsLayout.ColumnCount = 6
         Me.statisticsLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 14.0!))
         Me.statisticsLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 17.0!))
@@ -205,13 +72,139 @@ Partial Class StatisticsControl
         Me.statisticsLayout.Location = New System.Drawing.Point(16, 8)
         Me.statisticsLayout.Margin = New System.Windows.Forms.Padding(0)
         Me.statisticsLayout.Name = "statisticsLayout"
-        Me.statisticsLayout.Padding = New System.Windows.Forms.Padding(0)
         Me.statisticsLayout.RowCount = 2
         Me.statisticsLayout.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 34.0!))
         Me.statisticsLayout.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 66.0!))
-        Me.statisticsLayout.Size = New System.Drawing.Size(528, 80)
+        Me.statisticsLayout.Size = New System.Drawing.Size(1500, 859)
         Me.statisticsLayout.TabIndex = 0
-        Me.statisticsLayout.SetRowSpan(Me.legend, 2)
+        '
+        'totalTitle
+        '
+        Me.totalTitle.BackColor = System.Drawing.Color.White
+        Me.totalTitle.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.totalTitle.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
+        Me.totalTitle.ForeColor = System.Drawing.Color.FromArgb(CType(CType(99, Byte), Integer), CType(CType(112, Byte), Integer), CType(CType(132, Byte), Integer))
+        Me.totalTitle.Location = New System.Drawing.Point(3, 0)
+        Me.totalTitle.Name = "totalTitle"
+        Me.totalTitle.Size = New System.Drawing.Size(204, 292)
+        Me.totalTitle.TabIndex = 0
+        Me.totalTitle.Text = "通道总数"
+        Me.totalTitle.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
+        '
+        'totalValue
+        '
+        Me.totalValue.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.totalValue.Font = New System.Drawing.Font("Microsoft YaHei UI", 20.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
+        Me.totalValue.ForeColor = System.Drawing.Color.FromArgb(CType(CType(23, Byte), Integer), CType(CType(105, Byte), Integer), CType(CType(232, Byte), Integer))
+        Me.totalValue.Location = New System.Drawing.Point(3, 292)
+        Me.totalValue.Name = "totalValue"
+        Me.totalValue.Padding = New System.Windows.Forms.Padding(0, 0, 4, 0)
+        Me.totalValue.Size = New System.Drawing.Size(204, 567)
+        Me.totalValue.TabIndex = 1
+        Me.totalValue.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
+        '
+        'passTitle
+        '
+        Me.passTitle.BackColor = System.Drawing.Color.White
+        Me.passTitle.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.passTitle.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
+        Me.passTitle.ForeColor = System.Drawing.Color.FromArgb(CType(CType(99, Byte), Integer), CType(CType(112, Byte), Integer), CType(CType(132, Byte), Integer))
+        Me.passTitle.Location = New System.Drawing.Point(213, 0)
+        Me.passTitle.Name = "passTitle"
+        Me.passTitle.Size = New System.Drawing.Size(249, 292)
+        Me.passTitle.TabIndex = 2
+        Me.passTitle.Text = "PASS"
+        Me.passTitle.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
+        '
+        'passValue
+        '
+        Me.passValue.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.passValue.Font = New System.Drawing.Font("Microsoft YaHei UI", 20.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
+        Me.passValue.ForeColor = System.Drawing.Color.FromArgb(CType(CType(31, Byte), Integer), CType(CType(164, Byte), Integer), CType(CType(99, Byte), Integer))
+        Me.passValue.Location = New System.Drawing.Point(213, 292)
+        Me.passValue.Name = "passValue"
+        Me.passValue.Padding = New System.Windows.Forms.Padding(0, 0, 4, 0)
+        Me.passValue.Size = New System.Drawing.Size(249, 567)
+        Me.passValue.TabIndex = 3
+        Me.passValue.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
+        '
+        'ngTitle
+        '
+        Me.ngTitle.BackColor = System.Drawing.Color.White
+        Me.ngTitle.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.ngTitle.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
+        Me.ngTitle.ForeColor = System.Drawing.Color.FromArgb(CType(CType(99, Byte), Integer), CType(CType(112, Byte), Integer), CType(CType(132, Byte), Integer))
+        Me.ngTitle.Location = New System.Drawing.Point(468, 0)
+        Me.ngTitle.Name = "ngTitle"
+        Me.ngTitle.Size = New System.Drawing.Size(249, 292)
+        Me.ngTitle.TabIndex = 4
+        Me.ngTitle.Text = "NG"
+        Me.ngTitle.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
+        '
+        'ngValue
+        '
+        Me.ngValue.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.ngValue.Font = New System.Drawing.Font("Microsoft YaHei UI", 20.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
+        Me.ngValue.ForeColor = System.Drawing.Color.FromArgb(CType(CType(239, Byte), Integer), CType(CType(62, Byte), Integer), CType(CType(62, Byte), Integer))
+        Me.ngValue.Location = New System.Drawing.Point(468, 292)
+        Me.ngValue.Name = "ngValue"
+        Me.ngValue.Padding = New System.Windows.Forms.Padding(0, 0, 4, 0)
+        Me.ngValue.Size = New System.Drawing.Size(249, 567)
+        Me.ngValue.TabIndex = 5
+        Me.ngValue.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
+        '
+        'testingTitle
+        '
+        Me.testingTitle.BackColor = System.Drawing.Color.White
+        Me.testingTitle.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.testingTitle.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
+        Me.testingTitle.ForeColor = System.Drawing.Color.FromArgb(CType(CType(99, Byte), Integer), CType(CType(112, Byte), Integer), CType(CType(132, Byte), Integer))
+        Me.testingTitle.Location = New System.Drawing.Point(723, 0)
+        Me.testingTitle.Name = "testingTitle"
+        Me.testingTitle.Size = New System.Drawing.Size(249, 292)
+        Me.testingTitle.TabIndex = 6
+        Me.testingTitle.Text = "测试中"
+        Me.testingTitle.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
+        '
+        'testingValue
+        '
+        Me.testingValue.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.testingValue.Font = New System.Drawing.Font("Microsoft YaHei UI", 20.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
+        Me.testingValue.ForeColor = System.Drawing.Color.FromArgb(CType(CType(23, Byte), Integer), CType(CType(105, Byte), Integer), CType(CType(232, Byte), Integer))
+        Me.testingValue.Location = New System.Drawing.Point(723, 292)
+        Me.testingValue.Name = "testingValue"
+        Me.testingValue.Padding = New System.Windows.Forms.Padding(0, 0, 4, 0)
+        Me.testingValue.Size = New System.Drawing.Size(249, 567)
+        Me.testingValue.TabIndex = 7
+        Me.testingValue.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
+        '
+        'idleTitle
+        '
+        Me.idleTitle.BackColor = System.Drawing.Color.White
+        Me.idleTitle.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.idleTitle.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
+        Me.idleTitle.ForeColor = System.Drawing.Color.FromArgb(CType(CType(99, Byte), Integer), CType(CType(112, Byte), Integer), CType(CType(132, Byte), Integer))
+        Me.idleTitle.Location = New System.Drawing.Point(978, 0)
+        Me.idleTitle.Name = "idleTitle"
+        Me.idleTitle.Size = New System.Drawing.Size(249, 292)
+        Me.idleTitle.TabIndex = 8
+        Me.idleTitle.Text = "空闲"
+        Me.idleTitle.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
+        '
+        'idleValue
+        '
+        Me.idleValue.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.idleValue.Font = New System.Drawing.Font("Microsoft YaHei UI", 20.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
+        Me.idleValue.ForeColor = System.Drawing.Color.FromArgb(CType(CType(99, Byte), Integer), CType(CType(112, Byte), Integer), CType(CType(132, Byte), Integer))
+        Me.idleValue.Location = New System.Drawing.Point(978, 292)
+        Me.idleValue.Name = "idleValue"
+        Me.idleValue.Padding = New System.Windows.Forms.Padding(0, 0, 4, 0)
+        Me.idleValue.Size = New System.Drawing.Size(249, 567)
+        Me.idleValue.TabIndex = 9
+        Me.idleValue.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
+        '
+        'legend
+        '
         Me.legend.BackColor = System.Drawing.Color.White
         Me.legend.ColumnCount = 2
         Me.legend.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50.0!))
@@ -221,25 +214,170 @@ Partial Class StatisticsControl
         Me.legend.Controls.Add(Me.testingLegend, 0, 1)
         Me.legend.Controls.Add(Me.idleLegend, 1, 1)
         Me.legend.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.legend.Location = New System.Drawing.Point(1230, 0)
         Me.legend.Margin = New System.Windows.Forms.Padding(0)
         Me.legend.Name = "legend"
         Me.legend.Padding = New System.Windows.Forms.Padding(4, 4, 0, 0)
         Me.legend.RowCount = 2
+        Me.statisticsLayout.SetRowSpan(Me.legend, 2)
         Me.legend.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50.0!))
         Me.legend.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50.0!))
-        Me.legend.Size = New System.Drawing.Size(95, 80)
+        Me.legend.Size = New System.Drawing.Size(270, 859)
         Me.legend.TabIndex = 1
-        Me.DoubleBuffered = True
+        '
+        'passLegend
+        '
+        Me.passLegend.Controls.Add(Me.passSwatch)
+        Me.passLegend.Controls.Add(Me.passLegendText)
+        Me.passLegend.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.passLegend.Location = New System.Drawing.Point(4, 4)
+        Me.passLegend.Margin = New System.Windows.Forms.Padding(0)
+        Me.passLegend.Name = "passLegend"
+        Me.passLegend.Padding = New System.Windows.Forms.Padding(0, 2, 0, 0)
+        Me.passLegend.Size = New System.Drawing.Size(133, 427)
+        Me.passLegend.TabIndex = 0
+        Me.passLegend.WrapContents = False
+        '
+        'passSwatch
+        '
+        Me.passSwatch.BackColor = System.Drawing.Color.FromArgb(CType(CType(31, Byte), Integer), CType(CType(164, Byte), Integer), CType(CType(99, Byte), Integer))
+        Me.passSwatch.Location = New System.Drawing.Point(0, 4)
+        Me.passSwatch.Margin = New System.Windows.Forms.Padding(0, 2, 4, 0)
+        Me.passSwatch.Name = "passSwatch"
+        Me.passSwatch.Size = New System.Drawing.Size(11, 11)
+        Me.passSwatch.TabIndex = 0
+        '
+        'passLegendText
+        '
+        Me.passLegendText.AutoSize = True
+        Me.passLegendText.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
+        Me.passLegendText.ForeColor = System.Drawing.Color.FromArgb(CType(CType(36, Byte), Integer), CType(CType(49, Byte), Integer), CType(CType(66, Byte), Integer))
+        Me.passLegendText.Location = New System.Drawing.Point(18, 2)
+        Me.passLegendText.Name = "passLegendText"
+        Me.passLegendText.Size = New System.Drawing.Size(37, 17)
+        Me.passLegendText.TabIndex = 1
+        Me.passLegendText.Text = "PASS"
+        '
+        'ngLegend
+        '
+        Me.ngLegend.Controls.Add(Me.ngSwatch)
+        Me.ngLegend.Controls.Add(Me.ngLegendText)
+        Me.ngLegend.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.ngLegend.Location = New System.Drawing.Point(137, 4)
+        Me.ngLegend.Margin = New System.Windows.Forms.Padding(0)
+        Me.ngLegend.Name = "ngLegend"
+        Me.ngLegend.Padding = New System.Windows.Forms.Padding(0, 2, 0, 0)
+        Me.ngLegend.Size = New System.Drawing.Size(133, 427)
+        Me.ngLegend.TabIndex = 1
+        Me.ngLegend.WrapContents = False
+        '
+        'ngSwatch
+        '
+        Me.ngSwatch.BackColor = System.Drawing.Color.FromArgb(CType(CType(239, Byte), Integer), CType(CType(62, Byte), Integer), CType(CType(62, Byte), Integer))
+        Me.ngSwatch.Location = New System.Drawing.Point(0, 4)
+        Me.ngSwatch.Margin = New System.Windows.Forms.Padding(0, 2, 4, 0)
+        Me.ngSwatch.Name = "ngSwatch"
+        Me.ngSwatch.Size = New System.Drawing.Size(11, 11)
+        Me.ngSwatch.TabIndex = 0
+        '
+        'ngLegendText
+        '
+        Me.ngLegendText.AutoSize = True
+        Me.ngLegendText.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
+        Me.ngLegendText.ForeColor = System.Drawing.Color.FromArgb(CType(CType(36, Byte), Integer), CType(CType(49, Byte), Integer), CType(CType(66, Byte), Integer))
+        Me.ngLegendText.Location = New System.Drawing.Point(18, 2)
+        Me.ngLegendText.Name = "ngLegendText"
+        Me.ngLegendText.Size = New System.Drawing.Size(27, 17)
+        Me.ngLegendText.TabIndex = 1
+        Me.ngLegendText.Text = "NG"
+        '
+        'testingLegend
+        '
+        Me.testingLegend.Controls.Add(Me.testingSwatch)
+        Me.testingLegend.Controls.Add(Me.testingLegendText)
+        Me.testingLegend.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.testingLegend.Location = New System.Drawing.Point(4, 431)
+        Me.testingLegend.Margin = New System.Windows.Forms.Padding(0)
+        Me.testingLegend.Name = "testingLegend"
+        Me.testingLegend.Padding = New System.Windows.Forms.Padding(0, 2, 0, 0)
+        Me.testingLegend.Size = New System.Drawing.Size(133, 428)
+        Me.testingLegend.TabIndex = 2
+        Me.testingLegend.WrapContents = False
+        '
+        'testingSwatch
+        '
+        Me.testingSwatch.BackColor = System.Drawing.Color.FromArgb(CType(CType(23, Byte), Integer), CType(CType(105, Byte), Integer), CType(CType(232, Byte), Integer))
+        Me.testingSwatch.Location = New System.Drawing.Point(0, 4)
+        Me.testingSwatch.Margin = New System.Windows.Forms.Padding(0, 2, 4, 0)
+        Me.testingSwatch.Name = "testingSwatch"
+        Me.testingSwatch.Size = New System.Drawing.Size(11, 11)
+        Me.testingSwatch.TabIndex = 0
+        '
+        'testingLegendText
+        '
+        Me.testingLegendText.AutoSize = True
+        Me.testingLegendText.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
+        Me.testingLegendText.ForeColor = System.Drawing.Color.FromArgb(CType(CType(36, Byte), Integer), CType(CType(49, Byte), Integer), CType(CType(66, Byte), Integer))
+        Me.testingLegendText.Location = New System.Drawing.Point(18, 2)
+        Me.testingLegendText.Name = "testingLegendText"
+        Me.testingLegendText.Size = New System.Drawing.Size(44, 17)
+        Me.testingLegendText.TabIndex = 1
+        Me.testingLegendText.Text = "测试中"
+        '
+        'idleLegend
+        '
+        Me.idleLegend.Controls.Add(Me.idleSwatch)
+        Me.idleLegend.Controls.Add(Me.idleLegendText)
+        Me.idleLegend.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.idleLegend.Location = New System.Drawing.Point(137, 431)
+        Me.idleLegend.Margin = New System.Windows.Forms.Padding(0)
+        Me.idleLegend.Name = "idleLegend"
+        Me.idleLegend.Padding = New System.Windows.Forms.Padding(0, 2, 0, 0)
+        Me.idleLegend.Size = New System.Drawing.Size(133, 428)
+        Me.idleLegend.TabIndex = 3
+        Me.idleLegend.WrapContents = False
+        '
+        'idleSwatch
+        '
+        Me.idleSwatch.BackColor = System.Drawing.Color.FromArgb(CType(CType(99, Byte), Integer), CType(CType(112, Byte), Integer), CType(CType(132, Byte), Integer))
+        Me.idleSwatch.Location = New System.Drawing.Point(0, 4)
+        Me.idleSwatch.Margin = New System.Windows.Forms.Padding(0, 2, 4, 0)
+        Me.idleSwatch.Name = "idleSwatch"
+        Me.idleSwatch.Size = New System.Drawing.Size(11, 11)
+        Me.idleSwatch.TabIndex = 0
+        '
+        'idleLegendText
+        '
+        Me.idleLegendText.AutoSize = True
+        Me.idleLegendText.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
+        Me.idleLegendText.ForeColor = System.Drawing.Color.FromArgb(CType(CType(36, Byte), Integer), CType(CType(49, Byte), Integer), CType(CType(66, Byte), Integer))
+        Me.idleLegendText.Location = New System.Drawing.Point(18, 2)
+        Me.idleLegendText.Name = "idleLegendText"
+        Me.idleLegendText.Size = New System.Drawing.Size(32, 17)
+        Me.idleLegendText.TabIndex = 1
+        Me.idleLegendText.Text = "空闲"
+        '
+        'StatisticsControl
+        '
         Me.BackColor = System.Drawing.Color.White
         Me.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
         Me.Controls.Add(Me.statisticsLayout)
-        Me.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.DoubleBuffered = True
         Me.Name = "StatisticsControl"
         Me.Padding = New System.Windows.Forms.Padding(16, 8, 16, 8)
-        Me.Size = New System.Drawing.Size(560, 96)
+        Me.Size = New System.Drawing.Size(1532, 875)
         Me.statisticsLayout.ResumeLayout(False)
         Me.legend.ResumeLayout(False)
+        Me.passLegend.ResumeLayout(False)
+        Me.passLegend.PerformLayout()
+        Me.ngLegend.ResumeLayout(False)
+        Me.ngLegend.PerformLayout()
+        Me.testingLegend.ResumeLayout(False)
+        Me.testingLegend.PerformLayout()
+        Me.idleLegend.ResumeLayout(False)
+        Me.idleLegend.PerformLayout()
         Me.ResumeLayout(False)
+
     End Sub
 
     Private statisticsLayout As System.Windows.Forms.TableLayoutPanel

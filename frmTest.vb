@@ -2458,6 +2458,8 @@ exit_sub:
         End If
     End Sub
 
+
+
     Private Sub ResetLeftPanelScroll()
         If Panel1 Is Nothing OrElse Panel1.IsDisposed Then Return
         Panel1.AutoScrollPosition = New Point(0, 0)

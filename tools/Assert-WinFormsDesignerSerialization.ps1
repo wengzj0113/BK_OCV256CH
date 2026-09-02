@@ -19,10 +19,6 @@ $anyCpuPattern = 'Condition="[^"]*Debug\|AnyCPU[^"]*"[\s\S]*?<PlatformTarget>Any
 if ($projectContent -notmatch $anyCpuPattern) {
     $projectViolations = "${projectFile}: Debug|AnyCPU must be available as a separate Designer-compatible configuration"
 }
-$x86DesignerPattern = 'Condition="[^"]*Debug\|x86[^"]*"[\s\S]*?<PlatformTarget>AnyCPU</PlatformTarget>[\s\S]*?<Prefer32Bit>true</Prefer32Bit>'
-if ($projectContent -notmatch $x86DesignerPattern) {
-    $projectViolations = "${projectFile}: the default Debug|x86 configuration must emit AnyCPU with Prefer32Bit for VS 17.8 Designer compatibility"
-}
 
 $forbiddenCalls = @(
     'BuildDesignerLayout',
@@ -112,11 +108,23 @@ foreach ($entry in $requiredNames.GetEnumerator()) {
     }
 }
 
+$channelGridDesignerContent = Get-Content -LiteralPath 'ChannelGridControl.Designer.vb' -Raw
+if ($channelGridDesignerContent -notmatch 'Me\.gridSurface\s*=\s*New\s+System\.Windows\.Forms\.Panel\s*\(\)') {
+    $violations.Add('ChannelGridControl.Designer.vb: gridSurface must use the framework Panel type so the CodeDOM Designer has no same-project type dependency')
+}
+if ($channelGridDesignerContent -notmatch 'Private\s+gridSurface\s+As\s+System\.Windows\.Forms\.Panel') {
+    $violations.Add('ChannelGridControl.Designer.vb: gridSurface field must be declared as System.Windows.Forms.Panel')
+}
+$channelGridCodeContent = Get-Content -LiteralPath 'ChannelGridControl.vb' -Raw
+if ($channelGridCodeContent -match '(?m)^Public\s+(?:NotInheritable\s+)?Class\s+ChannelGridSurface\b') {
+    $violations.Add('ChannelGridControl.vb: custom ChannelGridSurface reintroduces a same-project CodeDOM Designer dependency')
+}
+
 $frmLines = Get-Content -LiteralPath 'frmTest.Designer.vb'
 $frmContent = $frmLines -join [Environment]::NewLine
 foreach ($typeName in @('ChannelGridControl', 'StatisticsControl')) {
-    if ($frmContent -match "New\s+software\.$([regex]::Escape($typeName))\s*\(") {
-        $violations.Add("frmTest.Designer.vb: same-project control '$typeName' must use its local Designer type name, not 'software.$typeName'")
+    if ($frmContent -notmatch "New\s+(?:Global\.)?software\.$([regex]::Escape($typeName))\s*\(") {
+        $violations.Add("frmTest.Designer.vb: external control '$typeName' must use its fully qualified software Designer type name")
     }
 }
 

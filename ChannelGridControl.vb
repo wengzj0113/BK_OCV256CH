@@ -1,5 +1,6 @@
 Imports System.Drawing
 Imports System.Linq
+Imports System.Reflection
 Imports System.Windows.Forms
 
 Public Enum ChannelSelectionMode
@@ -27,6 +28,7 @@ Public Class ChannelGridControl
 
     Public Sub New()
         InitializeComponent()
+        GetType(Panel).GetProperty("DoubleBuffered", BindingFlags.Instance Or BindingFlags.NonPublic).SetValue(gridSurface, True, Nothing)
         AddHandler gridSurface.Paint, AddressOf HandleGridPaint
         AddHandler gridSurface.MouseDown, AddressOf HandleGridMouseDown
         AddHandler gridSurface.MouseMove, AddressOf HandleGridMouseMove
@@ -274,11 +276,4 @@ Public Class ChannelGridControl
         Return String.Format("通道 {0}-{1}：{2}，电池条码：{3}，OCV1：{4}，IR1：{5}，结果：{6}", data.Row, data.Column, statusText, barcode, ocvText, irText, resultText)
     End Function
 
-    Private NotInheritable Class ChannelGridSurface
-        Inherits Control
-
-        Public Sub New()
-            SetStyle(ControlStyles.UserPaint Or ControlStyles.AllPaintingInWmPaint Or ControlStyles.OptimizedDoubleBuffer Or ControlStyles.ResizeRedraw, True)
-        End Sub
-    End Class
 End Class

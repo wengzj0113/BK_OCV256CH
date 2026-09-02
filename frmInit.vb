@@ -1,4 +1,4 @@
-﻿Imports System.IO
+Imports System.IO
 Imports System.Runtime.InteropServices
 Public Class frmInit
     Dim TempInitsetting As Initset
@@ -369,11 +369,9 @@ Public Class frmInit
         '工作站选择
         If radioOCV0Set.Checked Then
             TempInitsetting.stationSelect = 0
-        End If
-
-        If radioOCV1Set.Checked Then
+        ElseIf radioOCV1Set.Checked Then
             TempInitsetting.stationSelect = 1
-        Else
+        ElseIf radioOCV2Set.Checked Then 
             TempInitsetting.stationSelect = 2
         End If
         Return True

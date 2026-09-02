@@ -1,0 +1,4 @@
+*.vb text eol=crlf
+*.vbproj text eol=crlf
+*.sln text eol=crlf
+*.resx text eol=crlf

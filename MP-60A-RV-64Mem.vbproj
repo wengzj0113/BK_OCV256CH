@@ -41,7 +41,7 @@
     <BootstrapperComponentsLocation>Relative</BootstrapperComponentsLocation>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x86' ">
-    <PlatformTarget>AnyCPU</PlatformTarget>
+    <PlatformTarget>x86</PlatformTarget>
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <DefineDebug>true</DefineDebug>
@@ -49,7 +49,7 @@
     <OutputPath>bin\Debug\</OutputPath>
     <DocumentationFile>XL_OCV_256CH.xml</DocumentationFile>
     <NoWarn>42016,41999,42017,42018,42019,42032,42036,42020,42021,42022;MSB3305</NoWarn>
-    <Prefer32Bit>true</Prefer32Bit>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -63,7 +63,7 @@
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x86' ">
-    <PlatformTarget>AnyCPU</PlatformTarget>
+    <PlatformTarget>x86</PlatformTarget>
     <DebugType>pdbonly</DebugType>
     <DefineDebug>false</DefineDebug>
     <DefineTrace>true</DefineTrace>
@@ -72,7 +72,7 @@
     <DocumentationFile>XL_OCV_256CH.xml</DocumentationFile>
     <NoWarn>42016,41999,42017,42018,42019,42032,42036,42020,42021,42022</NoWarn>
     <DebugSymbols>true</DebugSymbols>
-    <Prefer32Bit>true</Prefer32Bit>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -319,6 +319,13 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="XL-OCV-UIControls.vbproj">
+      <Project>{A53D5F1E-2C7A-4D73-9B95-2F248E89B3C4}</Project>
+      <Name>XL-OCV-UIControls</Name>
+      <ReferenceOutputAssembly>True</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
     <Import Include="Microsoft.VisualBasic" />
     <Import Include="System" />
     <Import Include="System.Collections" />
@@ -457,26 +464,6 @@
     </Compile>
     <Compile Include="frmTest.vb">
       <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="UiTheme.vb" />
-    <Compile Include="StatisticsControl.vb">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Include="StatisticsControl.Designer.vb">
-      <DependentUpon>StatisticsControl.vb</DependentUpon>
-    </Compile>
-    <Compile Include="ChannelTileControl.vb" />
-    <Compile Include="ChannelGridControl.vb">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Include="ChannelGridControl.Designer.vb">
-      <DependentUpon>ChannelGridControl.vb</DependentUpon>
-    </Compile>
-    <Compile Include="BottomStatusControl.vb">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Include="BottomStatusControl.Designer.vb">
-      <DependentUpon>BottomStatusControl.vb</DependentUpon>
     </Compile>
     <Compile Include="UiUpdateService.vb" />
     <Compile Include="frmUserManage.Designer.vb">

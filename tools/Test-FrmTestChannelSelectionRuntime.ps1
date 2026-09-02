@@ -6,14 +6,20 @@ $assembly = [Reflection.Assembly]::LoadFrom($assemblyPath)
 $formType = $assembly.GetType('software.frmTest', $true)
 $form = [Activator]::CreateInstance($formType)
 $initializer = $formType.GetMethod('InitializeChannelSelectionControls', [Reflection.BindingFlags] 'Instance,NonPublic')
-$initializer.Invoke($form, $null) | Out-Null
 $panelField = $formType.GetField('_Panel1', [Reflection.BindingFlags] 'Instance,NonPublic')
 $labelField = $formType.GetField('_Label5', [Reflection.BindingFlags] 'Instance,NonPublic')
 $panel = $panelField.GetValue($form)
 $label = $labelField.GetValue($form)
-$selectionGroup = $panel.Controls | Where-Object { $_.Name -eq 'grpChannelSelection' }
-if ($null -eq $selectionGroup) { throw 'Selection group was not added to the left panel.' }
-if ($selectionGroup.Controls.Count -ne 4) { throw "Selection group has $($selectionGroup.Controls.Count) controls, expected 4." }
+$contentPanel = $panel.Controls | Where-Object { $_.Name -eq 'leftContentPanel' }
+if ($null -eq $contentPanel) { throw 'Serialized Designer layout did not contain the left content panel.' }
+$selectionGroup = $contentPanel.Controls | Where-Object { $_.Name -eq 'grpChannelSelection' }
+if ($null -eq $selectionGroup) { throw 'Serialized Designer layout did not contain the channel selection group.' }
+$selectionLayout = $selectionGroup.Controls | Where-Object { $_.Name -eq 'channelSelectionLayout' }
+if ($null -eq $selectionLayout) { throw 'Serialized Designer layout did not contain the channel selection layout.' }
+if ($selectionLayout.Controls.Count -ne 4) { throw "Selection layout has $($selectionLayout.Controls.Count) controls, expected 4." }
+$beforeCount = $contentPanel.Controls.Count
+$initializer.Invoke($form, $null) | Out-Null
+if ($contentPanel.Controls.Count -ne $beforeCount) { throw 'InitializeChannelSelectionControls rebuilt the serialized left panel.' }
 $expectedLabel = -join ([char]0x5f85, [char]0x6d4b, [char]0x8bd5, [char]0x901a, [char]0x9053, [char]0x6570)
 if ($label.Text -ne $expectedLabel) { throw 'The left count label was not renamed.' }
 $valueField = $formType.GetField('_lblBarNum', [Reflection.BindingFlags] 'Instance,NonPublic')

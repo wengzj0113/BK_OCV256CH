@@ -5,6 +5,8 @@ VisualStudioVersion = 17.1.32421.90
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{F184B08F-C81C-45F6-A57F-5ABD9991F28F}") = "MP-60A-RV-64Mem", "MP-60A-RV-64Mem.vbproj", "{C9033C44-C48E-4DE7-B676-9303F3E8C9A4}"
 EndProject
+Project("{F184B08F-C81C-45F6-A57F-5ABD9991F28F}") = "XL-OCV-UIControls", "XL-OCV-UIControls.vbproj", "{A53D5F1E-2C7A-4D73-9B95-2F248E89B3C4}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,14 @@ Global
 		{C9033C44-C48E-4DE7-B676-9303F3E8C9A4}.Release|Any CPU.Build.0 = Release|AnyCPU
 		{C9033C44-C48E-4DE7-B676-9303F3E8C9A4}.Release|x86.ActiveCfg = Release|x86
 		{C9033C44-C48E-4DE7-B676-9303F3E8C9A4}.Release|x86.Build.0 = Release|x86
+		{A53D5F1E-2C7A-4D73-9B95-2F248E89B3C4}.Debug|Any CPU.ActiveCfg = Debug|AnyCPU
+		{A53D5F1E-2C7A-4D73-9B95-2F248E89B3C4}.Debug|Any CPU.Build.0 = Debug|AnyCPU
+		{A53D5F1E-2C7A-4D73-9B95-2F248E89B3C4}.Debug|x86.ActiveCfg = Debug|x86
+		{A53D5F1E-2C7A-4D73-9B95-2F248E89B3C4}.Debug|x86.Build.0 = Debug|x86
+		{A53D5F1E-2C7A-4D73-9B95-2F248E89B3C4}.Release|Any CPU.ActiveCfg = Release|AnyCPU
+		{A53D5F1E-2C7A-4D73-9B95-2F248E89B3C4}.Release|Any CPU.Build.0 = Release|AnyCPU
+		{A53D5F1E-2C7A-4D73-9B95-2F248E89B3C4}.Release|x86.ActiveCfg = Release|x86
+		{A53D5F1E-2C7A-4D73-9B95-2F248E89B3C4}.Release|x86.Build.0 = Release|x86
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
