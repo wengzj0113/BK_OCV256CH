@@ -28,6 +28,7 @@ Public Class ChannelGridControl
 
     Public Sub New()
         InitializeComponent()
+        hoverDetailsLabel.ForeColor = UiTheme.TextPrimary
         GetType(Panel).GetProperty("DoubleBuffered", BindingFlags.Instance Or BindingFlags.NonPublic).SetValue(gridSurface, True, Nothing)
         AddHandler gridSurface.Paint, AddressOf HandleGridPaint
         AddHandler gridSurface.MouseDown, AddressOf HandleGridMouseDown

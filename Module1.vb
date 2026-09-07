@@ -703,13 +703,6 @@ Loop_Begin:
         'R2-17:必须先读 Initset.set 填充 Initsetting,否则 OcvDataService 连接串为空导致数据库连不上
         Call ReadInitFile()
 
-        '主线程先把 UI 显示出来,设备检查放到后台
-        frmMDI.status_com.Text = "中位机: 检测中..."
-        frmMDI.status_34461.Text = "万用表: 检测中..."
-        frmMDI.status_3561.Text = "内阻仪: 检测中..."
-        frmMDI.status_IOcom.Text = "PLC: 检测中..."
-        frmMDI.StatusMes.Text = "MES: 检测中..."
-
         StartupDeviceService.StartAsync(frmMDI1,
                                         Sub(result As StartupDeviceCheckResult)
                                             StartupTiming.Mark("device-check-ui-callback")
@@ -718,65 +711,51 @@ Loop_Begin:
                                                                  result.Dmm34461,
                                                                  result.Resistance3561,
                                                                  result.Plc,
-                                                                 result.Mes)
+                                                                 result.Mes,
+                                                                 result)
                                         End Sub)
     End Sub
 
-    '后台回调:在主线程只更新状态栏和连接标志，不执行设备连接或模态弹窗。
+    '后台回调:在主线程更新连接标志、底部状态控件，并显示一次启动失败汇总。
     Private Sub ApplyCheckResultsToUi(ByVal frmMDI1 As MDIForm,
                                      ByVal reflag_SCM As Short,
                                       ByVal reflag_34461 As Short,
                                       ByVal reflag_3561 As Short,
                                       ByVal reflag_PLC As Short,
-                                      ByVal reflag_MES As Short)
+                                      ByVal reflag_MES As Short,
+                                      ByVal result As StartupDeviceCheckResult)
         If frmMDI1 Is Nothing OrElse frmMDI1.IsDisposed Then Return
 
         '1、中位机
         controlBoardConnected = (reflag_SCM = 1)
         If reflag_SCM = -1 Then
-            frmMDI1.status_com.Text = "单片机端口不可用!" & Space(2)
             blnOnLine = False
-        Else
-            frmMDI1.status_com.Text = "单片机端口正常!" & Space(2)
         End If
 
         '3、万用表
         If reflag_34461 = -1 Then
-            frmMDI1.status_34461.Text = "数字万用表端口异常！"
             blnOnLine = False
-        Else
-            frmMDI1.status_34461.Text = "数字万用表端口正常!" & Space(2)
-            frmMDI1.status_34461.Text = "数字万用表通讯成功！"
         End If
 
         '5、内阻仪
         If reflag_3561 = -1 Then
-            frmMDI1.status_3561.Text = "内阻仪端口异常！"
             blnOnLine = False
-        Else
-            frmMDI1.status_3561.Text = "内阻仪端口正常!" & Space(2)
-            frmMDI1.status_3561.Text = "内阻仪通讯成功！"
         End If
 
         'PLC
         plcConnected = (reflag_PLC = 1)
-        If plcConnected Then
-            frmMDI1.status_IOcom.Text = "PLC连接正常!"
-        Else
-            frmMDI1.status_IOcom.Text = "PLC连接异常！"
+        If Not plcConnected Then
             blnOnLine = False
         End If
 
         '6、MES
         If reflag_MES = -1 Then
-            frmMDI1.StatusMes.Text = "MES连接异常！"
             blnOnLine = False
-        Else
-            frmMDI1.StatusMes.Text = "MES连接正常!" & Space(2)
         End If
 
-        '底部状态栏使用统一的最终检查结果，避免仍显示旧 TCP mSock 状态。
-        frmMDI1.UpdateBottomStatusForDeviceCheck()
+        '底部状态控件使用统一的最终检查结果。
+        frmMDI1.UpdateDeviceCheckStatus(reflag_34461, reflag_3561, reflag_MES)
+        frmMDI1.ShowStartupDeviceFailurePrompt(result)
     End Sub
 
     Public Function CheckPlc() As Short
@@ -895,7 +874,7 @@ Loop_Begin:
             Return CheckTcp_SCM
         End With
     End Function
-    Public Function CheckCom_SCM() As Short
+    Public Function CheckCom_SCM(Optional ByVal rethrowOnFailure As Boolean = False) As Short
         controlBoardConnected = False
         Try
             Com_SCM = frmMDI.Com_SCM
@@ -916,10 +895,15 @@ Loop_Begin:
             '仅打开 COM 口不能证明控制板存在；发送只读状态寄存器请求并校验协议帧/CRC。
             Dim client As New SerialMiddleMachineClient(frmMDI.Com_SCM)
             If Not client.CheckConnection(3000) Then
-                Throw New System.IO.IOException("控制板未返回有效协议帧")
+                Throw New System.IO.IOException("控制板未返回有效协议帧（3秒内无响应或协议校验失败）")
             End If
+            controlBoardConnected = True
             Return 1
         Catch ex As Exception
+            Dim configuredPort As String = "COM" & (Initsetting.SCMComPort + 1).ToString()
+            Dim detail As String = configuredPort & "，" &
+                                   If(Initsetting.SCMComRate > 0, Initsetting.SCMComRate, 115200).ToString() &
+                                   "，8N1：" & ex.Message
             Try
                 If frmMDI IsNot Nothing AndAlso frmMDI.Com_SCM IsNot Nothing AndAlso frmMDI.Com_SCM.IsOpen Then
                     frmMDI.Com_SCM.Close()
@@ -927,8 +911,9 @@ Loop_Begin:
             Catch closeEx As Exception
                 System.Diagnostics.Debug.WriteLine("CheckCom_SCM close failed: " & closeEx.Message)
             End Try
-            'R2-17:启动期不再用 MsgBox 阻塞 (异常消息写到日志,UI 通过 frmMDI.status_* 显示)
-            System.Diagnostics.Debug.WriteLine("CheckCom_SCM failed: " & ex.Message)
+            AppLog.Write("Startup", "[DEVICE] SCM failed: " & detail)
+            System.Diagnostics.Debug.WriteLine("CheckCom_SCM failed: " & detail)
+            If rethrowOnFailure Then Throw New System.IO.IOException(detail, ex)
             Return -1
         End Try
     End Function
@@ -1524,8 +1509,20 @@ Loop_No:
             If rawPreview.Length > 600 Then rawPreview = rawPreview.Substring(0, 600)
             SerialMiddleMachineClient.LogMessage("3562 cache raw preview=" & rawPreview)
 
-            If Not Parse3562MemoryData(recvStr, expectedCount, voltages, resistances) Then
-                SerialMiddleMachineClient.LogMessage("3562 cache read failed: memory records are less than expected.")
+            Dim parseResult As InstrumentCacheParseResult = InstrumentCacheParser.Parse3562MemoryData(recvStr, expectedCount)
+            voltages = parseResult.Voltages
+            resistances = parseResult.Resistances
+            SerialMiddleMachineClient.LogMessage("3562 cache parse summary: expected=" & expectedCount.ToString() &
+                                                 ", valid=" & parseResult.ValidRecordCount.ToString() &
+                                                 ", invalid=" & parseResult.InvalidRecordCount.ToString())
+            If Not parseResult.Success Then
+                If parseResult.InvalidRecordCount > 0 Then
+                    SerialMiddleMachineClient.LogMessage("3562 cache read failed: invalid record format detected.")
+                ElseIf parseResult.ValidRecordCount = 0 Then
+                    SerialMiddleMachineClient.LogMessage("3562 cache read failed: cache is empty or contains no valid records.")
+                Else
+                    SerialMiddleMachineClient.LogMessage("3562 cache read failed: record count mismatch.")
+                End If
                 Return -1
             End If
 
@@ -1536,38 +1533,6 @@ Loop_No:
             SerialMiddleMachineClient.LogMessage("3562 cache read exception: " & ex.Message)
             Return -1
         End Try
-    End Function
-
-    Private Function Parse3562MemoryData(text As String,
-                                         expectedCount As Integer,
-                                         ByRef voltages As List(Of Single),
-                                         ByRef resistances As List(Of Single)) As Boolean
-        voltages = New List(Of Single)()
-        resistances = New List(Of Single)()
-        If String.IsNullOrWhiteSpace(text) Then Return False
-
-        '3562可能使用CR、LF或CRLF作为每条记录的结束符，统一为LF后再逐条解析。
-        Dim lines As String() = text.Replace(vbCr, vbLf).Split({vbLf}, StringSplitOptions.RemoveEmptyEntries)
-        For Each line As String In lines
-            Dim record As String = line.Trim()
-            If record.Equals("END", StringComparison.OrdinalIgnoreCase) Then Continue For
-
-            Dim fields As String() = record.Split(","c)
-            If fields.Length < 3 Then Continue For
-
-            Dim recordNumber As Integer
-            Dim resistanceOhm As Double
-            Dim voltageValue As Double
-            If Not Integer.TryParse(fields(0).Trim(), recordNumber) Then Continue For
-            If Not Double.TryParse(fields(1).Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, resistanceOhm) Then Continue For
-            If Not Double.TryParse(fields(2).Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, voltageValue) Then Continue For
-
-            resistances.Add(CSng(resistanceOhm * 1000.0R))
-            voltages.Add(CSng(voltageValue))
-            If resistances.Count = expectedCount Then Exit For
-        Next
-
-        Return resistances.Count = expectedCount AndAlso voltages.Count = expectedCount
     End Function
 
     Public Function PrepareCachedData_3562(expectedCount As Integer) As Integer
@@ -1581,6 +1546,11 @@ Loop_No:
             Com_3561.DiscardInBuffer()
             Com_3561.DiscardOutBuffer()
             Com_3561.WriteTimeout = 3000
+            '每次正式测试都重新锁定到 300 mΩ，避免仪表面板或上一次测试留下自动量程/Ω量程。
+            '改变量程会清空仪表内存，因此必须先设置量程，再执行 MEMory:CLEA。
+            Com_3561.Write(":AUT OFF" & vbLf)
+            Com_3561.Write(":RES:RANG 300E-3" & vbLf)
+            SerialMiddleMachineClient.LogMessage("3562 prepare range: 300 mOhm (auto range off)")
             Com_3561.Write("TRIG:SOUR EXT" & vbCrLf)
             Com_3561.Write("INIT:CONT ON" & vbLf)
             Com_3561.Write("MEMory:CLEA" & vbLf)

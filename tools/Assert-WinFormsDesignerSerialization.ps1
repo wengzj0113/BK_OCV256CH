@@ -19,6 +19,28 @@ $anyCpuPattern = 'Condition="[^"]*Debug\|AnyCPU[^"]*"[\s\S]*?<PlatformTarget>Any
 if ($projectContent -notmatch $anyCpuPattern) {
     $projectViolations = "${projectFile}: Debug|AnyCPU must be available as a separate Designer-compatible configuration"
 }
+if ($projectContent -notmatch '<ProjectReference Include="XL-OCV-UIControls\.vbproj">[\s\S]*?<ReferenceOutputAssembly>True</ReferenceOutputAssembly>') {
+    $projectViolations = "${projectFile}: must reference XL-OCV-UIControls as a project output for Designer type resolution"
+}
+
+$controlProjectFile = 'XL-OCV-UIControls.vbproj'
+if (-not (Test-Path -LiteralPath $controlProjectFile)) {
+    $projectViolations = "${controlProjectFile}: missing custom-control project required by frmTest Designer"
+} else {
+    $controlProjectContent = Get-Content -LiteralPath $controlProjectFile -Raw
+    if ($controlProjectContent -notmatch '<RootNamespace>software</RootNamespace>') {
+        $projectViolations = "${controlProjectFile}: RootNamespace must remain software for Global.software Designer types"
+    }
+}
+
+foreach ($solutionFile in @('MP-60A-RV-64Mem.sln', 'Battery Testing.sln')) {
+    if (Test-Path -LiteralPath $solutionFile) {
+        $solutionContent = Get-Content -LiteralPath $solutionFile -Raw
+        if ($solutionContent -notmatch '\{A53D5F1E-2C7A-4D73-9B95-2F248E89B3C4\}\.Debug\|x86\.ActiveCfg\s*=\s*Debug\|AnyCPU') {
+            $projectViolations = "${solutionFile}: x86 Designer configuration must load XL-OCV-UIControls as AnyCPU"
+        }
+    }
+}
 
 $forbiddenCalls = @(
     'BuildDesignerLayout',
@@ -122,6 +144,15 @@ if ($channelGridCodeContent -match '(?m)^Public\s+(?:NotInheritable\s+)?Class\s+
 
 $frmLines = Get-Content -LiteralPath 'frmTest.Designer.vb'
 $frmContent = $frmLines -join [Environment]::NewLine
+if ($frmContent -notmatch 'New\s+Global\.software\.ChannelGridControl\s*\(\)') {
+    $violations.Add('frmTest.Designer.vb: ChannelGridControl constructor must use Global.software qualification for CodeDOM Designer resolution')
+}
+if ($frmContent -notmatch 'New\s+Global\.software\.StatisticsControl\s*\(\)') {
+    $violations.Add('frmTest.Designer.vb: StatisticsControl constructor must use Global.software qualification for CodeDOM Designer resolution')
+}
+if ($frmContent -notmatch 'SelectionMode\s*=\s*Global\.software\.ChannelSelectionMode\.SingleChannel') {
+    $violations.Add('frmTest.Designer.vb: ChannelSelectionMode must use Global.software qualification for CodeDOM Designer resolution')
+}
 foreach ($typeName in @('ChannelGridControl', 'StatisticsControl')) {
     if ($frmContent -notmatch "New\s+(?:Global\.)?software\.$([regex]::Escape($typeName))\s*\(") {
         $violations.Add("frmTest.Designer.vb: external control '$typeName' must use its fully qualified software Designer type name")

@@ -51,27 +51,15 @@ Partial Class MDIForm
         Me.TStripbtnInQuery = New System.Windows.Forms.ToolStripButton()
         Me.ToolStripSeparator1 = New System.Windows.Forms.ToolStripSeparator()
         Me.ToolStripButton1 = New System.Windows.Forms.ToolStripButton()
-        Me.StatusStrip = New System.Windows.Forms.StatusStrip()
-        Me.status_Tag = New System.Windows.Forms.ToolStripStatusLabel()
-        Me.status_com = New System.Windows.Forms.ToolStripStatusLabel()
-        Me.status_3561 = New System.Windows.Forms.ToolStripStatusLabel()
-        Me.status_34461 = New System.Windows.Forms.ToolStripStatusLabel()
-        Me.status_scaner = New System.Windows.Forms.ToolStripStatusLabel()
-        Me.status_IOcom = New System.Windows.Forms.ToolStripStatusLabel()
-        Me.status_DataBase = New System.Windows.Forms.ToolStripStatusLabel()
-        Me.StatusMes = New System.Windows.Forms.ToolStripStatusLabel()
-        Me.status_test = New System.Windows.Forms.ToolStripStatusLabel()
         Me.ToolTip = New System.Windows.Forms.ToolTip(Me.components)
         Me.Com_SCM = New System.IO.Ports.SerialPort(Me.components)
         Me.Com_3561 = New System.IO.Ports.SerialPort(Me.components)
         Me.Com_scaner = New System.IO.Ports.SerialPort(Me.components)
         Me.OpenFileDialog1 = New System.Windows.Forms.OpenFileDialog()
-        Me.Timer1 = New System.Windows.Forms.Timer(Me.components)
         Me.Com_IOCard = New System.IO.Ports.SerialPort(Me.components)
         Me.txtTesting = New System.Windows.Forms.Label()
         Me.MenuStrip.SuspendLayout()
         Me.ToolStrip.SuspendLayout()
-        Me.StatusStrip.SuspendLayout()
         Me.SuspendLayout()
         '
         'MenuStrip
@@ -290,81 +278,9 @@ Partial Class MDIForm
         Me.ToolStripButton1.Size = New System.Drawing.Size(48, 48)
         Me.ToolStripButton1.Text = "退出"
         '
-        'StatusStrip
-        '
-        Me.StatusStrip.ImageScalingSize = New System.Drawing.Size(20, 20)
-        Me.StatusStrip.Items.AddRange(New System.Windows.Forms.ToolStripItem() {Me.status_Tag, Me.status_com, Me.status_3561, Me.status_34461, Me.status_scaner, Me.status_IOcom, Me.status_DataBase, Me.StatusMes, Me.status_test})
-        Me.StatusStrip.Location = New System.Drawing.Point(0, 735)
-        Me.StatusStrip.Name = "StatusStrip"
-        Me.StatusStrip.Size = New System.Drawing.Size(1429, 26)
-        Me.StatusStrip.TabIndex = 7
-        Me.StatusStrip.Text = "StatusStrip"
-        '
-        'status_Tag
-        '
-        Me.status_Tag.BorderSides = System.Windows.Forms.ToolStripStatusLabelBorderSides.Right
-        Me.status_Tag.Name = "status_Tag"
-        Me.status_Tag.Size = New System.Drawing.Size(39, 21)
-        Me.status_Tag.Text = "状态:"
-        '
-        'status_com
-        '
-        Me.status_com.BorderSides = System.Windows.Forms.ToolStripStatusLabelBorderSides.Right
-        Me.status_com.Name = "status_com"
-        Me.status_com.Size = New System.Drawing.Size(38, 21)
-        Me.status_com.Text = "——"
-        Me.status_com.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
-        '
-        'status_3561
-        '
-        Me.status_3561.BorderSides = System.Windows.Forms.ToolStripStatusLabelBorderSides.Right
-        Me.status_3561.Name = "status_3561"
-        Me.status_3561.Size = New System.Drawing.Size(38, 21)
-        Me.status_3561.Text = "——"
-        '
-        'status_34461
-        '
-        Me.status_34461.Name = "status_34461"
-        Me.status_34461.Size = New System.Drawing.Size(34, 21)
-        Me.status_34461.Text = "——"
-        '
-        'status_scaner
-        '
-        Me.status_scaner.Name = "status_scaner"
-        Me.status_scaner.Size = New System.Drawing.Size(34, 21)
-        Me.status_scaner.Text = "——"
-        '
-        'status_IOcom
-        '
-        Me.status_IOcom.Name = "status_IOcom"
-        Me.status_IOcom.Size = New System.Drawing.Size(34, 21)
-        Me.status_IOcom.Text = "——"
-        '
-        'status_DataBase
-        '
-        Me.status_DataBase.Name = "status_DataBase"
-        Me.status_DataBase.Size = New System.Drawing.Size(34, 21)
-        Me.status_DataBase.Text = "——"
-        '
-        'StatusMes
-        '
-        Me.StatusMes.Name = "StatusMes"
-        Me.StatusMes.Size = New System.Drawing.Size(34, 21)
-        Me.StatusMes.Text = "——"
-        '
-        'status_test
-        '
-        Me.status_test.Name = "status_test"
-        Me.status_test.Size = New System.Drawing.Size(34, 21)
-        Me.status_test.Text = "——"
-        '
         'OpenFileDialog1
         '
         Me.OpenFileDialog1.FileName = "OpenFileDialog1"
-        '
-        'Timer1
-        '
-        Me.Timer1.Interval = 5000
         '
         'txtTesting
         '
@@ -386,7 +302,6 @@ Partial Class MDIForm
         Me.ClientSize = New System.Drawing.Size(1429, 761)
         Me.Controls.Add(Me.ToolStrip)
         Me.Controls.Add(Me.MenuStrip)
-        Me.Controls.Add(Me.StatusStrip)
         Me.Controls.Add(Me.bottomStatusControl)
         Me.Icon = CType(resources.GetObject("$this.Icon"), System.Drawing.Icon)
         Me.IsMdiContainer = True
@@ -398,15 +313,11 @@ Partial Class MDIForm
         Me.MenuStrip.PerformLayout()
         Me.ToolStrip.ResumeLayout(False)
         Me.ToolStrip.PerformLayout()
-        Me.StatusStrip.ResumeLayout(False)
-        Me.StatusStrip.PerformLayout()
         Me.ResumeLayout(False)
         Me.PerformLayout()
 
     End Sub
     Friend WithEvents ToolTip As System.Windows.Forms.ToolTip
-    Friend WithEvents status_Tag As System.Windows.Forms.ToolStripStatusLabel
-    Friend WithEvents StatusStrip As System.Windows.Forms.StatusStrip
     Friend WithEvents ToolStrip As System.Windows.Forms.ToolStrip
     Friend WithEvents ToolStripSeparator1 As System.Windows.Forms.ToolStripSeparator
     Friend WithEvents init As System.Windows.Forms.ToolStripMenuItem
@@ -422,26 +333,17 @@ Partial Class MDIForm
     Friend WithEvents Com_SCM As System.IO.Ports.SerialPort
     Friend WithEvents Com_3561 As System.IO.Ports.SerialPort
     Friend WithEvents Com_scaner As System.IO.Ports.SerialPort
-    Friend WithEvents status_com As System.Windows.Forms.ToolStripStatusLabel
-    Friend WithEvents status_3561 As System.Windows.Forms.ToolStripStatusLabel
     Friend WithEvents btnDebug As System.Windows.Forms.ToolStripMenuItem
     Friend WithEvents ToolStripButton1 As System.Windows.Forms.ToolStripButton
     Friend WithEvents ToolDebug As System.Windows.Forms.ToolStripButton
-    Friend WithEvents status_IOcom As System.Windows.Forms.ToolStripStatusLabel
     Friend WithEvents TStripMenuInQuery As System.Windows.Forms.ToolStripMenuItem
     Friend WithEvents TStripbtnInQuery As System.Windows.Forms.ToolStripButton
     Friend WithEvents TStripMenuCode As System.Windows.Forms.ToolStripMenuItem
     Friend WithEvents TlStripMenuG As System.Windows.Forms.ToolStripMenuItem
     Friend WithEvents TlStripMenuLog As System.Windows.Forms.ToolStripMenuItem
     Friend WithEvents OpenFileDialog1 As System.Windows.Forms.OpenFileDialog
-    Friend WithEvents status_DataBase As System.Windows.Forms.ToolStripStatusLabel
     Friend WithEvents TStripbtn_Barcode As System.Windows.Forms.ToolStripButton
-    Friend WithEvents status_test As System.Windows.Forms.ToolStripStatusLabel
-    Friend WithEvents status_scaner As ToolStripStatusLabel
-    Friend WithEvents Timer1 As Timer
     Friend WithEvents Com_IOCard As IO.Ports.SerialPort
-    Friend WithEvents status_34461 As ToolStripStatusLabel
-    Friend WithEvents StatusMes As ToolStripStatusLabel
     Friend WithEvents userMenage As ToolStripMenuItem
     Friend WithEvents txtTesting As Label
     Friend WithEvents EMS上传ToolStripMenuItem As ToolStripMenuItem

@@ -162,8 +162,7 @@ Public Class frmTest
 
         '先启动后台工作，所有连接、查询和轮询都不能阻塞首屏。
         If frmMDI IsNot Nothing AndAlso Not frmMDI.IsDisposed Then
-            MainwindowsShowAsync(frmMDI)
-            frmMDI.StartDatabaseHealthCheckAsync()
+            frmMDI.StartExternalDeviceChecksAsync()
         End If
 
         System.Threading.ThreadPool.QueueUserWorkItem(Sub()
@@ -469,7 +468,22 @@ Public Class frmTest
     ''' <returns></returns>
     Public Function StarTest(ByVal testType As Integer)
         StarTest = 0
-        If SelectedChannelNumbers Is Nothing OrElse SelectedChannelNumbers.Count = 0 Then
+        Dim runChannels As New List(Of Integer)()
+        If testType = 0 Then
+            If retestArray IsNot Nothing Then
+                For channelNo As Integer = 1 To Math.Min(MAX_CHANNEL, retestArray.Length)
+                    If retestArray(channelNo - 1) = 1 Then runChannels.Add(channelNo)
+                Next
+            End If
+        ElseIf SelectedChannelNumbers IsNot Nothing Then
+            runChannels = SelectedChannelNumbers.
+                Where(Function(channelNo) channelNo >= 1 AndAlso channelNo <= MAX_CHANNEL).
+                Distinct().
+                OrderBy(Function(channelNo) channelNo).
+                ToList()
+        End If
+
+        If runChannels.Count = 0 Then
             MessageBox.Show("请先选择至少一个待测试通道！", "提示", MessageBoxButtons.OK)
             Return StarTest
         End If
@@ -480,7 +494,6 @@ Public Class frmTest
         Dim strTrayNo As String
         Dim Buffer_SCM(5) As Byte
         Dim Buffer_Re(5) As Byte
-        Dim isOpenOk As Boolean
         Dim mesUP As New ResultDataUploadAssembly(FrmMesTask.listBoxOutput)
         '清空报警信息
         txtAlarm.Text = ""
@@ -490,7 +503,6 @@ Public Class frmTest
         Sleep(100)
 
         frmMDI.Refresh()
-        frmMDI.status_test.Text = ""
         frmMDI.txtTesting.Text = ""
         frmMDI.Refresh()
         '设定为测试状态
@@ -500,9 +512,9 @@ Public Class frmTest
         Me.Cursor = Cursors.WaitCursor
         '***********************************
         '初始化变量
-        firstCellNumToTest = Val(frmInput.txtFirst.Text)
-        lastCellNumToTest = Val(frmInput.txtLast.Text)
-        totalCellNumToTest = Val(frmInput.txtLast.Text) - Val(frmInput.txtFirst.Text) + 1
+        firstCellNumToTest = runChannels.Min()
+        lastCellNumToTest = runChannels.Max()
+        totalCellNumToTest = runChannels.Count
         strTrayNo = Trim(txtTray.Text)
         Ftest = New Collection
         Stest = New Collection
@@ -579,31 +591,7 @@ Public Class frmTest
             MsgBox("单片机通讯失败！", vbOKOnly)
             GoTo exit_sub
         End If
-        '启动测试前的准备工作：托盘由 PLC 控制
-        If Not plcConnected OrElse plcController Is Nothing Then
-            MsgBox("PLC通讯失败，禁止启动测试！", vbOKOnly, "提示")
-            GoTo exit_sub
-        End If
-        GetSignalTrayStatus()
-        If Not fixtureClose Then
-            Try
-                If Not plcController.CloseTray() Then GoTo exit_sub
-                Sleep(9000)
-            Catch
-                MsgBox("PLC关闭托盘失败，测试停止！", vbOKOnly, "提示")
-                GoTo exit_sub
-            End Try
-            GetSignalTrayStatus()
-        End If
-        If fixtureClose = True Then
-        Else
-            MsgBox("托盘未闭合！测试停止！", vbOKOnly, "提示")
-            GoTo exit_sub
-        End If
-        'Exit Function
-        'End If
         '处理探针的相关数据
-        Dim fixtureDownForRun As Boolean = True
         Initsetting.ProbeUsedCount = Initsetting.ProbeUsedCount + 1
         txtUsed.Text = Initsetting.ProbeUsedCount.ToString
         txtRemain.Text = (Initsetting.Probelifespan - Initsetting.ProbeUsedCount).ToString
@@ -620,7 +608,7 @@ Public Class frmTest
         btnClose.Enabled = False
         '本次测试必须从当前计划重新生成通道选择，不能沿用上一次 Runner 的结果。
         lastTestSelection = Nothing
-        currentTestChannels = GetSelectedPhysicalChannels(testType)
+        currentTestChannels = runChannels.ToList()
         MarkSelectedChannelsTesting()
         Dim ocvTestTaskId As Long? = Nothing
         Dim testTaskStatusFinalized As Boolean = False
@@ -636,8 +624,8 @@ Public Class frmTest
             Dim formalRunner As New FormalTestRunner()
             If testType = 0 Then
                 lastTestSelection = formalRunner.RunRetestMeasurement(retestArray)
-            ElseIf SelectedChannelNumbers IsNot Nothing AndAlso SelectedChannelNumbers.Count > 0 Then
-                lastTestSelection = formalRunner.RunSparseMeasurement(SelectedChannelNumbers)
+            ElseIf runChannels.Count > 0 Then
+                lastTestSelection = formalRunner.RunSparseMeasurement(runChannels)
             Else
                 lastTestSelection = formalRunner.RunRangeMeasurement(firstCellNumToTest, lastCellNumToTest)
             End If
@@ -661,10 +649,6 @@ Public Class frmTest
             frmMDI.txtTesting.Text = "测试结束"
             Sleep(100)
             frmMDI.Refresh()
-            '***********测试完成，松开托盘****************
-            '松开托盘
-            isOpenOk = TrayOpen()
-            Sleep(2000)
             ' 记录日志
             LogRun(logFilePath, strTrayNo, "测试结束")
             '设置电池的测试结果：OK或者NG'设定结果数组中的各个点位的测试结果， 分三种情况
@@ -720,7 +704,6 @@ Public Class frmTest
             CompleteOcvDataTestTaskSafely(ocvTestTaskId, "Failed", "Test result processing failed before task completion.")
             testTaskStatusFinalized = True
         End If
-        frmMDI.status_test.Text = ""
         '如果存在NG点，询问是否重测坏点
         If haveNgPoint Then
             Dim result1 As DialogResult = MessageBox.Show("发现NG测试点，是否重新执行测试相应点位？", "NG提示", MessageBoxButtons.OKCancel)
@@ -739,16 +722,8 @@ Public Class frmTest
 exit_sub:
         testingChannelNumbers.Clear()
         RefreshChannelOverview()
-        If fixtureDownForRun Then
-            Try
-                TrayOpen()
-            Catch ex As Exception
-                txtAlarm.AppendText("Tray open cleanup failed: " & ex.Message & Environment.NewLine)
-            Finally
-                fixtureDownForRun = False
-            End Try
-        End If
-        '恢复控制托盘
+        currentTestChannels = Nothing
+        'PLC负责测试完成后的后续动作，上位机只恢复自身测试控件。
         btnOpen.Enabled = True
         btnTrayState.Enabled = True
         btnClose.Enabled = True
@@ -1155,6 +1130,20 @@ exit_sub:
         Dim G As Graphics
         Dim sbrush As SolidBrush
         Dim TempNum As Int16
+        Dim selectedPhysicalChannels As New HashSet(Of Integer)()
+        If freshType = 0 AndAlso retestArray IsNot Nothing Then
+            For channelNo As Integer = 1 To Math.Min(MAX_CHANNEL, retestArray.Length)
+                If retestArray(channelNo - 1) > 0 Then selectedPhysicalChannels.Add(channelNo)
+            Next
+        ElseIf currentTestChannels IsNot Nothing Then
+            For Each channelNo As Integer In currentTestChannels
+                selectedPhysicalChannels.Add(channelNo)
+            Next
+        ElseIf SelectedChannelNumbers IsNot Nothing Then
+            For Each channelNo As Integer In SelectedChannelNumbers
+                selectedPhysicalChannels.Add(channelNo)
+            Next
+        End If
         'intNumber = 16
         ' 检查图像框的尺寸是否有效
         If Pic_Bat.Width <= 0 Or Pic_Bat.Height <= 0 Then
@@ -1177,7 +1166,7 @@ exit_sub:
         ' 循环处理每个电池格
         For I = 0 To intCol - 1
             For J = 0 To intRow - 1
-                isPoint = True
+                isPoint = selectedPhysicalChannels.Contains(intRow * I + J + 1)
                 isReTestPoint = False
                 TempNum = intRow * I + J
                 If TempNum > (firstNumber + intNumber - 2) Or TempNum < (firstNumber - 1) Then

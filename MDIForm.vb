@@ -17,6 +17,7 @@ Public Class MDIForm
     Private mdiChildCreationInProgress As Boolean
     Private ReadOnly resizeDebounceTimer As New System.Windows.Forms.Timer()
     Private databaseHealthCheckStarted As Integer
+    Private startupDeviceFailurePromptShown As Integer
     'Dim adoCnn As SqlConnection
     Public mSock As SocketCtrolCmd
     Public FrmLink As New List(Of MDIForm)
@@ -45,31 +46,27 @@ Public Class MDIForm
         '已删除的死代码占位 (R2-15)
     End Sub
 
-    Private Sub ToolBarToolStripMenuItem_Click(ByVal sender As Object, ByVal e As EventArgs) 
+    Private Sub ToolBarToolStripMenuItem_Click(ByVal sender As Object, ByVal e As EventArgs)
         '旧工具栏菜单项已从 Designer 移除，保留事件入口以兼容历史调用。
     End Sub
 
-    Private Sub StatusBarToolStripMenuItem_Click(ByVal sender As Object, ByVal e As EventArgs) 
-        '旧状态栏菜单项已从 Designer 移除，保留事件入口以兼容历史调用。
-    End Sub
-
-    Private Sub CascadeToolStripMenuItem_Click(ByVal sender As Object, ByVal e As EventArgs) 
+    Private Sub CascadeToolStripMenuItem_Click(ByVal sender As Object, ByVal e As EventArgs)
         Me.LayoutMdi(MdiLayout.Cascade)
     End Sub
 
-    Private Sub TileVerticalToolStripMenuItem_Click(ByVal sender As Object, ByVal e As EventArgs) 
+    Private Sub TileVerticalToolStripMenuItem_Click(ByVal sender As Object, ByVal e As EventArgs)
         Me.LayoutMdi(MdiLayout.TileVertical)
     End Sub
 
-    Private Sub TileHorizontalToolStripMenuItem_Click(ByVal sender As Object, ByVal e As EventArgs) 
+    Private Sub TileHorizontalToolStripMenuItem_Click(ByVal sender As Object, ByVal e As EventArgs)
         Me.LayoutMdi(MdiLayout.TileHorizontal)
     End Sub
 
-    Private Sub ArrangeIconsToolStripMenuItem_Click(ByVal sender As Object, ByVal e As EventArgs) 
+    Private Sub ArrangeIconsToolStripMenuItem_Click(ByVal sender As Object, ByVal e As EventArgs)
         Me.LayoutMdi(MdiLayout.ArrangeIcons)
     End Sub
 
-    Private Sub CloseAllToolStripMenuItem_Click(ByVal sender As Object, ByVal e As EventArgs) 
+    Private Sub CloseAllToolStripMenuItem_Click(ByVal sender As Object, ByVal e As EventArgs)
         ' 鍏抽棴姝ょ埗绐椾綋鐨勬墍鏈夊瓙绐椾綋銆?
         For Each ChildForm As Form In Me.MdiChildren
             ChildForm.Close()
@@ -126,7 +123,7 @@ Public Class MDIForm
     Private Sub ExitTool_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles ExitTool.Click
         Me.Dispose()
     End Sub
-    Private Sub AboutToolStripMenuItem_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) 
+    Private Sub AboutToolStripMenuItem_Click(ByVal sender As System.Object, ByVal e As System.EventArgs)
         Dim obj_frmAbout As Form
         obj_frmAbout = New frmAbout
         obj_frmAbout.ShowDialog()
@@ -227,7 +224,6 @@ Public Class MDIForm
         ApplyMdiClientLayout()
 
         'R2-17:数据库检查改成异步 (在 Shown 事件里 Task.Run),Load 阶段只显示占位状态
-        Me.status_DataBase.Text = "数据库：检查中"
         blnOnLine = False
 
         ApplyOperatorPermissions()
@@ -274,8 +270,7 @@ Public Class MDIForm
         Next
         If mdiClient Is Nothing Then Return
 
-        '底部状态控件是运行时新增的。让 WinForms 按 Dock 顺序自然计算 MDI 客户区，
-        '避免缓存一个过期的 Bounds；菜单栏和底部状态栏占用的空间会自动从 Fill 中扣除。
+        '让 WinForms 按 Dock 顺序自然计算 MDI 客户区，避免缓存过期的 Bounds。
         applyingMdiClientLayout = True
         Try
             If MenuStrip.Dock <> DockStyle.Top Then MenuStrip.Dock = DockStyle.Top
@@ -283,9 +278,13 @@ Public Class MDIForm
             If mdiClient.Dock <> DockStyle.Fill Then mdiClient.Dock = DockStyle.Fill
 
             If Not mdiLayoutOrderApplied Then
-                MenuStrip.BringToFront()
-                bottomStatusControl.BringToFront()
-                mdiClient.SendToBack()
+                '多个 Dock = Top/Bottom 控件的上下位置取决于 Controls 集合顺序。
+                'BringToFront 会把 MenuStrip 移到错误的索引，导致运行时 ToolStrip 出现在菜单上方。
+                '按设计器中的顺序显式设置索引：菜单在工具栏上方，底部状态控件位于最下方。
+                Controls.SetChildIndex(ToolStrip, 0)
+                Controls.SetChildIndex(MenuStrip, 1)
+                Controls.SetChildIndex(bottomStatusControl, 2)
+                Controls.SetChildIndex(mdiClient, Controls.Count - 1)
                 mdiLayoutOrderApplied = True
             End If
         Finally
@@ -303,30 +302,101 @@ Public Class MDIForm
 
     Private Sub UpdateBottomStatus()
         If bottomStatusControl Is Nothing Then Return
-        bottomStatusControl.UpdateStatus( _
-            "OCV1", _
-            If(controlBoardConnected, "已连接", "未连接"), _
-            If(plcConnected, "已连接", "未连接"), _
-            If(IsSuccessfulStatus(status_34461, "端口正常", "通讯成功"), "已连接", "未连接"), _
-            If(IsSuccessfulStatus(status_3561, "端口正常", "通讯成功") AndAlso Com_3561 IsNot Nothing AndAlso Com_3561.IsOpen, "已连接", "未连接"), _
-            If(databaseConnected, "已连接", "未连接"), _
-            If(IsSuccessfulStatus(StatusMes, "连接正常"), "已连接", "未连接"), _
-            If(String.IsNullOrWhiteSpace(operatorName), "Admin", operatorName), _
+        bottomStatusControl.UpdateStatus(
+            "OCV1",
+            If(controlBoardConnected, "已连接", "未连接"),
+            If(plcConnected, "已连接", "未连接"),
+            If(dmm34461Connected, "已连接", "未连接"),
+            If(resistance3561Connected AndAlso Com_3561 IsNot Nothing AndAlso Com_3561.IsOpen, "已连接", "未连接"),
+            If(databaseConnected, "已连接", "未连接"),
+            If(mesConnected, "已连接", "未连接"),
+            If(String.IsNullOrWhiteSpace(operatorName), "Admin", operatorName),
             DateTime.Now)
     End Sub
 
-    Private Shared Function IsSuccessfulStatus(ByVal statusLabel As System.Windows.Forms.ToolStripItem,
-                                                ParamArray successMarkers() As String) As Boolean
-        If statusLabel Is Nothing OrElse String.IsNullOrWhiteSpace(statusLabel.Text) Then Return False
-        For Each marker As String In successMarkers
-            If statusLabel.Text.IndexOf(marker, StringComparison.OrdinalIgnoreCase) >= 0 Then Return True
-        Next
-        Return False
+    Private dmm34461Connected As Boolean
+    Private resistance3561Connected As Boolean
+    Private mesConnected As Boolean
+    Private startupExternalChecksStarted As Integer
+
+    '供启动期后台设备检查完成后刷新底部状态控件。
+    Public Sub UpdateDeviceCheckStatus(ByVal dmmStatus As Short,
+                                       ByVal resistanceStatus As Short,
+                                       ByVal mesStatus As Short)
+        '现有设备检查函数的成功码不同：34461=0，3561=1，MES=1。
+        dmm34461Connected = (dmmStatus = 0)
+        resistance3561Connected = (resistanceStatus = 1)
+        mesConnected = (mesStatus = 1)
+        UpdateBottomStatus()
+    End Sub
+
+    ''' <summary>
+    ''' Displays one startup summary for failed external-device checks.
+    ''' </summary>
+    Public Sub ShowStartupDeviceFailurePrompt(ByVal result As StartupDeviceCheckResult)
+        If result Is Nothing OrElse Not result.HasFailures Then Return
+        If Threading.Interlocked.Exchange(startupDeviceFailurePromptShown, 1) = 1 Then Return
+
+        Dim message As New System.Text.StringBuilder()
+        message.AppendLine("启动设备检查发现以下设备未连接：")
+        If result.Scm <> 1 Then
+            AppendStartupFailure(message, result, "SCM", "控制模块（COM" & (Initsetting.SCMComPort + 1).ToString() & "）")
+        End If
+        If result.Dmm34461 <> 0 Then
+            AppendStartupFailure(message, result, "34461", "数字万用表（" & DisplayOrDefault(Initsetting.IpAddOf34461, "地址未配置") & "）")
+        End If
+        If result.Resistance3561 <> 1 Then
+            AppendStartupFailure(message, result, "3561", "内阻仪（COM" & (Initsetting.Recom + 1).ToString() & "）")
+        End If
+        If result.Plc <> 1 Then
+            AppendStartupFailure(message, result, "PLC", FormatPlcDisplayName())
+        End If
+        If result.Mes <> 1 Then
+            AppendStartupFailure(message, result, "MES", "MES（" & DisplayOrDefault(Initsetting.MesApiAddress, "地址未配置") & "）")
+        End If
+
+        message.AppendLine()
+        message.Append("请检查设备供电、通信线缆、串口号及通信参数后再进行测试。")
+        MessageBox.Show(Me,
+                        message.ToString(),
+                        "设备连接检查",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning)
+    End Sub
+
+    Private Function FormatPlcDisplayName() As String
+        If Initsetting.PLCMode = 1 Then
+            Dim port As Integer = If(Initsetting.PLCTcpPort > 0, Initsetting.PLCTcpPort, 502)
+            Return "PLC（TCP " & DisplayOrDefault(Initsetting.PLCIP, "地址未配置") & ":" & port.ToString() & "）"
+        End If
+        Return "PLC（COM" & (Initsetting.PLCComPort + 1).ToString() & "）"
     End Function
 
-    '供启动期后台设备检查完成后刷新底部状态栏。
-    Public Sub UpdateBottomStatusForDeviceCheck()
-        UpdateBottomStatus()
+    Private Shared Function DisplayOrDefault(ByVal value As String, ByVal defaultValue As String) As String
+        If String.IsNullOrWhiteSpace(value) Then Return defaultValue
+        Return value.Trim()
+    End Function
+
+    Private Shared Sub AppendStartupFailure(ByVal message As System.Text.StringBuilder,
+                                             ByVal result As StartupDeviceCheckResult,
+                                             ByVal key As String,
+                                             ByVal displayName As String)
+        Dim reason As String = Nothing
+        If Not result.FailureReasons.TryGetValue(key, reason) OrElse String.IsNullOrWhiteSpace(reason) Then
+            reason = "检查返回失败"
+        End If
+        message.AppendLine("- " & displayName & "：" & reason)
+    End Sub
+
+    ''' <summary>
+    ''' Starts the external-device and database checks once after the first MDI page is shown.
+    ''' </summary>
+    Public Sub StartExternalDeviceChecksAsync()
+        If ApplicationShuttingDown OrElse IsDisposed Then Return
+        If Threading.Interlocked.Exchange(startupExternalChecksStarted, 1) = 1 Then Return
+
+        MainwindowsShowAsync(Me)
+        StartDatabaseHealthCheckAsync()
     End Sub
 
     'Shown 只负责调度测试页；数据库检查由首屏后的后台阶段启动。
@@ -337,6 +407,9 @@ Public Class MDIForm
         Try
             Me.BeginInvoke(New Action(Sub()
                 OnLineTest_Click(sender, e)
+                '窗体已经显示并完成首个 MDI 子窗体创建后，可靠启动设备/数据库检查。
+                '不能只依赖 frmTest.Paint：MDI 子窗体首次显示时该事件可能不会再次触发。
+                StartExternalDeviceChecksAsync()
                 'frmTest 在此回调中才真正创建并最大化;再排队一次,确保它读取到
                 'Shown 完成后的最终 MdiClient 客户区,而不是创建瞬间的旧尺寸。
                 Me.BeginInvoke(New MethodInvoker(AddressOf NormalizeInitialMdiChildLayout))
@@ -374,7 +447,6 @@ Public Class MDIForm
                 Me.BeginInvoke(New Action(Sub()
                     If Me.IsDisposed Then Return
                     databaseConnected = ready
-                    Me.status_DataBase.Text = If(ready, "数据库：已连接", "数据库：未连接")
                     If Not ready Then SetTestEntryEnabled(False)
                     UpdateBottomStatus()
                 End Sub))
@@ -410,16 +482,6 @@ Public Class MDIForm
             Return False
         End Try
     End Function
-
-    'R2-17 跨线程安全的 UI 写入包装
-    Private Sub UpdateDbStatusSafe(ByVal text As String)
-        If Me.IsDisposed Then Return
-        If Me.InvokeRequired Then
-            Me.BeginInvoke(New Action(Of String)(AddressOf UpdateDbStatusSafe), text)
-            Return
-        End If
-        Me.status_DataBase.Text = text
-    End Sub
 
     Private Sub SetTestEntryEnabledSafe(ByVal enabled As Boolean)
         If Me.IsDisposed Then Return
@@ -543,70 +605,6 @@ Public Class MDIForm
         ReadInitFile()
     End Sub
 
-    Private Sub Timer1_Tick(sender As Object, e As EventArgs) Handles Timer1.Tick
-        Return
-        ' 浠呭湪 mSock 涓嶅彲鐢ㄦ椂閲嶅缓杩炴帴锛涙甯告儏鍐典笅杞鎵樼洏鐘舵€?+ 澶氶€氶亾瀹屾垚浣?
-        Dim temp As Byte()
-        Dim msg1 As String = ""
-
-        ' 1. 鑻?mSock 涓虹┖鎴栧凡鍏抽棴,閲嶅缓杩炴帴(閬垮厤姣忕閮?Close+Connect 鐨勯鏆?
-        If mSock Is Nothing Then
-            Dim mClientTCP As New TcpClient()
-            Dim sock As Socket = mClientTCP.Client
-            Dim myIP As IPAddress = IPAddress.Parse(Initsetting.SCMIpAdd)
-            Dim ipe As New IPEndPoint(myIP, Initsetting.SCM_port)
-            Dim msg = ConnectTCP(sock, ipe)
-            If msg <> "" Then
-                ' 杩炴帴澶辫触涓嶅脊妗?閬垮厤瀹氭椂鍣ㄥ埛灞?,浠呰褰曞埌鐘舵€佹爮
-            status_com.Text = "单片机重连中..."
-                Return
-            End If
-            mSock = New SocketCtrolCmd(sock, AddressOf ParseBuffer, Initsetting.SCM_port, ipe)
-            mSocket = sock
-            status_com.Text = "单片机端口正常"
-            Return
-        End If
-
-        ' 2. 鏌ヨ鎵樼洏鐘舵€?
-        Try
-            temp = mSock.GetSignalTrayStatus
-            msg1 = mSock.Send(temp)
-        Catch ex As Exception
-            ' 涓綅鏈烘柇绾?- 閲婃斁 mSock 璁╀笅涓€杞噸杩?
-            Try : mSock.Close() : Catch : End Try
-            mSock = Nothing
-            Return
-        End Try
-
-        SetSock(mSock)
-        Me.Cursor = Cursors.Default
-        Dim bytes(500) As Byte
-        Dim bytesRec As Integer = 0
-
-        Try
-            mSocket.ReceiveTimeout = 2000
-            bytesRec = mSocket.Receive(bytes)
-        Catch
-            bytesRec = 0
-        End Try
-
-        If bytesRec > 4 AndAlso bytes(4) = 1 Then
-            fixtureClose = True
-            txtTesting.Text = ChrW(&H6258) & ChrW(&H76D8) & ChrW(&H5DF2) & ChrW(&H5173) & ChrW(&H95ED)
-        Else
-            txtTesting.Text = ChrW(&H6258) & ChrW(&H76D8) & ChrW(&H5DF2) & ChrW(&H6253) & ChrW(&H5F00)
-        End If
-
-        ' 3. 鏌ヨ澶氶€氶亾瀹屾垚浣?
-        Try
-            temp = mSock.GetSignalMutiChannelTestFinish()
-            msg1 = mSock.Send(temp)
-            mSocket.ReceiveTimeout = 2000
-            bytesRec = mSocket.Receive(bytes)
-        Catch
-            bytesRec = 0
-        End Try
-    End Sub
     Private Sub SetSock(ByVal Sock As SocketCtrolCmd)
         mSock = Sock
         For i As Integer = 0 To FrmLink.Count - 1

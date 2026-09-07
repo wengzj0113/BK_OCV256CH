@@ -296,6 +296,12 @@ Public Class SerialMiddleMachineClient
         ResetToDefaults()
         WriteRegister(RegSpeed, speedValue)
 
+        '两组都参与测试时才需要两遍交叉：第一遍 G1 测内阻/G2 测电压，
+        '第二遍交换仪表。单组测试（包括 NG 复测）若继续使用两遍，
+        '同一批通道会被触发两次，导致仪表缓存记录数翻倍。
+        Dim twoPassValue As UShort = If(hasG1 AndAlso hasG2, CUShort(0), CUShort(1))
+        WriteRegister(RegTwoPass, twoPassValue)
+
         Dim synchronizedPlan As Boolean = IsSynchronizedPlan(plan)
         If synchronizedPlan Then
             WriteRegister(RegSyncMode, &H0)
@@ -763,6 +769,8 @@ Public Class SerialMiddleMachineClient
 
         ExpectRegister(advanced, RegG1PlanMode, RegSyncMode, If(IsSynchronizedPlan(plan), CUShort(0), CUShort(1)))
         ExpectRegister(basic, RegG1Start, RegSpeed, speedValue)
+        Dim expectedTwoPass As UShort = If(hasG1 AndAlso hasG2, CUShort(0), CUShort(1))
+        ExpectRegister(basic, RegG1Start, RegTwoPass, expectedTwoPass)
         ExpectRegister(advanced, RegG1PlanMode, RegGroupEnable, GetGroupEnableValue(hasG1, hasG2))
 
         If hasG1 Then
