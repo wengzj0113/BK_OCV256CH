@@ -1,7 +1,13 @@
 Imports System.IO
 Imports System.Runtime.InteropServices
+Imports System.Drawing
 Public Class frmInit
     Dim TempInitsetting As Initset
+    Private channelPassColor As Color
+    Private channelTestingColor As Color
+    Private channelIdleColor As Color
+    Private channelResistanceNgColor As Color
+    Private channelVoltageNgColor As Color
 
     Private Sub SetScmTimingOperationState(isBusy As Boolean)
         btnScmRead.Enabled = Not isBusy
@@ -165,18 +171,95 @@ Public Class frmInit
             Initsetting = TempInitsetting
 
             Call SaveInitFile()
+            ApplyColorsToOpenTestForm()
             End
 
         Else
+            Initsetting = TempInitsetting
+            Call SaveInitFile()
+            ApplyColorsToOpenTestForm()
             Me.Close()
         End If
     End Sub
     Private Sub Button1_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles Button1.Click
         Me.Close()
     End Sub
+
+    Private Sub ApplyColorsToOpenTestForm()
+        If frmMDI Is Nothing OrElse frmMDI.IsDisposed Then Return
+        For Each child As Form In frmMDI.MdiChildren
+            Dim testForm As frmTest = TryCast(child, frmTest)
+            If testForm IsNot Nothing AndAlso Not testForm.IsDisposed Then
+                testForm.ApplyConfiguredChannelColors()
+            End If
+        Next
+    End Sub
+
+    Private Sub LoadChannelColors()
+        Dim palette As ChannelStatusColors = ChannelColorSettings.FromInitset(Initsetting)
+        channelPassColor = palette.PassColor
+        channelTestingColor = palette.TestingColor
+        channelIdleColor = palette.IdleColor
+        channelResistanceNgColor = palette.ResistanceNgColor
+        channelVoltageNgColor = palette.VoltageNgColor
+        RefreshChannelColorPreview()
+    End Sub
+
+    Private Sub RefreshChannelColorPreview()
+        SetChannelColorPreview(pnlPassColor, txtPassColor, channelPassColor)
+        SetChannelColorPreview(pnlTestingColor, txtTestingColor, channelTestingColor)
+        SetChannelColorPreview(pnlIdleColor, txtIdleColor, channelIdleColor)
+        SetChannelColorPreview(pnlResistanceNgColor, txtResistanceNgColor, channelResistanceNgColor)
+        SetChannelColorPreview(pnlVoltageNgColor, txtVoltageNgColor, channelVoltageNgColor)
+    End Sub
+
+    Private Shared Sub SetChannelColorPreview(preview As Panel, valueText As TextBox, value As Color)
+        Dim opaqueValue As Color = ChannelStatusColors.NormalizeOpaque(value)
+        preview.BackColor = opaqueValue
+        valueText.Text = String.Format("#{0:X2}{1:X2}{2:X2}", opaqueValue.R, opaqueValue.G, opaqueValue.B)
+    End Sub
+
+    Private Sub ChooseChannelColor(current As Color, ByRef target As Color, preview As Panel, valueText As TextBox)
+        colorDialogChannel.Color = current
+        If colorDialogChannel.ShowDialog(Me) <> DialogResult.OK Then Return
+        target = ChannelStatusColors.NormalizeOpaque(colorDialogChannel.Color)
+        SetChannelColorPreview(preview, valueText, target)
+    End Sub
+
+    Private Sub btnPassColor_Click(sender As Object, e As EventArgs) Handles btnPassColor.Click
+        ChooseChannelColor(channelPassColor, channelPassColor, pnlPassColor, txtPassColor)
+    End Sub
+
+    Private Sub btnTestingColor_Click(sender As Object, e As EventArgs) Handles btnTestingColor.Click
+        ChooseChannelColor(channelTestingColor, channelTestingColor, pnlTestingColor, txtTestingColor)
+    End Sub
+
+    Private Sub btnIdleColor_Click(sender As Object, e As EventArgs) Handles btnIdleColor.Click
+        ChooseChannelColor(channelIdleColor, channelIdleColor, pnlIdleColor, txtIdleColor)
+    End Sub
+
+    Private Sub btnResistanceNgColor_Click(sender As Object, e As EventArgs) Handles btnResistanceNgColor.Click
+        ChooseChannelColor(channelResistanceNgColor, channelResistanceNgColor, pnlResistanceNgColor, txtResistanceNgColor)
+    End Sub
+
+    Private Sub btnVoltageNgColor_Click(sender As Object, e As EventArgs) Handles btnVoltageNgColor.Click
+        ChooseChannelColor(channelVoltageNgColor, channelVoltageNgColor, pnlVoltageNgColor, txtVoltageNgColor)
+    End Sub
+
+    Private Sub btnResetChannelColors_Click(sender As Object, e As EventArgs) Handles btnResetChannelColors.Click
+        Dim palette As ChannelStatusColors = ChannelColorSettings.CreateDefaultPalette()
+        channelPassColor = palette.PassColor
+        channelTestingColor = palette.TestingColor
+        channelIdleColor = palette.IdleColor
+        channelResistanceNgColor = palette.ResistanceNgColor
+        channelVoltageNgColor = palette.VoltageNgColor
+        RefreshChannelColorPreview()
+    End Sub
+
     Private Sub frmInit_Load(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles MyBase.Load
         Dim I As Int16
         InitializeRetest3562Controls()
+        LoadChannelColors()
         CmbRecom.Items.Clear()
         cmb_ScanerPort.Items.Clear()
         CmbIORecom.Items.Clear()
@@ -374,6 +457,13 @@ Public Class frmInit
         ElseIf radioOCV2Set.Checked Then 
             TempInitsetting.stationSelect = 2
         End If
+        ChannelColorSettings.ApplyToInitset(
+            TempInitsetting,
+            New ChannelStatusColors(channelPassColor,
+                                    channelTestingColor,
+                                    channelIdleColor,
+                                    channelResistanceNgColor,
+                                    channelVoltageNgColor))
         Return True
     End Function
 

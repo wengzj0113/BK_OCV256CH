@@ -39,6 +39,7 @@ Public Class frmTest
     Private lastTestSelection As TestChannelSelection
     Private currentTestChannels As List(Of Integer)
     Private ReadOnly testingChannelNumbers As New HashSet(Of Integer)()
+    Private channelStatusColors As ChannelStatusColors = ChannelStatusColors.CreateDefault()
     Public autoStartFlag As Boolean '自动测试标志
     Public haveNgPoint As Boolean '存在NG的点
     Public hjwd As String
@@ -80,6 +81,8 @@ Public Class frmTest
         lblBarNum.Text = "*"
         ReadInitFile()
         StartupTiming.Mark("frmTest-read-init")
+        channelStatusColors = ChannelColorSettings.FromInitset(Initsetting)
+        channelGrid.ApplyStatusColors(channelStatusColors)
         ConfigureStationControls()
         StartupTiming.Mark("frmTest-station-controls")
         '合格范围
@@ -2294,18 +2297,7 @@ exit_sub:
         Dim row As Integer = (index Mod intRow) + 1
         Dim column As Integer = (index \ intRow) + 1
         Dim resultText As String = If(RecieveData(index).Result, String.Empty).Trim()
-        Dim statusText As String
-        If testingChannelNumbers.Contains(channelNo) Then
-            statusText = "TESTING"
-        ElseIf String.Equals(resultText, "NG", StringComparison.OrdinalIgnoreCase) Then
-            statusText = "NG"
-        ElseIf String.Equals(resultText, "OK", StringComparison.OrdinalIgnoreCase) OrElse String.Equals(resultText, "PASS", StringComparison.OrdinalIgnoreCase) Then
-            statusText = "PASS"
-        ElseIf String.IsNullOrWhiteSpace(RecieveData(index).BatCode) Then
-            statusText = "IDLE"
-        Else
-            statusText = "WAITING"
-        End If
+        Dim statusText As String = GetChannelStatusText(channelNo, resultText)
 
         Return New ChannelDisplayData With {
             .ChannelNo = channelNo,
@@ -2318,6 +2310,54 @@ exit_sub:
             .ResultText = resultText
         }
     End Function
+
+    Private Function GetChannelStatusText(ByVal channelNo As Integer, ByVal resultText As String) As String
+        Select Case GetChannelStatusKind(channelNo, resultText)
+            Case ChannelStatusKind.Pass
+                Return "PASS"
+            Case ChannelStatusKind.Testing
+                Return "TESTING"
+            Case ChannelStatusKind.ResistanceNg
+                Return "RESISTANCE_NG"
+            Case ChannelStatusKind.VoltageNg
+                Return "VOLTAGE_NG"
+            Case Else
+                Return "IDLE"
+        End Select
+    End Function
+
+    Private Function GetChannelStatusKind(ByVal channelNo As Integer, ByVal resultText As String) As ChannelStatusKind
+        If testingChannelNumbers.Contains(channelNo) Then Return ChannelStatusKind.Testing
+
+        If String.Equals(resultText, "OK", StringComparison.OrdinalIgnoreCase) OrElse
+           String.Equals(resultText, "PASS", StringComparison.OrdinalIgnoreCase) Then
+            Return ChannelStatusKind.Pass
+        End If
+
+        If String.Equals(resultText, "NG", StringComparison.OrdinalIgnoreCase) Then
+            Dim item As Bat_info = RecieveData(channelNo - 1)
+            Dim voltageMillivolts As Single = item.Voltage * 1000.0F
+            Dim voltageNg As Boolean = voltageMillivolts > Initsetting.upVoltage OrElse
+                                       voltageMillivolts < Initsetting.downVoltage
+            Dim resistanceNg As Boolean = item.Resistance > Initsetting.upResistance OrElse
+                                          item.Resistance < Initsetting.downResistance
+            If resistanceNg Then Return ChannelStatusKind.ResistanceNg
+            If voltageNg Then Return ChannelStatusKind.VoltageNg
+        End If
+
+        Return ChannelStatusKind.Idle
+    End Function
+
+    Public Sub ApplyConfiguredChannelColors()
+        If IsDisposed OrElse channelGrid Is Nothing OrElse channelGrid.IsDisposed Then Return
+        If InvokeRequired Then
+            BeginInvoke(New MethodInvoker(AddressOf ApplyConfiguredChannelColors))
+            Return
+        End If
+        channelStatusColors = ChannelColorSettings.FromInitset(Initsetting)
+        channelGrid.ApplyStatusColors(channelStatusColors)
+        RefreshChannelOverview()
+    End Sub
 
     Private Sub HandleChannelSelected(ByVal sender As Object, ByVal e As ChannelSelectedEventArgs) Handles channelGrid.ChannelSelected
         If e Is Nothing Then Return

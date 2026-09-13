@@ -9,6 +9,9 @@ Partial Class frmInit
             If disposing AndAlso components IsNot Nothing Then
                 components.Dispose()
             End If
+            If disposing AndAlso colorDialogChannel IsNot Nothing Then
+                colorDialogChannel.Dispose()
+            End If
         Finally
             MyBase.Dispose(disposing)
         End Try
@@ -134,6 +137,31 @@ Partial Class frmInit
         Me.Label33 = New System.Windows.Forms.Label()
         Me.Label32 = New System.Windows.Forms.Label()
         Me.TabScmSet = New System.Windows.Forms.TabPage()
+        Me.TabPageChannelColors = New System.Windows.Forms.TabPage()
+        Me.GroupBoxChannelColors = New System.Windows.Forms.GroupBox()
+        Me.lblChannelColorHint = New System.Windows.Forms.Label()
+        Me.lblPassColor = New System.Windows.Forms.Label()
+        Me.pnlPassColor = New System.Windows.Forms.Panel()
+        Me.txtPassColor = New System.Windows.Forms.TextBox()
+        Me.btnPassColor = New System.Windows.Forms.Button()
+        Me.lblTestingColor = New System.Windows.Forms.Label()
+        Me.pnlTestingColor = New System.Windows.Forms.Panel()
+        Me.txtTestingColor = New System.Windows.Forms.TextBox()
+        Me.btnTestingColor = New System.Windows.Forms.Button()
+        Me.lblIdleColor = New System.Windows.Forms.Label()
+        Me.pnlIdleColor = New System.Windows.Forms.Panel()
+        Me.txtIdleColor = New System.Windows.Forms.TextBox()
+        Me.btnIdleColor = New System.Windows.Forms.Button()
+        Me.lblResistanceNgColor = New System.Windows.Forms.Label()
+        Me.pnlResistanceNgColor = New System.Windows.Forms.Panel()
+        Me.txtResistanceNgColor = New System.Windows.Forms.TextBox()
+        Me.btnResistanceNgColor = New System.Windows.Forms.Button()
+        Me.lblVoltageNgColor = New System.Windows.Forms.Label()
+        Me.pnlVoltageNgColor = New System.Windows.Forms.Panel()
+        Me.txtVoltageNgColor = New System.Windows.Forms.TextBox()
+        Me.btnVoltageNgColor = New System.Windows.Forms.Button()
+        Me.btnResetChannelColors = New System.Windows.Forms.Button()
+        Me.colorDialogChannel = New System.Windows.Forms.ColorDialog()
         Me.lblScmStatus = New System.Windows.Forms.Label()
         Me.btnScmApply = New System.Windows.Forms.Button()
         Me.btnScmRead = New System.Windows.Forms.Button()
@@ -179,6 +207,8 @@ Partial Class frmInit
         Me.TabPage3.SuspendLayout()
         Me.TabPage4.SuspendLayout()
         Me.TabScmSet.SuspendLayout()
+        Me.TabPageChannelColors.SuspendLayout()
+        Me.GroupBoxChannelColors.SuspendLayout()
         Me.GroupBox7.SuspendLayout()
         Me.GB_MesDataBase.SuspendLayout()
         Me.SuspendLayout()
@@ -190,6 +220,7 @@ Partial Class frmInit
         Me.TabControl1.Controls.Add(Me.TabPage3)
         Me.TabControl1.Controls.Add(Me.TabPage4)
         Me.TabControl1.Controls.Add(Me.TabScmSet)
+        Me.TabControl1.Controls.Add(Me.TabPageChannelColors)
         Me.TabControl1.HotTrack = True
         Me.TabControl1.ImeMode = System.Windows.Forms.ImeMode.NoControl
         Me.TabControl1.Location = New System.Drawing.Point(12, 12)
@@ -1488,8 +1519,242 @@ Partial Class frmInit
         Me.lblScmRelaySettleMs.TabIndex = 0
         Me.lblScmRelaySettleMs.Text = "继电器稳定时间"
         '
-        'CmdOK
+        'TabPageChannelColors
         '
+        Me.TabPageChannelColors.BackColor = System.Drawing.Color.LightBlue
+        Me.TabPageChannelColors.Controls.Add(Me.GroupBoxChannelColors)
+        Me.TabPageChannelColors.Location = New System.Drawing.Point(4, 22)
+        Me.TabPageChannelColors.Name = "TabPageChannelColors"
+        Me.TabPageChannelColors.Padding = New System.Windows.Forms.Padding(3)
+        Me.TabPageChannelColors.Size = New System.Drawing.Size(383, 550)
+        Me.TabPageChannelColors.TabIndex = 5
+        Me.TabPageChannelColors.Text = "通道颜色"
+        '
+        'GroupBoxChannelColors
+        '
+        Me.GroupBoxChannelColors.Controls.Add(Me.btnResetChannelColors)
+        Me.GroupBoxChannelColors.Controls.Add(Me.btnVoltageNgColor)
+        Me.GroupBoxChannelColors.Controls.Add(Me.txtVoltageNgColor)
+        Me.GroupBoxChannelColors.Controls.Add(Me.pnlVoltageNgColor)
+        Me.GroupBoxChannelColors.Controls.Add(Me.lblVoltageNgColor)
+        Me.GroupBoxChannelColors.Controls.Add(Me.btnResistanceNgColor)
+        Me.GroupBoxChannelColors.Controls.Add(Me.txtResistanceNgColor)
+        Me.GroupBoxChannelColors.Controls.Add(Me.pnlResistanceNgColor)
+        Me.GroupBoxChannelColors.Controls.Add(Me.lblResistanceNgColor)
+        Me.GroupBoxChannelColors.Controls.Add(Me.btnIdleColor)
+        Me.GroupBoxChannelColors.Controls.Add(Me.txtIdleColor)
+        Me.GroupBoxChannelColors.Controls.Add(Me.pnlIdleColor)
+        Me.GroupBoxChannelColors.Controls.Add(Me.lblIdleColor)
+        Me.GroupBoxChannelColors.Controls.Add(Me.btnTestingColor)
+        Me.GroupBoxChannelColors.Controls.Add(Me.txtTestingColor)
+        Me.GroupBoxChannelColors.Controls.Add(Me.pnlTestingColor)
+        Me.GroupBoxChannelColors.Controls.Add(Me.lblTestingColor)
+        Me.GroupBoxChannelColors.Controls.Add(Me.btnPassColor)
+        Me.GroupBoxChannelColors.Controls.Add(Me.txtPassColor)
+        Me.GroupBoxChannelColors.Controls.Add(Me.pnlPassColor)
+        Me.GroupBoxChannelColors.Controls.Add(Me.lblPassColor)
+        Me.GroupBoxChannelColors.Controls.Add(Me.lblChannelColorHint)
+        Me.GroupBoxChannelColors.Location = New System.Drawing.Point(8, 8)
+        Me.GroupBoxChannelColors.Name = "GroupBoxChannelColors"
+        Me.GroupBoxChannelColors.Size = New System.Drawing.Size(367, 475)
+        Me.GroupBoxChannelColors.TabIndex = 0
+        Me.GroupBoxChannelColors.TabStop = False
+        Me.GroupBoxChannelColors.Text = "通道状态颜色"
+        '
+        'lblChannelColorHint
+        '
+        Me.lblChannelColorHint.AutoSize = False
+        Me.lblChannelColorHint.Location = New System.Drawing.Point(14, 24)
+        Me.lblChannelColorHint.Name = "lblChannelColorHint"
+        Me.lblChannelColorHint.Size = New System.Drawing.Size(338, 36)
+        Me.lblChannelColorHint.TabIndex = 0
+        Me.lblChannelColorHint.Text = "点击选择颜色修改通道格颜色，点击恢复默认恢复约定颜色。保存后应用到主页面和测试过程。"
+        '
+        'lblPassColor
+        '
+        Me.lblPassColor.AutoSize = True
+        Me.lblPassColor.Location = New System.Drawing.Point(16, 82)
+        Me.lblPassColor.Name = "lblPassColor"
+        Me.lblPassColor.Size = New System.Drawing.Size(53, 12)
+        Me.lblPassColor.TabIndex = 1
+        Me.lblPassColor.Text = "PASS（绿色）"
+        '
+        'pnlPassColor
+        '
+        Me.pnlPassColor.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
+        Me.pnlPassColor.Location = New System.Drawing.Point(112, 73)
+        Me.pnlPassColor.Name = "pnlPassColor"
+        Me.pnlPassColor.Size = New System.Drawing.Size(42, 27)
+        Me.pnlPassColor.TabIndex = 2
+        '
+        'txtPassColor
+        '
+        Me.txtPassColor.Location = New System.Drawing.Point(164, 76)
+        Me.txtPassColor.Name = "txtPassColor"
+        Me.txtPassColor.ReadOnly = True
+        Me.txtPassColor.Size = New System.Drawing.Size(100, 21)
+        Me.txtPassColor.TabIndex = 3
+        Me.txtPassColor.TextAlign = System.Windows.Forms.HorizontalAlignment.Center
+        '
+        'btnPassColor
+        '
+        Me.btnPassColor.Location = New System.Drawing.Point(278, 73)
+        Me.btnPassColor.Name = "btnPassColor"
+        Me.btnPassColor.Size = New System.Drawing.Size(75, 27)
+        Me.btnPassColor.TabIndex = 4
+        Me.btnPassColor.Text = "选择颜色"
+        Me.btnPassColor.UseVisualStyleBackColor = True
+        '
+        'lblTestingColor
+        '
+        Me.lblTestingColor.AutoSize = True
+        Me.lblTestingColor.Location = New System.Drawing.Point(16, 137)
+        Me.lblTestingColor.Name = "lblTestingColor"
+        Me.lblTestingColor.Size = New System.Drawing.Size(65, 12)
+        Me.lblTestingColor.TabIndex = 5
+        Me.lblTestingColor.Text = "测试中（蓝色）"
+        '
+        'pnlTestingColor
+        '
+        Me.pnlTestingColor.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
+        Me.pnlTestingColor.Location = New System.Drawing.Point(112, 128)
+        Me.pnlTestingColor.Name = "pnlTestingColor"
+        Me.pnlTestingColor.Size = New System.Drawing.Size(42, 27)
+        Me.pnlTestingColor.TabIndex = 6
+        '
+        'txtTestingColor
+        '
+        Me.txtTestingColor.Location = New System.Drawing.Point(164, 131)
+        Me.txtTestingColor.Name = "txtTestingColor"
+        Me.txtTestingColor.ReadOnly = True
+        Me.txtTestingColor.Size = New System.Drawing.Size(100, 21)
+        Me.txtTestingColor.TabIndex = 7
+        Me.txtTestingColor.TextAlign = System.Windows.Forms.HorizontalAlignment.Center
+        '
+        'btnTestingColor
+        '
+        Me.btnTestingColor.Location = New System.Drawing.Point(278, 128)
+        Me.btnTestingColor.Name = "btnTestingColor"
+        Me.btnTestingColor.Size = New System.Drawing.Size(75, 27)
+        Me.btnTestingColor.TabIndex = 8
+        Me.btnTestingColor.Text = "选择颜色"
+        Me.btnTestingColor.UseVisualStyleBackColor = True
+        '
+        'lblIdleColor
+        '
+        Me.lblIdleColor.AutoSize = True
+        Me.lblIdleColor.Location = New System.Drawing.Point(16, 192)
+        Me.lblIdleColor.Name = "lblIdleColor"
+        Me.lblIdleColor.Size = New System.Drawing.Size(77, 12)
+        Me.lblIdleColor.TabIndex = 9
+        Me.lblIdleColor.Text = "空闲（铁灰色）"
+        '
+        'pnlIdleColor
+        '
+        Me.pnlIdleColor.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
+        Me.pnlIdleColor.Location = New System.Drawing.Point(112, 183)
+        Me.pnlIdleColor.Name = "pnlIdleColor"
+        Me.pnlIdleColor.Size = New System.Drawing.Size(42, 27)
+        Me.pnlIdleColor.TabIndex = 10
+        '
+        'txtIdleColor
+        '
+        Me.txtIdleColor.Location = New System.Drawing.Point(164, 186)
+        Me.txtIdleColor.Name = "txtIdleColor"
+        Me.txtIdleColor.ReadOnly = True
+        Me.txtIdleColor.Size = New System.Drawing.Size(100, 21)
+        Me.txtIdleColor.TabIndex = 11
+        Me.txtIdleColor.TextAlign = System.Windows.Forms.HorizontalAlignment.Center
+        '
+        'btnIdleColor
+        '
+        Me.btnIdleColor.Location = New System.Drawing.Point(278, 183)
+        Me.btnIdleColor.Name = "btnIdleColor"
+        Me.btnIdleColor.Size = New System.Drawing.Size(75, 27)
+        Me.btnIdleColor.TabIndex = 12
+        Me.btnIdleColor.Text = "选择颜色"
+        Me.btnIdleColor.UseVisualStyleBackColor = True
+        '
+        'lblResistanceNgColor
+        '
+        Me.lblResistanceNgColor.AutoSize = True
+        Me.lblResistanceNgColor.Location = New System.Drawing.Point(16, 247)
+        Me.lblResistanceNgColor.Name = "lblResistanceNgColor"
+        Me.lblResistanceNgColor.Size = New System.Drawing.Size(89, 12)
+        Me.lblResistanceNgColor.TabIndex = 13
+        Me.lblResistanceNgColor.Text = "内阻 NG（红色）"
+        '
+        'pnlResistanceNgColor
+        '
+        Me.pnlResistanceNgColor.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
+        Me.pnlResistanceNgColor.Location = New System.Drawing.Point(112, 238)
+        Me.pnlResistanceNgColor.Name = "pnlResistanceNgColor"
+        Me.pnlResistanceNgColor.Size = New System.Drawing.Size(42, 27)
+        Me.pnlResistanceNgColor.TabIndex = 14
+        '
+        'txtResistanceNgColor
+        '
+        Me.txtResistanceNgColor.Location = New System.Drawing.Point(164, 241)
+        Me.txtResistanceNgColor.Name = "txtResistanceNgColor"
+        Me.txtResistanceNgColor.ReadOnly = True
+        Me.txtResistanceNgColor.Size = New System.Drawing.Size(100, 21)
+        Me.txtResistanceNgColor.TabIndex = 15
+        Me.txtResistanceNgColor.TextAlign = System.Windows.Forms.HorizontalAlignment.Center
+        '
+        'btnResistanceNgColor
+        '
+        Me.btnResistanceNgColor.Location = New System.Drawing.Point(278, 238)
+        Me.btnResistanceNgColor.Name = "btnResistanceNgColor"
+        Me.btnResistanceNgColor.Size = New System.Drawing.Size(75, 27)
+        Me.btnResistanceNgColor.TabIndex = 16
+        Me.btnResistanceNgColor.Text = "选择颜色"
+        Me.btnResistanceNgColor.UseVisualStyleBackColor = True
+        '
+        'lblVoltageNgColor
+        '
+        Me.lblVoltageNgColor.AutoSize = True
+        Me.lblVoltageNgColor.Location = New System.Drawing.Point(16, 302)
+        Me.lblVoltageNgColor.Name = "lblVoltageNgColor"
+        Me.lblVoltageNgColor.Size = New System.Drawing.Size(89, 12)
+        Me.lblVoltageNgColor.TabIndex = 17
+        Me.lblVoltageNgColor.Text = "电压 NG（橘红色）"
+        '
+        'pnlVoltageNgColor
+        '
+        Me.pnlVoltageNgColor.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
+        Me.pnlVoltageNgColor.Location = New System.Drawing.Point(112, 293)
+        Me.pnlVoltageNgColor.Name = "pnlVoltageNgColor"
+        Me.pnlVoltageNgColor.Size = New System.Drawing.Size(42, 27)
+        Me.pnlVoltageNgColor.TabIndex = 18
+        '
+        'txtVoltageNgColor
+        '
+        Me.txtVoltageNgColor.Location = New System.Drawing.Point(164, 296)
+        Me.txtVoltageNgColor.Name = "txtVoltageNgColor"
+        Me.txtVoltageNgColor.ReadOnly = True
+        Me.txtVoltageNgColor.Size = New System.Drawing.Size(100, 21)
+        Me.txtVoltageNgColor.TabIndex = 19
+        Me.txtVoltageNgColor.TextAlign = System.Windows.Forms.HorizontalAlignment.Center
+        '
+        'btnVoltageNgColor
+        '
+        Me.btnVoltageNgColor.Location = New System.Drawing.Point(278, 293)
+        Me.btnVoltageNgColor.Name = "btnVoltageNgColor"
+        Me.btnVoltageNgColor.Size = New System.Drawing.Size(75, 27)
+        Me.btnVoltageNgColor.TabIndex = 20
+        Me.btnVoltageNgColor.Text = "选择颜色"
+        Me.btnVoltageNgColor.UseVisualStyleBackColor = True
+        '
+        'btnResetChannelColors
+        '
+        Me.btnResetChannelColors.Location = New System.Drawing.Point(248, 350)
+        Me.btnResetChannelColors.Name = "btnResetChannelColors"
+        Me.btnResetChannelColors.Size = New System.Drawing.Size(105, 30)
+        Me.btnResetChannelColors.TabIndex = 21
+        Me.btnResetChannelColors.Text = "恢复默认"
+        Me.btnResetChannelColors.UseVisualStyleBackColor = True
+        '
+        'CmdOK
         Me.CmdOK.Location = New System.Drawing.Point(106, 621)
         Me.CmdOK.Name = "CmdOK"
         Me.CmdOK.Size = New System.Drawing.Size(79, 34)
@@ -1648,6 +1913,8 @@ Partial Class frmInit
         Me.TabPage4.PerformLayout()
         Me.TabScmSet.ResumeLayout(False)
         Me.TabScmSet.PerformLayout()
+        Me.GroupBoxChannelColors.ResumeLayout(False)
+        Me.TabPageChannelColors.ResumeLayout(False)
         Me.GroupBox7.ResumeLayout(False)
         Me.GroupBox7.PerformLayout()
         Me.GB_MesDataBase.ResumeLayout(False)
@@ -1797,4 +2064,29 @@ Partial Class frmInit
     Friend WithEvents GroupBox7 As GroupBox
     Friend WithEvents TxtMesDatabaseName As TextBox
     Friend WithEvents Label52 As Label
+    Friend WithEvents TabPageChannelColors As TabPage
+    Friend WithEvents GroupBoxChannelColors As GroupBox
+    Friend WithEvents lblChannelColorHint As Label
+    Friend WithEvents lblPassColor As Label
+    Friend WithEvents pnlPassColor As Panel
+    Friend WithEvents txtPassColor As TextBox
+    Friend WithEvents btnPassColor As Button
+    Friend WithEvents lblTestingColor As Label
+    Friend WithEvents pnlTestingColor As Panel
+    Friend WithEvents txtTestingColor As TextBox
+    Friend WithEvents btnTestingColor As Button
+    Friend WithEvents lblIdleColor As Label
+    Friend WithEvents pnlIdleColor As Panel
+    Friend WithEvents txtIdleColor As TextBox
+    Friend WithEvents btnIdleColor As Button
+    Friend WithEvents lblResistanceNgColor As Label
+    Friend WithEvents pnlResistanceNgColor As Panel
+    Friend WithEvents txtResistanceNgColor As TextBox
+    Friend WithEvents btnResistanceNgColor As Button
+    Friend WithEvents lblVoltageNgColor As Label
+    Friend WithEvents pnlVoltageNgColor As Panel
+    Friend WithEvents txtVoltageNgColor As TextBox
+    Friend WithEvents btnVoltageNgColor As Button
+    Friend WithEvents btnResetChannelColors As Button
+    Friend WithEvents colorDialogChannel As ColorDialog
 End Class

@@ -35,6 +35,7 @@ Public Class ChannelTileControl
     Private hasDisplayData As Boolean
     Private selected As Boolean
     Private suppressNextClick As Boolean
+    Private statusColors As ChannelStatusColors = ChannelStatusColors.CreateDefault()
     Public Event ChannelSelected As EventHandler(Of ChannelSelectedEventArgs)
     Public Event ChannelHovered As EventHandler(Of ChannelHoverEventArgs)
     Public Event ChannelHoverEnded As EventHandler
@@ -84,6 +85,18 @@ Public Class ChannelTileControl
         GetStatusColors(data.StatusText, background, foreground)
         BackColor = background
         ForeColor = foreground
+        Invalidate()
+    End Sub
+
+    Public Sub ApplyStatusColors(ByVal colors As ChannelStatusColors)
+        statusColors = If(colors, ChannelStatusColors.CreateDefault())
+        If hasDisplayData Then
+            Dim background As Color
+            Dim foreground As Color
+            GetStatusColors(currentData.StatusText, background, foreground)
+            BackColor = background
+            ForeColor = foreground
+        End If
         Invalidate()
     End Sub
 
@@ -140,27 +153,21 @@ Public Class ChannelTileControl
         End If
     End Sub
 
-    Private Shared Sub GetStatusColors(ByVal status As String, ByRef background As Color, ByRef foreground As Color)
+    Private Sub GetStatusColors(ByVal status As String, ByRef background As Color, ByRef foreground As Color)
+        Dim kind As ChannelStatusKind = ChannelStatusKind.Idle
         Select Case If(status, String.Empty).Trim().ToUpperInvariant()
             Case "PASS", "OK"
-                background = UiTheme.SuccessBackground
-                foreground = UiTheme.Success
+                kind = ChannelStatusKind.Pass
             Case "NG", "ERROR"
-                background = UiTheme.Danger
-                foreground = Color.White
+                kind = ChannelStatusKind.ResistanceNg
             Case "TESTING"
-                background = UiTheme.TestingBackground
-                foreground = Color.White
-            Case "WAITING"
-                background = ColorTranslator.FromHtml("#FFF2C7")
-                foreground = UiTheme.TextPrimary
-            Case "DISABLED"
-                background = UiTheme.IdleBackground
-                foreground = UiTheme.TextSecondary
-            Case Else
-                background = UiTheme.IdleBackground
-                foreground = UiTheme.TextPrimary
+                kind = ChannelStatusKind.Testing
+            Case "RESISTANCE_NG", "RESISTANCE NG"
+                kind = ChannelStatusKind.ResistanceNg
+            Case "VOLTAGE_NG", "VOLTAGE NG"
+                kind = ChannelStatusKind.VoltageNg
         End Select
+        background = ChannelStatusColors.ForStatus(kind, statusColors, foreground)
     End Sub
 
 End Class

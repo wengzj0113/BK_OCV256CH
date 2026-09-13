@@ -85,6 +85,7 @@
       <DependentUpon>Application.myapp</DependentUpon>
     </Compile>
     <Compile Include="UiTheme.vb" />
+    <Compile Include="ChannelStatusColors.vb" />
     <Compile Include="StatisticsControl.vb">
       <SubType>UserControl</SubType>
     </Compile>

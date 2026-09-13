@@ -156,6 +156,12 @@ Module Module1
         Dim ScmAutoStepMs As Integer
         Dim ScmTriggerPulseMs As Integer
         Dim ScmPhaseGuardMs As Integer
+        '主页面通道状态颜色（ARGB，追加字段，兼容旧配置）
+        Dim ChannelPassColorArgb As Integer
+        Dim ChannelTestingColorArgb As Integer
+        Dim ChannelIdleColorArgb As Integer
+        Dim ChannelResistanceNgColorArgb As Integer
+        Dim ChannelVoltageNgColorArgb As Integer
 
     End Structure
     Public Structure Bat_struct
@@ -1106,6 +1112,12 @@ Loop_Begin:
         BW.Write(Initsetting.ScmAutoStepMs)
         BW.Write(Initsetting.ScmTriggerPulseMs)
         BW.Write(Initsetting.ScmPhaseGuardMs)
+        '通道状态颜色（追加字段，兼容旧配置）
+        BW.Write(Initsetting.ChannelPassColorArgb)
+        BW.Write(Initsetting.ChannelTestingColorArgb)
+        BW.Write(Initsetting.ChannelIdleColorArgb)
+        BW.Write(Initsetting.ChannelResistanceNgColorArgb)
+        BW.Write(Initsetting.ChannelVoltageNgColorArgb)
 
         'close
         BW.Close()
@@ -1262,6 +1274,31 @@ Loop_Begin:
             Initsetting.ScmPhaseGuardMs = BR.ReadInt32()
         Else
             Initsetting.ScmPhaseGuardMs = ScmTimingSettings.DefaultPhaseGuardMs
+        End If
+        If FS.Position < FS.Length Then
+            Initsetting.ChannelPassColorArgb = BR.ReadInt32()
+        Else
+            Initsetting.ChannelPassColorArgb = ChannelColorSettings.DefaultPass.ToArgb()
+        End If
+        If FS.Position < FS.Length Then
+            Initsetting.ChannelTestingColorArgb = BR.ReadInt32()
+        Else
+            Initsetting.ChannelTestingColorArgb = ChannelColorSettings.DefaultTesting.ToArgb()
+        End If
+        If FS.Position < FS.Length Then
+            Initsetting.ChannelIdleColorArgb = BR.ReadInt32()
+        Else
+            Initsetting.ChannelIdleColorArgb = ChannelColorSettings.DefaultIdle.ToArgb()
+        End If
+        If FS.Position < FS.Length Then
+            Initsetting.ChannelResistanceNgColorArgb = BR.ReadInt32()
+        Else
+            Initsetting.ChannelResistanceNgColorArgb = ChannelColorSettings.DefaultResistanceNg.ToArgb()
+        End If
+        If FS.Position < FS.Length Then
+            Initsetting.ChannelVoltageNgColorArgb = BR.ReadInt32()
+        Else
+            Initsetting.ChannelVoltageNgColorArgb = ChannelColorSettings.DefaultVoltageNg.ToArgb()
         End If
 exit_sub:
         BR.Close()

@@ -15,6 +15,7 @@ Public Class ChannelGridControl
     Private Const TotalChannels As Integer = GridSize * GridSize
     Private ReadOnly displayDataByChannel As New Dictionary(Of Integer, ChannelDisplayData)()
     Private ReadOnly selectedChannels As New HashSet(Of Integer)()
+    Private statusColors As ChannelStatusColors = ChannelStatusColors.CreateDefault()
     Private batchUpdateDepth As Integer
     Private batchGridWasVisible As Boolean
     Private selectionModeValue As ChannelSelectionMode = ChannelSelectionMode.SingleChannel
@@ -121,6 +122,11 @@ Public Class ChannelGridControl
         Finally
             EndBatchUpdate()
         End Try
+    End Sub
+
+    Public Sub ApplyStatusColors(ByVal colors As ChannelStatusColors)
+        statusColors = If(colors, ChannelStatusColors.CreateDefault())
+        If gridSurface IsNot Nothing Then gridSurface.Invalidate()
     End Sub
 
     Private Sub HandleGridMouseDown(ByVal sender As Object, ByVal e As MouseEventArgs)
@@ -241,27 +247,21 @@ Public Class ChannelGridControl
         End If
     End Sub
 
-    Private Shared Sub GetStatusColors(ByVal status As String, ByRef background As Color, ByRef foreground As Color)
+    Private Sub GetStatusColors(ByVal status As String, ByRef background As Color, ByRef foreground As Color)
+        Dim kind As ChannelStatusKind = ChannelStatusKind.Idle
         Select Case If(status, String.Empty).Trim().ToUpperInvariant()
             Case "PASS", "OK"
-                background = UiTheme.SuccessBackground
-                foreground = UiTheme.Success
+                kind = ChannelStatusKind.Pass
             Case "NG", "ERROR"
-                background = UiTheme.Danger
-                foreground = Color.White
+                kind = ChannelStatusKind.ResistanceNg
             Case "TESTING"
-                background = UiTheme.TestingBackground
-                foreground = Color.White
-            Case "WAITING"
-                background = ColorTranslator.FromHtml("#FFF2C7")
-                foreground = UiTheme.TextPrimary
-            Case "DISABLED"
-                background = UiTheme.IdleBackground
-                foreground = UiTheme.TextSecondary
-            Case Else
-                background = UiTheme.IdleBackground
-                foreground = UiTheme.TextPrimary
+                kind = ChannelStatusKind.Testing
+            Case "RESISTANCE_NG", "RESISTANCE NG"
+                kind = ChannelStatusKind.ResistanceNg
+            Case "VOLTAGE_NG", "VOLTAGE NG"
+                kind = ChannelStatusKind.VoltageNg
         End Select
+        background = ChannelStatusColors.ForStatus(kind, statusColors, foreground)
     End Sub
 
     Private Shared Function NormalizeRectangle(ByVal first As Point, ByVal second As Point) As Rectangle
