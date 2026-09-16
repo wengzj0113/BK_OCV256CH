@@ -35,8 +35,27 @@ End Structure
 
 Public Class StatisticsControl
     Inherits UserControl
+
+    Private statusColors As ChannelStatusColors = ChannelStatusColors.CreateDefault()
+
     Public Sub New()
         InitializeComponent()
+    End Sub
+
+    Public Sub ApplyStatusColors(ByVal colors As ChannelStatusColors)
+        statusColors = If(colors, ChannelStatusColors.CreateDefault())
+
+        passSwatch.BackColor = statusColors.PassColor
+        ngSwatch.BackColor = statusColors.ResistanceNgColor
+        testingSwatch.BackColor = statusColors.TestingColor
+        idleSwatch.BackColor = statusColors.IdleColor
+        voltageSwatch.BackColor = statusColors.VoltageNgColor
+
+        passValue.ForeColor = statusColors.PassColor
+        ngValue.ForeColor = statusColors.ResistanceNgColor
+        testingValue.ForeColor = statusColors.TestingColor
+        idleValue.ForeColor = statusColors.IdleColor
+        Invalidate()
     End Sub
 
     Public Sub UpdateStatistics(ByVal statistics As ChannelStatistics)

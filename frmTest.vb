@@ -83,6 +83,7 @@ Public Class frmTest
         StartupTiming.Mark("frmTest-read-init")
         channelStatusColors = ChannelColorSettings.FromInitset(Initsetting)
         channelGrid.ApplyStatusColors(channelStatusColors)
+        statisticsControl.ApplyStatusColors(channelStatusColors)
         ConfigureStationControls()
         StartupTiming.Mark("frmTest-station-controls")
         '合格范围
@@ -2356,6 +2357,9 @@ exit_sub:
         End If
         channelStatusColors = ChannelColorSettings.FromInitset(Initsetting)
         channelGrid.ApplyStatusColors(channelStatusColors)
+        If statisticsControl IsNot Nothing AndAlso Not statisticsControl.IsDisposed Then
+            statisticsControl.ApplyStatusColors(channelStatusColors)
+        End If
         RefreshChannelOverview()
     End Sub
 
