@@ -110,8 +110,8 @@ $requiredNames = @{
     'StatisticsControl.Designer.vb' = @(
         'totalValue', 'passValue', 'ngValue', 'testingValue', 'idleValue',
         'totalTitle', 'passTitle', 'ngTitle', 'testingTitle', 'idleTitle',
-        'passSwatch', 'ngSwatch', 'testingSwatch', 'idleSwatch',
-        'passLegendText', 'ngLegendText', 'testingLegendText', 'idleLegendText'
+        'passSwatch', 'ngSwatch', 'testingSwatch', 'idleSwatch', 'voltageSwatch', 'selectedSwatch',
+        'passLegendText', 'ngLegendText', 'testingLegendText', 'idleLegendText', 'voltageLegendText', 'selectedLegendText'
     )
     'BottomStatusControl.Designer.vb' = @(
         'stationLabel', 'controlBoardLabel', 'plcLabel', 'voltageLabel',

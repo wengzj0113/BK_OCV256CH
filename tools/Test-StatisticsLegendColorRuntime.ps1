@@ -1,9 +1,10 @@
+param([string]$AssemblyPath)
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
 $root = Split-Path -Parent $PSScriptRoot
-$assemblyPath = Join-Path $root 'bin\AnyCPU\Debug\XL_OCV_UIControls.dll'
+$assemblyPath = if ([string]::IsNullOrWhiteSpace($AssemblyPath)) { Join-Path $root 'bin\AnyCPU\Debug\XL_OCV_UIControls.dll' } else { $AssemblyPath }
 if (-not (Test-Path -LiteralPath $assemblyPath)) {
     throw "找不到 UIControls 构建产物: $assemblyPath"
 }
@@ -23,7 +24,8 @@ $palette = [Activator]::CreateInstance(
         [Drawing.Color]::FromArgb(255, 4, 5, 6),
         [Drawing.Color]::FromArgb(255, 7, 8, 9),
         [Drawing.Color]::FromArgb(255, 10, 11, 12),
-        [Drawing.Color]::FromArgb(255, 13, 14, 15)))
+        [Drawing.Color]::FromArgb(255, 13, 14, 15),
+        [Drawing.Color]::FromArgb(255, 16, 17, 18)))
 
 $control = [Activator]::CreateInstance($controlType)
 try {
@@ -35,6 +37,7 @@ try {
         idleSwatch = @(7, 8, 9)
         ngSwatch = @(10, 11, 12)
         voltageSwatch = @(13, 14, 15)
+        selectedSwatch = @(16, 17, 18)
     }
     foreach ($name in $expected.Keys) {
         $field = $controlType.GetField($name, $flags)

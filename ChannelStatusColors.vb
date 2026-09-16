@@ -14,17 +14,20 @@ Public NotInheritable Class ChannelStatusColors
     Public ReadOnly Property IdleColor As Color
     Public ReadOnly Property ResistanceNgColor As Color
     Public ReadOnly Property VoltageNgColor As Color
+    Public ReadOnly Property SelectedColor As Color
 
     Public Sub New(passColor As Color,
                    testingColor As Color,
                    idleColor As Color,
                    resistanceNgColor As Color,
-                   voltageNgColor As Color)
+                   voltageNgColor As Color,
+                   selectedColor As Color)
         Me.PassColor = NormalizeOpaque(passColor)
         Me.TestingColor = NormalizeOpaque(testingColor)
         Me.IdleColor = NormalizeOpaque(idleColor)
         Me.ResistanceNgColor = NormalizeOpaque(resistanceNgColor)
         Me.VoltageNgColor = NormalizeOpaque(voltageNgColor)
+        Me.SelectedColor = NormalizeOpaque(selectedColor)
     End Sub
 
     Public Shared Function ForStatus(status As ChannelStatusKind,
@@ -56,9 +59,10 @@ Public NotInheritable Class ChannelStatusColors
         Return New ChannelStatusColors(
             Color.FromArgb(255, 24, 169, 104),
             Color.FromArgb(255, 23, 105, 232),
-            Color.FromArgb(255, 101, 113, 132),
+            Color.FromArgb(255, 128, 128, 128),
             Color.FromArgb(255, 239, 61, 67),
-            Color.FromArgb(255, 242, 118, 61))
+            Color.FromArgb(255, 242, 118, 61),
+            Color.FromArgb(255, 101, 113, 132))
     End Function
 
     Private Shared Function GetLuma(value As Color) As Integer

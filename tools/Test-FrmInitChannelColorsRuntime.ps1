@@ -1,8 +1,9 @@
+param([string]$AssemblyPath)
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 $root = Split-Path -Parent $PSScriptRoot
-$exePath = Join-Path $root 'bin\AnyCPU\XL_OCV_256CH.exe'
+$exePath = if ([string]::IsNullOrWhiteSpace($AssemblyPath)) { Join-Path $root 'bin\AnyCPU\XL_OCV_256CH.exe' } else { $AssemblyPath }
 $assembly = [Reflection.Assembly]::LoadFrom($exePath)
 $formType = $assembly.GetType('software.frmInit', $true)
 $form = [Activator]::CreateInstance($formType)
@@ -11,7 +12,7 @@ try {
     if ($null -eq $tabControl) { throw 'TabControl1 未创建' }
     $colorPage = $tabControl.TabPages | Where-Object { $_.Name -eq 'TabPageChannelColors' } | Select-Object -First 1
     if ($null -eq $colorPage) { throw 'TabPageChannelColors 未创建' }
-    $required = @('btnPassColor', 'btnTestingColor', 'btnIdleColor', 'btnResistanceNgColor', 'btnVoltageNgColor', 'btnResetChannelColors')
+    $required = @('btnPassColor', 'btnTestingColor', 'btnIdleColor', 'btnResistanceNgColor', 'btnVoltageNgColor', 'btnSelectedColor', 'btnResetChannelColors')
     foreach ($name in $required) {
         $control = $null
         foreach ($child in $colorPage.Controls) {

@@ -126,7 +126,7 @@ Public Class ChannelTileControl
                                   TextFormatFlags.HorizontalCenter Or TextFormatFlags.VerticalCenter Or TextFormatFlags.EndEllipsis)
         End If
         If selected Then
-            Using pen As New Pen(UiTheme.Primary, 2.0F)
+            Using pen As New Pen(statusColors.SelectedColor, 2.0F)
                 Dim bounds As Rectangle = ClientRectangle
                 bounds.Width -= 1
                 bounds.Height -= 1

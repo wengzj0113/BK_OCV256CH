@@ -8,6 +8,7 @@ Public Class frmInit
     Private channelIdleColor As Color
     Private channelResistanceNgColor As Color
     Private channelVoltageNgColor As Color
+    Private channelSelectedColor As Color
 
     Private Sub SetScmTimingOperationState(isBusy As Boolean)
         btnScmRead.Enabled = Not isBusy
@@ -202,6 +203,7 @@ Public Class frmInit
         channelIdleColor = palette.IdleColor
         channelResistanceNgColor = palette.ResistanceNgColor
         channelVoltageNgColor = palette.VoltageNgColor
+        channelSelectedColor = palette.SelectedColor
         RefreshChannelColorPreview()
     End Sub
 
@@ -211,6 +213,7 @@ Public Class frmInit
         SetChannelColorPreview(pnlIdleColor, txtIdleColor, channelIdleColor)
         SetChannelColorPreview(pnlResistanceNgColor, txtResistanceNgColor, channelResistanceNgColor)
         SetChannelColorPreview(pnlVoltageNgColor, txtVoltageNgColor, channelVoltageNgColor)
+        SetChannelColorPreview(pnlSelectedColor, txtSelectedColor, channelSelectedColor)
     End Sub
 
     Private Shared Sub SetChannelColorPreview(preview As Panel, valueText As TextBox, value As Color)
@@ -246,6 +249,10 @@ Public Class frmInit
         ChooseChannelColor(channelVoltageNgColor, channelVoltageNgColor, pnlVoltageNgColor, txtVoltageNgColor)
     End Sub
 
+    Private Sub btnSelectedColor_Click(sender As Object, e As EventArgs) Handles btnSelectedColor.Click
+        ChooseChannelColor(channelSelectedColor, channelSelectedColor, pnlSelectedColor, txtSelectedColor)
+    End Sub
+
     Private Sub btnResetChannelColors_Click(sender As Object, e As EventArgs) Handles btnResetChannelColors.Click
         Dim palette As ChannelStatusColors = ChannelColorSettings.CreateDefaultPalette()
         channelPassColor = palette.PassColor
@@ -253,6 +260,7 @@ Public Class frmInit
         channelIdleColor = palette.IdleColor
         channelResistanceNgColor = palette.ResistanceNgColor
         channelVoltageNgColor = palette.VoltageNgColor
+        channelSelectedColor = palette.SelectedColor
         RefreshChannelColorPreview()
     End Sub
 
@@ -463,7 +471,8 @@ Public Class frmInit
                                     channelTestingColor,
                                     channelIdleColor,
                                     channelResistanceNgColor,
-                                    channelVoltageNgColor))
+                                    channelVoltageNgColor,
+                                    channelSelectedColor))
         Return True
     End Function
 

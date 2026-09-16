@@ -39,7 +39,6 @@ Partial Class frmTest
         Me.txtMinR = New System.Windows.Forms.TextBox()
         Me.txtMaxR = New System.Windows.Forms.TextBox()
         Me.GroupBox1 = New System.Windows.Forms.GroupBox()
-        Me.Button1 = New System.Windows.Forms.Button()
         Me.controlBoardLayout = New System.Windows.Forms.TableLayoutPanel()
         Me.Label2 = New System.Windows.Forms.Label()
         Me.txtTray = New System.Windows.Forms.TextBox()
@@ -114,8 +113,8 @@ Partial Class frmTest
         Me.Label29 = New System.Windows.Forms.Label()
         Me.resetAlarmLayout = New System.Windows.Forms.TableLayoutPanel()
         Me.txtTotle = New System.Windows.Forms.TextBox()
-        Me.channelGrid = New software.ChannelGridControl()
-        Me.statisticsControl = New software.StatisticsControl()
+        Me.channelGrid = New Global.software.ChannelGridControl()
+        Me.statisticsControl = New Global.software.StatisticsControl()
         Me.rootLayout = New System.Windows.Forms.TableLayoutPanel()
         Me.rightLayout = New System.Windows.Forms.TableLayoutPanel()
         CType(Me.Pic_Bat, System.ComponentModel.ISupportInitialize).BeginInit()
@@ -328,7 +327,6 @@ Partial Class frmTest
         Me.GroupBox1.AutoSize = True
         Me.GroupBox1.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink
         Me.GroupBox1.BackColor = System.Drawing.Color.White
-        Me.GroupBox1.Controls.Add(Me.Button1)
         Me.GroupBox1.Controls.Add(Me.controlBoardLayout)
         Me.GroupBox1.Dock = System.Windows.Forms.DockStyle.Top
         Me.GroupBox1.FlatStyle = System.Windows.Forms.FlatStyle.Flat
@@ -343,25 +341,15 @@ Partial Class frmTest
         Me.GroupBox1.TabStop = False
         Me.GroupBox1.Text = "控制板"
         '
-        'Button1
-        '
-        Me.Button1.FlatStyle = System.Windows.Forms.FlatStyle.Popup
-        Me.Button1.Location = New System.Drawing.Point(126, 5)
-        Me.Button1.Name = "Button1"
-        Me.Button1.Size = New System.Drawing.Size(108, 23)
-        Me.Button1.TabIndex = 48
-        Me.Button1.Text = "获取电芯条目"
-        Me.Button1.UseVisualStyleBackColor = True
-        '
         'controlBoardLayout
         '
         Me.controlBoardLayout.AutoSize = True
         Me.controlBoardLayout.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink
         Me.controlBoardLayout.BackColor = System.Drawing.Color.White
         Me.controlBoardLayout.ColumnCount = 3
-        Me.controlBoardLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 26.48871!))
-        Me.controlBoardLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 40.04108!))
-        Me.controlBoardLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 33.4702!))
+        Me.controlBoardLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 22.08589!))
+        Me.controlBoardLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 52.45399!))
+        Me.controlBoardLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 25.46012!))
         Me.controlBoardLayout.Controls.Add(Me.Label2, 0, 0)
         Me.controlBoardLayout.Controls.Add(Me.txtTray, 1, 0)
         Me.controlBoardLayout.Controls.Add(Me.btnGetBarcode, 2, 0)
@@ -403,10 +391,10 @@ Partial Class frmTest
         Me.txtTray.Dock = System.Windows.Forms.DockStyle.Fill
         Me.txtTray.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
         Me.txtTray.ForeColor = System.Drawing.Color.FromArgb(CType(CType(36, Byte), Integer), CType(CType(49, Byte), Integer), CType(CType(66, Byte), Integer))
-        Me.txtTray.Location = New System.Drawing.Point(88, 2)
+        Me.txtTray.Location = New System.Drawing.Point(74, 2)
         Me.txtTray.Margin = New System.Windows.Forms.Padding(2)
         Me.txtTray.Name = "txtTray"
-        Me.txtTray.Size = New System.Drawing.Size(119, 23)
+        Me.txtTray.Size = New System.Drawing.Size(167, 23)
         Me.txtTray.TabIndex = 44
         '
         'btnGetBarcode
@@ -417,10 +405,10 @@ Partial Class frmTest
         Me.btnGetBarcode.FlatStyle = System.Windows.Forms.FlatStyle.Flat
         Me.btnGetBarcode.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
         Me.btnGetBarcode.ForeColor = System.Drawing.Color.FromArgb(CType(CType(23, Byte), Integer), CType(CType(105, Byte), Integer), CType(CType(232, Byte), Integer))
-        Me.btnGetBarcode.Location = New System.Drawing.Point(218, 2)
+        Me.btnGetBarcode.Location = New System.Drawing.Point(245, 2)
         Me.btnGetBarcode.Margin = New System.Windows.Forms.Padding(2)
         Me.btnGetBarcode.Name = "btnGetBarcode"
-        Me.btnGetBarcode.Size = New System.Drawing.Size(106, 23)
+        Me.btnGetBarcode.Size = New System.Drawing.Size(79, 23)
         Me.btnGetBarcode.TabIndex = 57
         Me.btnGetBarcode.Text = "获取条码"
         Me.btnGetBarcode.UseVisualStyleBackColor = False
@@ -436,7 +424,7 @@ Partial Class frmTest
         Me.CmdStart.Location = New System.Drawing.Point(2, 29)
         Me.CmdStart.Margin = New System.Windows.Forms.Padding(2)
         Me.CmdStart.Name = "CmdStart"
-        Me.CmdStart.Size = New System.Drawing.Size(82, 25)
+        Me.CmdStart.Size = New System.Drawing.Size(68, 25)
         Me.CmdStart.TabIndex = 56
         Me.CmdStart.Text = "启动测试"
         Me.CmdStart.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
@@ -450,10 +438,10 @@ Partial Class frmTest
         Me.btnStop.FlatStyle = System.Windows.Forms.FlatStyle.Flat
         Me.btnStop.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
         Me.btnStop.ForeColor = System.Drawing.Color.FromArgb(CType(CType(239, Byte), Integer), CType(CType(62, Byte), Integer), CType(CType(62, Byte), Integer))
-        Me.btnStop.Location = New System.Drawing.Point(88, 29)
+        Me.btnStop.Location = New System.Drawing.Point(74, 29)
         Me.btnStop.Margin = New System.Windows.Forms.Padding(2)
         Me.btnStop.Name = "btnStop"
-        Me.btnStop.Size = New System.Drawing.Size(126, 25)
+        Me.btnStop.Size = New System.Drawing.Size(167, 25)
         Me.btnStop.TabIndex = 65
         Me.btnStop.Text = "停止测试"
         Me.btnStop.UseVisualStyleBackColor = False
@@ -466,10 +454,10 @@ Partial Class frmTest
         Me.btnNGTest.FlatStyle = System.Windows.Forms.FlatStyle.Flat
         Me.btnNGTest.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
         Me.btnNGTest.ForeColor = System.Drawing.Color.White
-        Me.btnNGTest.Location = New System.Drawing.Point(218, 29)
+        Me.btnNGTest.Location = New System.Drawing.Point(245, 29)
         Me.btnNGTest.Margin = New System.Windows.Forms.Padding(2)
         Me.btnNGTest.Name = "btnNGTest"
-        Me.btnNGTest.Size = New System.Drawing.Size(106, 25)
+        Me.btnNGTest.Size = New System.Drawing.Size(79, 25)
         Me.btnNGTest.TabIndex = 56
         Me.btnNGTest.Text = "NG点测试"
         Me.btnNGTest.UseVisualStyleBackColor = False
@@ -485,7 +473,7 @@ Partial Class frmTest
         Me.btnTrayState.Location = New System.Drawing.Point(2, 58)
         Me.btnTrayState.Margin = New System.Windows.Forms.Padding(2)
         Me.btnTrayState.Name = "btnTrayState"
-        Me.btnTrayState.Size = New System.Drawing.Size(82, 25)
+        Me.btnTrayState.Size = New System.Drawing.Size(68, 25)
         Me.btnTrayState.TabIndex = 60
         Me.btnTrayState.Text = "托盘状态"
         Me.btnTrayState.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
@@ -499,10 +487,10 @@ Partial Class frmTest
         Me.btnOpen.FlatStyle = System.Windows.Forms.FlatStyle.Flat
         Me.btnOpen.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
         Me.btnOpen.ForeColor = System.Drawing.Color.FromArgb(CType(CType(36, Byte), Integer), CType(CType(49, Byte), Integer), CType(CType(66, Byte), Integer))
-        Me.btnOpen.Location = New System.Drawing.Point(88, 58)
+        Me.btnOpen.Location = New System.Drawing.Point(74, 58)
         Me.btnOpen.Margin = New System.Windows.Forms.Padding(2)
         Me.btnOpen.Name = "btnOpen"
-        Me.btnOpen.Size = New System.Drawing.Size(126, 25)
+        Me.btnOpen.Size = New System.Drawing.Size(167, 25)
         Me.btnOpen.TabIndex = 62
         Me.btnOpen.Text = "开启托盘"
         Me.btnOpen.UseVisualStyleBackColor = False
@@ -515,10 +503,10 @@ Partial Class frmTest
         Me.btnClose.FlatStyle = System.Windows.Forms.FlatStyle.Flat
         Me.btnClose.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
         Me.btnClose.ForeColor = System.Drawing.Color.FromArgb(CType(CType(36, Byte), Integer), CType(CType(49, Byte), Integer), CType(CType(66, Byte), Integer))
-        Me.btnClose.Location = New System.Drawing.Point(218, 58)
+        Me.btnClose.Location = New System.Drawing.Point(245, 58)
         Me.btnClose.Margin = New System.Windows.Forms.Padding(2)
         Me.btnClose.Name = "btnClose"
-        Me.btnClose.Size = New System.Drawing.Size(106, 25)
+        Me.btnClose.Size = New System.Drawing.Size(79, 25)
         Me.btnClose.TabIndex = 63
         Me.btnClose.Text = "闭合托盘"
         Me.btnClose.UseVisualStyleBackColor = False
@@ -1483,7 +1471,7 @@ Partial Class frmTest
         Me.channelGrid.Margin = New System.Windows.Forms.Padding(0)
         Me.channelGrid.Name = "channelGrid"
         Me.channelGrid.Padding = New System.Windows.Forms.Padding(10, 8, 10, 10)
-        Me.channelGrid.SelectionMode = software.ChannelSelectionMode.SingleChannel
+        Me.channelGrid.SelectionMode = Global.software.ChannelSelectionMode.SingleChannel
         Me.channelGrid.Size = New System.Drawing.Size(1114, 776)
         Me.channelGrid.TabIndex = 71
         '
@@ -1690,5 +1678,4 @@ Partial Class frmTest
     Friend WithEvents txtUsed As TextBox
     Friend WithEvents txtTotle As TextBox
     Friend WithEvents Label2 As Label
-    Friend WithEvents Button1 As Button
 End Class

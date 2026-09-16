@@ -42,6 +42,9 @@ Partial Class StatisticsControl
         Me.voltageLegend = New System.Windows.Forms.FlowLayoutPanel()
         Me.voltageSwatch = New System.Windows.Forms.Label()
         Me.voltageLegendText = New System.Windows.Forms.Label()
+        Me.selectedLegend = New System.Windows.Forms.FlowLayoutPanel()
+        Me.selectedSwatch = New System.Windows.Forms.Label()
+        Me.selectedLegendText = New System.Windows.Forms.Label()
         Me.statisticsLayout.SuspendLayout()
         Me.legend.SuspendLayout()
         Me.passLegend.SuspendLayout()
@@ -49,6 +52,7 @@ Partial Class StatisticsControl
         Me.testingLegend.SuspendLayout()
         Me.idleLegend.SuspendLayout()
         Me.voltageLegend.SuspendLayout()
+        Me.selectedLegend.SuspendLayout()
         Me.SuspendLayout()
         '
         'statisticsLayout
@@ -199,7 +203,7 @@ Partial Class StatisticsControl
         '
         Me.idleValue.Dock = System.Windows.Forms.DockStyle.Fill
         Me.idleValue.Font = New System.Drawing.Font("Microsoft YaHei UI", 20.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.idleValue.ForeColor = System.Drawing.Color.FromArgb(CType(CType(101, Byte), Integer), CType(CType(113, Byte), Integer), CType(CType(132, Byte), Integer))
+        Me.idleValue.ForeColor = System.Drawing.Color.FromArgb(CType(CType(128, Byte), Integer), CType(CType(128, Byte), Integer), CType(CType(128, Byte), Integer))
         Me.idleValue.Location = New System.Drawing.Point(978, 292)
         Me.idleValue.Name = "idleValue"
         Me.idleValue.Padding = New System.Windows.Forms.Padding(0, 0, 4, 0)
@@ -218,6 +222,7 @@ Partial Class StatisticsControl
         Me.legend.Controls.Add(Me.testingLegend, 0, 1)
         Me.legend.Controls.Add(Me.idleLegend, 1, 1)
         Me.legend.Controls.Add(Me.voltageLegend, 0, 2)
+        Me.legend.Controls.Add(Me.selectedLegend, 1, 2)
         Me.legend.Dock = System.Windows.Forms.DockStyle.Fill
         Me.legend.Location = New System.Drawing.Point(1230, 0)
         Me.legend.Margin = New System.Windows.Forms.Padding(0)
@@ -345,7 +350,7 @@ Partial Class StatisticsControl
         '
         'idleSwatch
         '
-        Me.idleSwatch.BackColor = System.Drawing.Color.FromArgb(CType(CType(101, Byte), Integer), CType(CType(113, Byte), Integer), CType(CType(132, Byte), Integer))
+        Me.idleSwatch.BackColor = System.Drawing.Color.FromArgb(CType(CType(128, Byte), Integer), CType(CType(128, Byte), Integer), CType(CType(128, Byte), Integer))
         Me.idleSwatch.Location = New System.Drawing.Point(0, 4)
         Me.idleSwatch.Margin = New System.Windows.Forms.Padding(0, 2, 4, 0)
         Me.idleSwatch.Name = "idleSwatch"
@@ -396,6 +401,39 @@ Partial Class StatisticsControl
         Me.voltageLegendText.TabIndex = 1
         Me.voltageLegendText.Text = "电压 NG"
         '
+        'selectedLegend
+        '
+        Me.selectedLegend.Controls.Add(Me.selectedSwatch)
+        Me.selectedLegend.Controls.Add(Me.selectedLegendText)
+        Me.selectedLegend.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.selectedLegend.Location = New System.Drawing.Point(137, 574)
+        Me.selectedLegend.Margin = New System.Windows.Forms.Padding(0)
+        Me.selectedLegend.Name = "selectedLegend"
+        Me.selectedLegend.Padding = New System.Windows.Forms.Padding(0, 2, 0, 0)
+        Me.selectedLegend.Size = New System.Drawing.Size(133, 285)
+        Me.selectedLegend.TabIndex = 5
+        Me.selectedLegend.WrapContents = False
+        '
+        'selectedSwatch
+        '
+        Me.selectedSwatch.BackColor = System.Drawing.Color.FromArgb(CType(CType(101, Byte), Integer), CType(CType(113, Byte), Integer), CType(CType(132, Byte), Integer))
+        Me.selectedSwatch.Location = New System.Drawing.Point(0, 4)
+        Me.selectedSwatch.Margin = New System.Windows.Forms.Padding(0, 2, 4, 0)
+        Me.selectedSwatch.Name = "selectedSwatch"
+        Me.selectedSwatch.Size = New System.Drawing.Size(11, 11)
+        Me.selectedSwatch.TabIndex = 0
+        '
+        'selectedLegendText
+        '
+        Me.selectedLegendText.AutoSize = True
+        Me.selectedLegendText.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
+        Me.selectedLegendText.ForeColor = System.Drawing.Color.FromArgb(CType(CType(36, Byte), Integer), CType(CType(49, Byte), Integer), CType(CType(66, Byte), Integer))
+        Me.selectedLegendText.Location = New System.Drawing.Point(18, 2)
+        Me.selectedLegendText.Name = "selectedLegendText"
+        Me.selectedLegendText.Size = New System.Drawing.Size(32, 17)
+        Me.selectedLegendText.TabIndex = 1
+        Me.selectedLegendText.Text = "选定"
+        '
         'StatisticsControl
         '
         Me.BackColor = System.Drawing.Color.White
@@ -417,6 +455,8 @@ Partial Class StatisticsControl
         Me.idleLegend.PerformLayout()
         Me.voltageLegend.ResumeLayout(False)
         Me.voltageLegend.PerformLayout()
+        Me.selectedLegend.ResumeLayout(False)
+        Me.selectedLegend.PerformLayout()
         Me.ResumeLayout(False)
 
     End Sub
@@ -448,4 +488,7 @@ Partial Class StatisticsControl
     Private voltageLegend As System.Windows.Forms.FlowLayoutPanel
     Private voltageSwatch As System.Windows.Forms.Label
     Private voltageLegendText As System.Windows.Forms.Label
+    Private selectedLegend As System.Windows.Forms.FlowLayoutPanel
+    Private selectedSwatch As System.Windows.Forms.Label
+    Private selectedLegendText As System.Windows.Forms.Label
 End Class

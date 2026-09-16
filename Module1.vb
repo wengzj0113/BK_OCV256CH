@@ -162,6 +162,7 @@ Module Module1
         Dim ChannelIdleColorArgb As Integer
         Dim ChannelResistanceNgColorArgb As Integer
         Dim ChannelVoltageNgColorArgb As Integer
+        Dim ChannelSelectedColorArgb As Integer
 
     End Structure
     Public Structure Bat_struct
@@ -1118,6 +1119,7 @@ Loop_Begin:
         BW.Write(Initsetting.ChannelIdleColorArgb)
         BW.Write(Initsetting.ChannelResistanceNgColorArgb)
         BW.Write(Initsetting.ChannelVoltageNgColorArgb)
+        BW.Write(Initsetting.ChannelSelectedColorArgb)
 
         'close
         BW.Close()
@@ -1299,6 +1301,11 @@ Loop_Begin:
             Initsetting.ChannelVoltageNgColorArgb = BR.ReadInt32()
         Else
             Initsetting.ChannelVoltageNgColorArgb = ChannelColorSettings.DefaultVoltageNg.ToArgb()
+        End If
+        If FS.Position < FS.Length Then
+            Initsetting.ChannelSelectedColorArgb = BR.ReadInt32()
+        Else
+            Initsetting.ChannelSelectedColorArgb = ChannelColorSettings.DefaultSelected.ToArgb()
         End If
 exit_sub:
         BR.Close()

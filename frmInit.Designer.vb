@@ -160,6 +160,10 @@ Partial Class frmInit
         Me.pnlVoltageNgColor = New System.Windows.Forms.Panel()
         Me.txtVoltageNgColor = New System.Windows.Forms.TextBox()
         Me.btnVoltageNgColor = New System.Windows.Forms.Button()
+        Me.lblSelectedColor = New System.Windows.Forms.Label()
+        Me.pnlSelectedColor = New System.Windows.Forms.Panel()
+        Me.txtSelectedColor = New System.Windows.Forms.TextBox()
+        Me.btnSelectedColor = New System.Windows.Forms.Button()
         Me.btnResetChannelColors = New System.Windows.Forms.Button()
         Me.colorDialogChannel = New System.Windows.Forms.ColorDialog()
         Me.lblScmStatus = New System.Windows.Forms.Label()
@@ -1537,6 +1541,10 @@ Partial Class frmInit
         Me.GroupBoxChannelColors.Controls.Add(Me.txtVoltageNgColor)
         Me.GroupBoxChannelColors.Controls.Add(Me.pnlVoltageNgColor)
         Me.GroupBoxChannelColors.Controls.Add(Me.lblVoltageNgColor)
+        Me.GroupBoxChannelColors.Controls.Add(Me.btnSelectedColor)
+        Me.GroupBoxChannelColors.Controls.Add(Me.txtSelectedColor)
+        Me.GroupBoxChannelColors.Controls.Add(Me.pnlSelectedColor)
+        Me.GroupBoxChannelColors.Controls.Add(Me.lblSelectedColor)
         Me.GroupBoxChannelColors.Controls.Add(Me.btnResistanceNgColor)
         Me.GroupBoxChannelColors.Controls.Add(Me.txtResistanceNgColor)
         Me.GroupBoxChannelColors.Controls.Add(Me.pnlResistanceNgColor)
@@ -1556,7 +1564,7 @@ Partial Class frmInit
         Me.GroupBoxChannelColors.Controls.Add(Me.lblChannelColorHint)
         Me.GroupBoxChannelColors.Location = New System.Drawing.Point(8, 8)
         Me.GroupBoxChannelColors.Name = "GroupBoxChannelColors"
-        Me.GroupBoxChannelColors.Size = New System.Drawing.Size(367, 475)
+        Me.GroupBoxChannelColors.Size = New System.Drawing.Size(367, 530)
         Me.GroupBoxChannelColors.TabIndex = 0
         Me.GroupBoxChannelColors.TabStop = False
         Me.GroupBoxChannelColors.Text = "通道状态颜色"
@@ -1647,7 +1655,7 @@ Partial Class frmInit
         Me.lblIdleColor.Name = "lblIdleColor"
         Me.lblIdleColor.Size = New System.Drawing.Size(77, 12)
         Me.lblIdleColor.TabIndex = 9
-        Me.lblIdleColor.Text = "空闲（铁灰色）"
+        Me.lblIdleColor.Text = "空闲（灰色）"
         '
         'pnlIdleColor
         '
@@ -1745,12 +1753,47 @@ Partial Class frmInit
         Me.btnVoltageNgColor.Text = "选择颜色"
         Me.btnVoltageNgColor.UseVisualStyleBackColor = True
         '
+        'lblSelectedColor
+        '
+        Me.lblSelectedColor.AutoSize = True
+        Me.lblSelectedColor.Location = New System.Drawing.Point(16, 357)
+        Me.lblSelectedColor.Name = "lblSelectedColor"
+        Me.lblSelectedColor.Size = New System.Drawing.Size(89, 12)
+        Me.lblSelectedColor.TabIndex = 21
+        Me.lblSelectedColor.Text = "选定（铁灰色）"
+        '
+        'pnlSelectedColor
+        '
+        Me.pnlSelectedColor.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
+        Me.pnlSelectedColor.Location = New System.Drawing.Point(112, 348)
+        Me.pnlSelectedColor.Name = "pnlSelectedColor"
+        Me.pnlSelectedColor.Size = New System.Drawing.Size(42, 27)
+        Me.pnlSelectedColor.TabIndex = 22
+        '
+        'txtSelectedColor
+        '
+        Me.txtSelectedColor.Location = New System.Drawing.Point(164, 351)
+        Me.txtSelectedColor.Name = "txtSelectedColor"
+        Me.txtSelectedColor.ReadOnly = True
+        Me.txtSelectedColor.Size = New System.Drawing.Size(100, 21)
+        Me.txtSelectedColor.TabIndex = 23
+        Me.txtSelectedColor.TextAlign = System.Windows.Forms.HorizontalAlignment.Center
+        '
+        'btnSelectedColor
+        '
+        Me.btnSelectedColor.Location = New System.Drawing.Point(278, 348)
+        Me.btnSelectedColor.Name = "btnSelectedColor"
+        Me.btnSelectedColor.Size = New System.Drawing.Size(75, 27)
+        Me.btnSelectedColor.TabIndex = 24
+        Me.btnSelectedColor.Text = "选择颜色"
+        Me.btnSelectedColor.UseVisualStyleBackColor = True
+        '
         'btnResetChannelColors
         '
-        Me.btnResetChannelColors.Location = New System.Drawing.Point(248, 350)
+        Me.btnResetChannelColors.Location = New System.Drawing.Point(248, 405)
         Me.btnResetChannelColors.Name = "btnResetChannelColors"
         Me.btnResetChannelColors.Size = New System.Drawing.Size(105, 30)
-        Me.btnResetChannelColors.TabIndex = 21
+        Me.btnResetChannelColors.TabIndex = 25
         Me.btnResetChannelColors.Text = "恢复默认"
         Me.btnResetChannelColors.UseVisualStyleBackColor = True
         '
@@ -2087,6 +2130,10 @@ Partial Class frmInit
     Friend WithEvents pnlVoltageNgColor As Panel
     Friend WithEvents txtVoltageNgColor As TextBox
     Friend WithEvents btnVoltageNgColor As Button
+    Friend WithEvents lblSelectedColor As Label
+    Friend WithEvents pnlSelectedColor As Panel
+    Friend WithEvents txtSelectedColor As TextBox
+    Friend WithEvents btnSelectedColor As Button
     Friend WithEvents btnResetChannelColors As Button
     Friend WithEvents colorDialogChannel As ColorDialog
 End Class

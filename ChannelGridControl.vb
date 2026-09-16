@@ -227,7 +227,7 @@ Public Class ChannelGridControl
             Using brush As New SolidBrush(background)
                 e.Graphics.FillRectangle(brush, bounds)
             End Using
-            Using pen As New Pen(If(selectedChannels.Contains(channelNo), UiTheme.Primary, UiTheme.CardBorder), If(selectedChannels.Contains(channelNo), 2.0F, 1.0F))
+            Using pen As New Pen(If(selectedChannels.Contains(channelNo), statusColors.SelectedColor, UiTheme.CardBorder), If(selectedChannels.Contains(channelNo), 2.0F, 1.0F))
                 e.Graphics.DrawRectangle(pen, bounds)
             End Using
 
@@ -238,10 +238,10 @@ Public Class ChannelGridControl
 
         If isSelectingRectangle Then
             Dim selectionRectangle As Rectangle = NormalizeRectangle(selectionStart, selectionCurrent)
-            Using fillBrush As New SolidBrush(Color.FromArgb(45, UiTheme.Primary))
+            Using fillBrush As New SolidBrush(Color.FromArgb(45, statusColors.SelectedColor))
                 e.Graphics.FillRectangle(fillBrush, selectionRectangle)
             End Using
-            Using borderPen As New Pen(UiTheme.Primary, 1.0F)
+            Using borderPen As New Pen(statusColors.SelectedColor, 1.0F)
                 e.Graphics.DrawRectangle(borderPen, selectionRectangle)
             End Using
         End If

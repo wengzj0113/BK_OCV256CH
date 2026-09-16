@@ -50,6 +50,7 @@ Public Class StatisticsControl
         testingSwatch.BackColor = statusColors.TestingColor
         idleSwatch.BackColor = statusColors.IdleColor
         voltageSwatch.BackColor = statusColors.VoltageNgColor
+        selectedSwatch.BackColor = statusColors.SelectedColor
 
         passValue.ForeColor = statusColors.PassColor
         ngValue.ForeColor = statusColors.ResistanceNgColor
