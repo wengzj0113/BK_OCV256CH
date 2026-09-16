@@ -23,7 +23,7 @@ Public Class MDIForm
     Public FrmLink As New List(Of MDIForm)
     Public mSocket As Socket
     Public fixtureClose As Boolean
-    Public operTypeNum As Integer = 1
+    Public operTypeNum As Integer = 0
     Private environmentResetStarted As Boolean
     Private Const ShutdownResetTimeoutMs As Integer = 3000
     Private Const ResizeDebounceMs As Integer = 75
@@ -311,7 +311,7 @@ Public Class MDIForm
             If(resistance3561Connected AndAlso Com_3561 IsNot Nothing AndAlso Com_3561.IsOpen, "已连接", "未连接"),
             If(databaseConnected, "已连接", "未连接"),
             If(mesConnected, "已连接", "未连接"),
-            If(String.IsNullOrWhiteSpace(operatorName), "Admin", operatorName),
+            If(String.IsNullOrWhiteSpace(operatorName), "未登录", operatorName),
             DateTime.Now)
     End Sub
 

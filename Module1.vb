@@ -680,13 +680,19 @@ Loop_Begin:
         End If
     End Sub
 
+    Private Sub ResetCurrentUserSession()
+        '登录状态属于当前进程会话，不应从启动默认值或上一次运行状态继承。
+        operatorName = String.Empty
+        Initsetting.curOperator = String.Empty
+    End Sub
+
     Public Sub main()
-        '启动直接进入主窗体;登录作为一级菜单操作,默认使用 Admin 身份。
-        operatorName = "Admin"
+        '启动直接进入主窗体；登录作为一级菜单操作，初始状态为未登录。
         '只读取本地配置，不在消息循环建立前启动任何设备连接或轮询。
         Call ReadInitFile()
+        ResetCurrentUserSession()
         Dim mainWindow As New MDIForm()
-        mainWindow.operTypeNum = 1
+        mainWindow.operTypeNum = 0
         frmMDI = mainWindow
         Application.Run(mainWindow)
     End Sub
@@ -696,6 +702,7 @@ Loop_Begin:
         frmMDI = frmMDI1
         blnOnLine = True
         Call ReadInitFile()
+        ResetCurrentUserSession()
         If frmMDI1 IsNot Nothing AndAlso Not frmMDI1.IsDisposed Then
             frmMDI1.Show()
         End If
