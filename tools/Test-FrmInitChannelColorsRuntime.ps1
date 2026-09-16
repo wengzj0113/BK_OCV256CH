@@ -8,6 +8,7 @@ $assembly = [Reflection.Assembly]::LoadFrom($exePath)
 $formType = $assembly.GetType('software.frmInit', $true)
 $form = [Activator]::CreateInstance($formType)
 try {
+    if (-not $form.TopMost) { throw 'frmInit 未设置 TopMost' }
     $tabControl = $form.Controls | Where-Object { $_.Name -eq 'TabControl1' } | Select-Object -First 1
     if ($null -eq $tabControl) { throw 'TabControl1 未创建' }
     $colorPage = $tabControl.TabPages | Where-Object { $_.Name -eq 'TabPageChannelColors' } | Select-Object -First 1

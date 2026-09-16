@@ -1928,6 +1928,7 @@ Partial Class frmInit
         Me.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen
         Me.Tag = "设置"
         Me.Text = "初始设置"
+        Me.TopMost = True
         Me.TabControl1.ResumeLayout(False)
         Me.TabPage1.ResumeLayout(False)
         Me.GroupBox9.ResumeLayout(False)

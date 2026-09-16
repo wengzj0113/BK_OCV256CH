@@ -75,12 +75,13 @@ Public Class MDIForm
     Private m_ChildFormNumber As Integer
     Private Sub init_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles init.Click
         Me.Cursor = Cursors.WaitCursor
-        If Not My.Forms.frmInit.IsDisposed Then
-            My.Forms.frmInit.Dispose()
-        End If
-        My.Forms.frmInit.Show()
-        My.Forms.frmInit.Activate()
-        Me.Cursor = Cursors.Default
+        Try
+            Using initForm As New frmInit()
+                initForm.ShowDialog(Me)
+            End Using
+        Finally
+            Me.Cursor = Cursors.Default
+        End Try
     End Sub
     Private Sub OnLineTest_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles OnLineTest.Click
         Me.Cursor = Cursors.WaitCursor
