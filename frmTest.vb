@@ -78,7 +78,7 @@ Public Class frmTest
         '*******************************
         '显示相关信息
         '数据服务器字段已从主测试页移除。
-        lblBarNum.Text = "*"
+        'lblBarNum.Text = "*"
         ReadInitFile()
         StartupTiming.Mark("frmTest-read-init")
         channelStatusColors = ChannelColorSettings.FromInitset(Initsetting)
@@ -221,7 +221,7 @@ Public Class frmTest
     Private Sub HandleSelectedChannelsChanged(ByVal sender As Object, ByVal e As EventArgs)
         If channelGrid Is Nothing Then Return
         SelectedChannelNumbers = channelGrid.SelectedChannelNumbers
-        lblBarNum.Text = channelGrid.SelectedChannelCount.ToString()
+        'lblBarNum.Text = channelGrid.SelectedChannelCount.ToString()
     End Sub
 
     Private Sub SetSelectionControlsEnabled(ByVal enabled As Boolean)
@@ -1302,6 +1302,63 @@ exit_sub:
     Private Sub btnStop_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles btnStop.Click
         blstop = True
     End Sub
+
+    Private Sub btnGetBarcode_Click(ByVal sender As Object, ByVal e As EventArgs) Handles btnGetBarcode.Click
+        If isRuning Then
+            MessageBox.Show("测试进行中，不能重新获取条码。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information)
+            Return
+        End If
+
+        Dim trayCode As String = If(txtTray.Text, String.Empty).Trim()
+        If trayCode = String.Empty Then
+            MessageBox.Show("托盘码不能为空。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+            txtTray.Focus()
+            Return
+        End If
+
+        Try
+            Dim channelCodes As New Dictionary(Of Integer, String)()
+            Using service As New OcvDataService()
+                Dim trayCells As DataTable = service.GetTrayCellsByTrayCode(trayCode)
+                For Each row As DataRow In trayCells.Rows
+                    If row.IsNull("ChannelNo") OrElse row.IsNull("BatteryCode") Then
+                        Continue For
+                    End If
+
+                    Dim channel As Integer = Convert.ToInt32(row("ChannelNo"))
+                    Dim barcode As String = Convert.ToString(row("BatteryCode")).Trim()
+                    If channel < 1 OrElse channel > MAX_CHANNEL Then
+                        Throw New InvalidOperationException("查询结果包含非法通道：CH" & channel.ToString())
+                    End If
+                    If barcode = String.Empty Then
+                        Throw New InvalidOperationException("CH" & channel.ToString() & " 的电芯条码为空。")
+                    End If
+                    If channelCodes.ContainsKey(channel) Then
+                        Throw New InvalidOperationException("查询结果存在重复通道：CH" & channel.ToString())
+                    End If
+
+                    channelCodes.Add(channel, barcode)
+                Next
+            End Using
+
+            If channelCodes.Count = 0 Then
+                Throw New InvalidOperationException("未查询到该托盘的电芯条码。")
+            End If
+
+            For index As Integer = 0 To MAX_CHANNEL - 1
+                RecieveData(index).BatCode = String.Empty
+            Next
+            For Each item As KeyValuePair(Of Integer, String) In channelCodes
+                RecieveData(item.Key - 1).BatCode = item.Value
+            Next
+
+            RefreshChannelOverview()
+            MessageBox.Show("已获取 " & channelCodes.Count.ToString() & " 个电芯条码。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information)
+        Catch ex As Exception
+            MessageBox.Show("获取托盘条码失败：" & ex.Message, "错误", MessageBoxButtons.OK, MessageBoxIcon.Error)
+        End Try
+    End Sub
+
     Private Sub txtLastNum_KeyDown(ByVal sender As Object, ByVal e As System.Windows.Forms.KeyEventArgs) Handles txtLastNum.KeyDown
         '        Dim intF, intL As Long
         '        Dim I As Short
