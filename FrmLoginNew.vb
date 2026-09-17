@@ -1,26 +1,7 @@
-﻿Imports System.IO
-Imports System.Security.Cryptography
-Imports System.Text
-
 Public Class FrmLoginNew
 
     '登录成功后的操作员类型 (1=系统管理员, 2=操作员),由 main() 传给 MDIForm
     Public Property OperTypeNum As Integer = 2
-
-    '用于密码哈希的固定盐(R2-08)。真实生产环境应改为每个用户独立随机盐并与用户名一同存储
-    Friend Const PasswordSalt As String = "XL_OCV_256_Salt_2024"
-
-    '把密码按 SHA256(salt + password) 哈希 (R2-08)。Friend 让 frmUserManage 等同程序集可复用同一套算法
-    Friend Shared Function HashPassword(password As String) As String
-        Using sha As SHA256 = SHA256.Create()
-            Dim bytes() As Byte = sha.ComputeHash(Encoding.UTF8.GetBytes(PasswordSalt & password))
-            Dim sb As New StringBuilder()
-            For i As Integer = 0 To bytes.Length - 1
-                sb.Append(bytes(i).ToString("x2"))
-            Next
-            Return sb.ToString()
-        End Using
-    End Function
 
     Private Sub FrmLoginNew_Load(sender As Object, e As EventArgs) Handles MyBase.Load
         CheckAndCreateCSVFile()
@@ -67,5 +48,3 @@ Public Class FrmLoginNew
     End Sub
 
 End Class
-
-

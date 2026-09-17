@@ -5,7 +5,7 @@ Imports System.Text
 
 Public Class UserAccount
     Public Property UserName As String
-    Public Property PasswordHash As String
+    Public Property Password As String
     Public Property Role As UserRole
 End Class
 
@@ -25,9 +25,9 @@ Public NotInheritable Class UserAccountStore
         If File.Exists(FilePath) Then Return
 
         Dim lines As New List(Of String) From {
-            "用户名,密码哈希,角色",
-            "系统管理员," & FrmLoginNew.HashPassword("admin") & ",Administrator",
-            "操作员," & FrmLoginNew.HashPassword("operator") & ",Operator"
+            "用户名,密码,角色",
+            "系统管理员,123456,Administrator",
+            "操作员,123,Operator"
         }
         File.WriteAllLines(FilePath, lines, Utf8Bom)
     End Sub
@@ -62,7 +62,7 @@ Public NotInheritable Class UserAccountStore
 
         Return New UserAccount With {
             .UserName = parts(0).Trim(),
-            .PasswordHash = parts(1).Trim(),
+            .Password = parts(1).Trim(),
             .Role = role
         }
     End Function
@@ -74,23 +74,15 @@ Public NotInheritable Class UserAccountStore
         Dim account As UserAccount = accounts.FirstOrDefault(Function(item) item.UserName = userName.Trim())
         If account Is Nothing Then Return Nothing
 
-        Dim inputHash As String = FrmLoginNew.HashPassword(password)
-        Dim passwordMatches As Boolean = account.PasswordHash.Length = 64 AndAlso account.PasswordHash = inputHash
-        Dim legacyPlainTextMatches As Boolean = account.PasswordHash = password
-        If Not passwordMatches AndAlso Not legacyPlainTextMatches Then Return Nothing
-
-        If legacyPlainTextMatches Then
-            account.PasswordHash = inputHash
-            SaveAccounts(accounts)
-        End If
+        If account.Password <> password Then Return Nothing
 
         Return account
     End Function
 
     Public Shared Sub SaveAccounts(accounts As IEnumerable(Of UserAccount))
-        Dim lines As New List(Of String) From {"用户名,密码哈希,角色"}
+        Dim lines As New List(Of String) From {"用户名,密码,角色"}
         For Each account As UserAccount In accounts
-            lines.Add(account.UserName & "," & account.PasswordHash & "," & account.Role.ToString())
+            lines.Add(account.UserName & "," & account.Password & "," & account.Role.ToString())
         Next
         File.WriteAllLines(FilePath, lines, Utf8Bom)
     End Sub
@@ -104,9 +96,9 @@ Public NotInheritable Class UserAccountStore
         Dim accounts As List(Of UserAccount) = LoadAccounts()
         Dim account As UserAccount = accounts.FirstOrDefault(Function(item) item.UserName = userName.Trim())
         If account Is Nothing Then
-            accounts.Add(New UserAccount With {.UserName = userName.Trim(), .PasswordHash = FrmLoginNew.HashPassword(password), .Role = role})
+            accounts.Add(New UserAccount With {.UserName = userName.Trim(), .Password = password, .Role = role})
         Else
-            account.PasswordHash = FrmLoginNew.HashPassword(password)
+            account.Password = password
             account.Role = role
         End If
         SaveAccounts(accounts)
