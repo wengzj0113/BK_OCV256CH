@@ -74,6 +74,7 @@ Public Class MDIForm
     End Sub
     Private m_ChildFormNumber As Integer
     Private Sub init_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles init.Click
+        If Not AuthorizationService.RequireAdministrator(Me) Then Return
         Me.Cursor = Cursors.WaitCursor
         Try
             Using initForm As New frmInit()
@@ -151,21 +152,26 @@ Public Class MDIForm
     Private Sub LoginToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles loginMenu.Click
         Using login As New FrmLoginNew()
             If login.ShowDialog(Me) <> DialogResult.OK Then Return
-
-            operTypeNum = login.OperTypeNum
-            operatorName = Initsetting.curOperator
-            ApplyOperatorPermissions()
-            UpdateBottomStatus()
         End Using
+        ApplyOperatorPermissions()
+        UpdateBottomStatus()
+    End Sub
+
+    Private Sub logoutMenu_Click(sender As Object, e As EventArgs) Handles logoutMenu.Click
+        AuthorizationService.ResetSession()
+        ApplyOperatorPermissions()
+        UpdateBottomStatus()
     End Sub
 
     Private Sub ApplyOperatorPermissions()
-        Dim isAdmin As Boolean = (operTypeNum = 1)
-        btnInit.Enabled = isAdmin
-        ToolDebug.Enabled = isAdmin
-        init.Enabled = isAdmin
-        btnDebug.Enabled = isAdmin
-        userMenage.Enabled = isAdmin
+        btnInit.Enabled = AuthorizationService.CanAccess(AppPermission.InitialSettings)
+        ToolDebug.Enabled = AuthorizationService.CanAccess(AppPermission.Debug)
+        init.Enabled = AuthorizationService.CanAccess(AppPermission.InitialSettings)
+        btnDebug.Enabled = AuthorizationService.CanAccess(AppPermission.Debug)
+        userMenage.Enabled = AuthorizationService.CanAccess(AppPermission.UserManagement)
+        logoutMenu.Enabled = AuthorizationService.IsAuthenticated()
+        loginMenu.Text = If(AuthorizationService.IsAuthenticated(), "切换用户", "登录")
+        operTypeNum = CInt(AuthorizationService.CurrentRole)
     End Sub
 
     Private Sub btnExit_Click(ByVal sender As System.Object, ByVal e As System.EventArgs)
@@ -311,7 +317,7 @@ Public Class MDIForm
             If(resistance3561Connected AndAlso Com_3561 IsNot Nothing AndAlso Com_3561.IsOpen, "已连接", "未连接"),
             If(databaseConnected, "已连接", "未连接"),
             If(mesConnected, "已连接", "未连接"),
-            If(String.IsNullOrWhiteSpace(operatorName), "未登录", operatorName),
+            If(String.IsNullOrWhiteSpace(AuthorizationService.CurrentUserName), "未登录", AuthorizationService.CurrentUserName),
             DateTime.Now)
     End Sub
 
@@ -527,6 +533,7 @@ Public Class MDIForm
         Return ipe
     End Function
     Private Sub btnDebug_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles btnDebug.Click
+        If Not AuthorizationService.RequireAdministrator(Me) Then Return
         Me.Cursor = Cursors.WaitCursor
         If Not My.Forms.frmDebug.IsDisposed Then
             My.Forms.frmDebug.Dispose()
@@ -540,6 +547,7 @@ Public Class MDIForm
     End Sub
 
     Private Sub ToolDebug_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles ToolDebug.Click
+        If Not AuthorizationService.RequireAdministrator(Me) Then Return
         frmDebug.Show()
     End Sub
     Private Sub ToolInit_Click(ByVal sender As System.Object, ByVal e As System.EventArgs)
@@ -547,6 +555,7 @@ Public Class MDIForm
     End Sub
 
     Private Sub btnInit_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles btnInit.Click
+        If Not AuthorizationService.RequireAdministrator(Me) Then Return
         init_Click(sender, e)
     End Sub
     Private Sub TStripbtnInQuery_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles TStripbtnInQuery.Click
@@ -631,6 +640,7 @@ Public Class MDIForm
     End Sub
 
     Private Sub userMenage_Click(sender As Object, e As EventArgs) Handles userMenage.Click
+        If Not AuthorizationService.RequireAdministrator(Me) Then Return
         frmUserManage.ShowDialog()
         frmUserManage.Activate()
 

@@ -265,6 +265,10 @@ Public Class frmInit
     End Sub
 
     Private Sub frmInit_Load(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles MyBase.Load
+        If Not (Me.DesignMode OrElse System.ComponentModel.LicenseManager.UsageMode = System.ComponentModel.LicenseUsageMode.Designtime) AndAlso Not AuthorizationService.RequireAdministrator(Me) Then
+            Close()
+            Return
+        End If
         Dim I As Int16
         InitializeRetest3562Controls()
         LoadChannelColors()

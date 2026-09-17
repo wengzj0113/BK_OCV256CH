@@ -507,6 +507,8 @@
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Module1.vb" />
+    <Compile Include="Authorization.vb" />
+    <Compile Include="UserAccountStore.vb" />
     <Compile Include="ChannelColorSettings.vb" />
     <Compile Include="Cls_Sock.vb" />
     <Compile Include="Module5.vb" />
