@@ -143,6 +143,9 @@
     <SignManifests>true</SignManifests>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="DebugModels.vb" />
+    <Compile Include="DebugProbeService.vb" />
+    <Compile Include="DebugDashboardControl.vb" />
     <Compile Include="PlcController.vb" />
     <Compile Include="SerialControlBoardClient.vb" />
     <Reference Include="CmdMemberDLL, Version=1.0.0.0, Culture=neutral, processorArchitecture=x86">
