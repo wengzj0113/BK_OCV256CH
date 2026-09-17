@@ -230,6 +230,10 @@ Public Class frmDebug
     End Sub
 
     Private Sub frmDebug_Load(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles MyBase.Load
+        If Not (Me.DesignMode OrElse System.ComponentModel.LicenseManager.UsageMode = System.ComponentModel.LicenseUsageMode.Designtime) AndAlso Not AuthorizationService.RequireAdministrator(Me) Then
+            Close()
+            Return
+        End If
         Dim intLoop As Integer
         For intLoop = 0 To MAX_CHANNEL - 1
             cmbChannel.Items.Add(intLoop + 1)

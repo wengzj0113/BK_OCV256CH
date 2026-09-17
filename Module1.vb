@@ -682,8 +682,7 @@ Loop_Begin:
 
     Private Sub ResetCurrentUserSession()
         '登录状态属于当前进程会话，不应从启动默认值或上一次运行状态继承。
-        operatorName = String.Empty
-        Initsetting.curOperator = String.Empty
+        AuthorizationService.ResetSession()
     End Sub
 
     Public Sub main()

@@ -42,6 +42,7 @@ Partial Class MDIForm
         Me.EMS上传ToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
         Me.calibrationMenu = New System.Windows.Forms.ToolStripMenuItem()
         Me.loginMenu = New System.Windows.Forms.ToolStripMenuItem()
+        Me.logoutMenu = New System.Windows.Forms.ToolStripMenuItem()
         Me.bottomStatusControl = New BottomStatusControl()
         Me.ToolStrip = New System.Windows.Forms.ToolStrip()
         Me.btnInit = New System.Windows.Forms.ToolStripButton()
@@ -68,7 +69,7 @@ Partial Class MDIForm
         Me.MenuStrip.ForeColor = System.Drawing.Color.White
         Me.MenuStrip.Font = New System.Drawing.Font("Microsoft YaHei UI", 10.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
         Me.MenuStrip.ImageScalingSize = New System.Drawing.Size(20, 20)
-        Me.MenuStrip.Items.AddRange(New System.Windows.Forms.ToolStripItem() {Me.FileMenu, Me.EditMenu, Me.TStripMenuInQuery, Me.calibrationMenu, Me.EMS上传ToolStripMenuItem, Me.loginMenu})
+        Me.MenuStrip.Items.AddRange(New System.Windows.Forms.ToolStripItem() {Me.FileMenu, Me.EditMenu, Me.TStripMenuInQuery, Me.calibrationMenu, Me.EMS上传ToolStripMenuItem, Me.loginMenu, Me.logoutMenu})
         Me.MenuStrip.Location = New System.Drawing.Point(0, 0)
         Me.MenuStrip.Name = "MenuStrip"
         Me.MenuStrip.AutoSize = False
@@ -194,18 +195,28 @@ Partial Class MDIForm
         Me.loginMenu.Size = New System.Drawing.Size(80, 42)
         Me.loginMenu.Text = "登录"
         Me.loginMenu.ToolTipText = "登录或切换当前用户"
+        '
+        'logoutMenu
+        '
+        Me.logoutMenu.Enabled = False
+        Me.logoutMenu.Name = "logoutMenu"
+        Me.logoutMenu.Size = New System.Drawing.Size(100, 42)
+        Me.logoutMenu.Text = "退出登录"
+        Me.logoutMenu.ToolTipText = "退出当前登录会话"
         Me.FileMenu.ForeColor = System.Drawing.Color.White
         Me.EditMenu.ForeColor = System.Drawing.Color.White
         Me.TStripMenuInQuery.ForeColor = System.Drawing.Color.White
         Me.calibrationMenu.ForeColor = System.Drawing.Color.White
         Me.EMS上传ToolStripMenuItem.ForeColor = System.Drawing.Color.White
         Me.loginMenu.ForeColor = System.Drawing.Color.White
+        Me.logoutMenu.ForeColor = System.Drawing.Color.White
         Me.FileMenu.Margin = New System.Windows.Forms.Padding(8, 0, 8, 0)
         Me.EditMenu.Margin = New System.Windows.Forms.Padding(8, 0, 8, 0)
         Me.TStripMenuInQuery.Margin = New System.Windows.Forms.Padding(8, 0, 8, 0)
         Me.calibrationMenu.Margin = New System.Windows.Forms.Padding(8, 0, 8, 0)
         Me.EMS上传ToolStripMenuItem.Margin = New System.Windows.Forms.Padding(8, 0, 8, 0)
         Me.loginMenu.Margin = New System.Windows.Forms.Padding(8, 0, 8, 0)
+        Me.logoutMenu.Margin = New System.Windows.Forms.Padding(8, 0, 8, 0)
         '
         'ToolStrip
         '
@@ -349,5 +360,6 @@ Partial Class MDIForm
     Friend WithEvents EMS上传ToolStripMenuItem As ToolStripMenuItem
     Friend WithEvents calibrationMenu As ToolStripMenuItem
     Friend WithEvents loginMenu As ToolStripMenuItem
+    Friend WithEvents logoutMenu As ToolStripMenuItem
     Friend WithEvents bottomStatusControl As BottomStatusControl
 End Class

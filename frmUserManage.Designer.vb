@@ -29,12 +29,14 @@ Partial Class frmUserManage
         Me.Label2 = New System.Windows.Forms.Label()
         Me.Label1 = New System.Windows.Forms.Label()
         Me.btnChangePWD = New System.Windows.Forms.Button()
+        Me.ComboBoxRole = New System.Windows.Forms.ComboBox()
+        Me.Label3 = New System.Windows.Forms.Label()
         Me.SuspendLayout()
         '
         'btnDelete
         '
         Me.btnDelete.Font = New System.Drawing.Font("微软雅黑", 12.0!)
-        Me.btnDelete.Location = New System.Drawing.Point(247, 174)
+        Me.btnDelete.Location = New System.Drawing.Point(247, 215)
         Me.btnDelete.Margin = New System.Windows.Forms.Padding(2)
         Me.btnDelete.Name = "btnDelete"
         Me.btnDelete.Size = New System.Drawing.Size(87, 44)
@@ -45,7 +47,7 @@ Partial Class frmUserManage
         'btnAdd
         '
         Me.btnAdd.Font = New System.Drawing.Font("微软雅黑", 12.0!)
-        Me.btnAdd.Location = New System.Drawing.Point(87, 174)
+        Me.btnAdd.Location = New System.Drawing.Point(87, 215)
         Me.btnAdd.Margin = New System.Windows.Forms.Padding(2)
         Me.btnAdd.Name = "btnAdd"
         Me.btnAdd.Size = New System.Drawing.Size(87, 44)
@@ -102,15 +104,38 @@ Partial Class frmUserManage
         Me.btnChangePWD.Text = "修改"
         Me.btnChangePWD.UseVisualStyleBackColor = True
         '
+        'ComboBoxRole
+        '
+        Me.ComboBoxRole.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList
+        Me.ComboBoxRole.Font = New System.Drawing.Font("微软雅黑", 12.0!)
+        Me.ComboBoxRole.FormattingEnabled = True
+        Me.ComboBoxRole.Items.AddRange(New Object() {"操作员", "系统管理员"})
+        Me.ComboBoxRole.Location = New System.Drawing.Point(109, 150)
+        Me.ComboBoxRole.Name = "ComboBoxRole"
+        Me.ComboBoxRole.Size = New System.Drawing.Size(197, 29)
+        Me.ComboBoxRole.TabIndex = 27
+        '
+        'Label3
+        '
+        Me.Label3.AutoSize = True
+        Me.Label3.Font = New System.Drawing.Font("微软雅黑", 12.0!)
+        Me.Label3.Location = New System.Drawing.Point(60, 150)
+        Me.Label3.Name = "Label3"
+        Me.Label3.Size = New System.Drawing.Size(42, 21)
+        Me.Label3.TabIndex = 28
+        Me.Label3.Text = "角色"
+        '
         'frmUserManage
         '
         Me.AutoScaleDimensions = New System.Drawing.SizeF(6.0!, 12.0!)
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
         Me.BackColor = System.Drawing.Color.FromArgb(CType(CType(192, Byte), Integer), CType(CType(192, Byte), Integer), CType(CType(255, Byte), Integer))
-        Me.ClientSize = New System.Drawing.Size(386, 246)
+        Me.ClientSize = New System.Drawing.Size(386, 285)
         Me.Controls.Add(Me.btnDelete)
         Me.Controls.Add(Me.btnChangePWD)
         Me.Controls.Add(Me.btnAdd)
+        Me.Controls.Add(Me.ComboBoxRole)
+        Me.Controls.Add(Me.Label3)
         Me.Controls.Add(Me.PasswordTextBox)
         Me.Controls.Add(Me.ComboBoxUsername)
         Me.Controls.Add(Me.Label2)
@@ -129,4 +154,6 @@ Partial Class frmUserManage
     Friend WithEvents Label2 As Label
     Friend WithEvents Label1 As Label
     Friend WithEvents btnChangePWD As Button
+    Friend WithEvents ComboBoxRole As ComboBox
+    Friend WithEvents Label3 As Label
 End Class
