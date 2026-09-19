@@ -50,6 +50,7 @@ Public Class frmTest
     Dim logDirectory As String = AppLog.LogDirectory
     Dim logFilePath As String = Path.Combine(logDirectory, "Run.log")
     Private ReadOnly testProgressState As New TestProgressState()
+    Private testProgressDialog As frmTestProgress
 
     Public ReadOnly Property CurrentAlarmValue As Integer
         Get
@@ -1934,6 +1935,9 @@ exit_sub:
     End Sub
 
     Private Sub frmTest_FormClosed(sender As Object, e As FormClosedEventArgs) Handles MyBase.FormClosed
+        If testProgressDialog IsNot Nothing AndAlso Not testProgressDialog.IsDisposed Then
+            testProgressDialog.CloseForOwner()
+        End If
         PrepareForShutdown()
         '复位报警状态
         alarmStatus = False
@@ -2585,7 +2589,16 @@ exit_sub:
     Private Sub BeginTestProgress(totalCount As Integer, message As String)
         testProgressState.Begin(totalCount, message)
         TimerTestProgress.Start()
+        If testProgressDialog Is Nothing OrElse testProgressDialog.IsDisposed Then
+            testProgressDialog = New frmTestProgress()
+        End If
+        If Not testProgressDialog.Visible Then
+            testProgressDialog.Show(Me)
+        Else
+            testProgressDialog.BringToFront()
+        End If
         ApplyTestProgressSnapshot(testProgressState.CreateSnapshot())
+        testProgressDialog.BeginProgress(testProgressState.CreateSnapshot())
     End Sub
 
     Private Sub PublishTestProgress(stage As TestProgressStage,
@@ -2594,20 +2607,24 @@ exit_sub:
                                     Optional currentChannel As Integer? = Nothing)
         testProgressState.SetStage(stage, message, currentChannel, progressPercent)
         ApplyTestProgressSnapshot(testProgressState.CreateSnapshot())
-        grpTestProgress.Refresh()
-        If frmMDI IsNot Nothing AndAlso Not frmMDI.IsDisposed Then frmMDI.Refresh()
     End Sub
 
     Private Sub CompleteTestProgress(message As String)
         testProgressState.Complete(message)
         TimerTestProgress.Stop()
         ApplyTestProgressSnapshot(testProgressState.CreateSnapshot())
+        If testProgressDialog IsNot Nothing AndAlso Not testProgressDialog.IsDisposed Then
+            testProgressDialog.MarkCompleted(message)
+        End If
     End Sub
 
     Private Sub FailTestProgress(message As String)
         testProgressState.Fail(message)
         TimerTestProgress.Stop()
         ApplyTestProgressSnapshot(testProgressState.CreateSnapshot())
+        If testProgressDialog IsNot Nothing AndAlso Not testProgressDialog.IsDisposed Then
+            testProgressDialog.MarkFailed(message)
+        End If
     End Sub
 
     Private Sub StopTestProgressIfNeeded()
@@ -2639,69 +2656,21 @@ exit_sub:
             Return
         End If
 
-        Dim stageText As String = GetTestProgressStageText(snapshot.Stage)
-        lblTestProgressStage.Text = stageText
-        lblTestProgressCount.Text = String.Format("通道：{0}/{1}", snapshot.CompletedCount, snapshot.TotalCount)
-        lblTestProgressElapsed.Text = "用时 " & FormatProgressTime(snapshot.Elapsed)
-        If snapshot.EstimatedRemaining.HasValue Then
-            lblTestProgressEta.Text = "剩余 " & FormatProgressTime(snapshot.EstimatedRemaining.Value)
-        ElseIf snapshot.Stage = TestProgressStage.Idle OrElse snapshot.Stage = TestProgressStage.Completed OrElse snapshot.Stage = TestProgressStage.Failed Then
-            lblTestProgressEta.Text = "剩余 --"
-        Else
-            lblTestProgressEta.Text = "剩余计算中"
+        If testProgressDialog IsNot Nothing AndAlso Not testProgressDialog.IsDisposed Then
+            testProgressDialog.ApplySnapshot(snapshot)
         End If
-        lblTestProgressDetail.Text = If(String.IsNullOrWhiteSpace(snapshot.Message), stageText, snapshot.Message)
-
-        progressTest.Style = If(snapshot.Stage = TestProgressStage.Idle OrElse snapshot.Stage = TestProgressStage.Completed OrElse snapshot.Stage = TestProgressStage.Failed,
-                                ProgressBarStyle.Continuous,
-                                ProgressBarStyle.Continuous)
-        progressTest.Value = Math.Max(0, Math.Min(100, snapshot.ProgressPercent))
-        lblTestProgressStage.ForeColor = GetTestProgressColor(snapshot.Stage)
-        SetTestStatus(stageText)
+        Dim statusText As String
+        If snapshot.Stage = TestProgressStage.Idle Then
+            statusText = "等待测试"
+        ElseIf snapshot.Stage = TestProgressStage.Completed Then
+            statusText = "测试完成"
+        ElseIf snapshot.Stage = TestProgressStage.Failed Then
+            statusText = "测试失败"
+        Else
+            statusText = "测试中"
+        End If
+        SetTestStatus(statusText)
     End Sub
-
-    Private Shared Function GetTestProgressStageText(stage As TestProgressStage) As String
-        Select Case stage
-            Case TestProgressStage.Preparing
-                Return "准备测试"
-            Case TestProgressStage.CreatingTask
-                Return "创建测试任务"
-            Case TestProgressStage.Testing
-                Return "正在测试"
-            Case TestProgressStage.CollectingResults
-                Return "读取测试结果"
-            Case TestProgressStage.Saving
-                Return "保存测试结果"
-            Case TestProgressStage.Uploading
-                Return "提交后台上传"
-            Case TestProgressStage.Completed
-                Return "测试完成"
-            Case TestProgressStage.Failed
-                Return "测试失败"
-            Case Else
-                Return "等待测试"
-        End Select
-    End Function
-
-    Private Shared Function GetTestProgressColor(stage As TestProgressStage) As Color
-        Select Case stage
-            Case TestProgressStage.Completed
-                Return Color.ForestGreen
-            Case TestProgressStage.Failed
-                Return Color.Firebrick
-            Case TestProgressStage.Saving, TestProgressStage.Uploading
-                Return Color.DarkOrange
-            Case TestProgressStage.Idle
-                Return Color.FromArgb(90, 104, 120)
-            Case Else
-                Return Color.FromArgb(23, 105, 232)
-        End Select
-    End Function
-
-    Private Shared Function FormatProgressTime(value As TimeSpan) As String
-        Dim totalSeconds As Integer = Math.Max(0, CInt(Math.Truncate(value.TotalSeconds)))
-        Return String.Format("{0:00}:{1:00}", totalSeconds \ 60, totalSeconds Mod 60)
-    End Function
 
     Private Sub SetTestStatus(ByVal message As String)
         If frmMDI Is Nothing OrElse frmMDI.IsDisposed Then Return

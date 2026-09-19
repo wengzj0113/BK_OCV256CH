@@ -96,14 +96,6 @@ Partial Class frmTest
         Me.Label28 = New System.Windows.Forms.Label()
         Me.LabelRun = New System.Windows.Forms.Label()
         Me.LabelAlarm = New System.Windows.Forms.Label()
-        Me.grpTestProgress = New System.Windows.Forms.GroupBox()
-        Me.testProgressLayout = New System.Windows.Forms.TableLayoutPanel()
-        Me.lblTestProgressStage = New System.Windows.Forms.Label()
-        Me.progressTest = New System.Windows.Forms.ProgressBar()
-        Me.lblTestProgressCount = New System.Windows.Forms.Label()
-        Me.lblTestProgressElapsed = New System.Windows.Forms.Label()
-        Me.lblTestProgressEta = New System.Windows.Forms.Label()
-        Me.lblTestProgressDetail = New System.Windows.Forms.Label()
         Me.GroupBox7 = New System.Windows.Forms.GroupBox()
         Me.txtAlarm = New System.Windows.Forms.TextBox()
         Me.Button2 = New System.Windows.Forms.Button()
@@ -143,8 +135,6 @@ Partial Class frmTest
         Me.smokeOneLayout.SuspendLayout()
         Me.smokeTwoLayout.SuspendLayout()
         Me.deviceStatusLayout.SuspendLayout()
-        Me.grpTestProgress.SuspendLayout()
-        Me.testProgressLayout.SuspendLayout()
         Me.GroupBox7.SuspendLayout()
         Me.Panel1.SuspendLayout()
         Me.leftContentPanel.SuspendLayout()
@@ -1168,119 +1158,6 @@ Partial Class frmTest
         Me.LabelAlarm.TabIndex = 51
         Me.LabelAlarm.Text = "急停报警"
         '
-        'grpTestProgress
-        '
-        Me.grpTestProgress.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink
-        Me.grpTestProgress.BackColor = System.Drawing.Color.White
-        Me.grpTestProgress.Controls.Add(Me.testProgressLayout)
-        Me.grpTestProgress.Dock = System.Windows.Forms.DockStyle.Top
-        Me.grpTestProgress.FlatStyle = System.Windows.Forms.FlatStyle.Flat
-        Me.grpTestProgress.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.grpTestProgress.ForeColor = System.Drawing.Color.FromArgb(CType(CType(23, Byte), Integer), CType(CType(105, Byte), Integer), CType(CType(232, Byte), Integer))
-        Me.grpTestProgress.Location = New System.Drawing.Point(6, 121)
-        Me.grpTestProgress.Margin = New System.Windows.Forms.Padding(0, 0, 0, 5)
-        Me.grpTestProgress.Name = "grpTestProgress"
-        Me.grpTestProgress.Padding = New System.Windows.Forms.Padding(6, 15, 6, 6)
-        Me.grpTestProgress.Size = New System.Drawing.Size(338, 112)
-        Me.grpTestProgress.TabIndex = 80
-        Me.grpTestProgress.TabStop = False
-        Me.grpTestProgress.Text = "测试进度"
-        '
-        'testProgressLayout
-        '
-        Me.testProgressLayout.AutoSize = True
-        Me.testProgressLayout.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink
-        Me.testProgressLayout.ColumnCount = 4
-        Me.testProgressLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 34.0!))
-        Me.testProgressLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 22.0!))
-        Me.testProgressLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 22.0!))
-        Me.testProgressLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 22.0!))
-        Me.testProgressLayout.Controls.Add(Me.lblTestProgressStage, 0, 0)
-        Me.testProgressLayout.Controls.Add(Me.progressTest, 0, 1)
-        Me.testProgressLayout.Controls.Add(Me.lblTestProgressCount, 0, 2)
-        Me.testProgressLayout.Controls.Add(Me.lblTestProgressElapsed, 1, 2)
-        Me.testProgressLayout.Controls.Add(Me.lblTestProgressEta, 2, 2)
-        Me.testProgressLayout.Controls.Add(Me.lblTestProgressDetail, 0, 3)
-        Me.testProgressLayout.SetColumnSpan(Me.lblTestProgressStage, 4)
-        Me.testProgressLayout.SetColumnSpan(Me.progressTest, 4)
-        Me.testProgressLayout.SetColumnSpan(Me.lblTestProgressDetail, 4)
-        Me.testProgressLayout.Dock = System.Windows.Forms.DockStyle.Top
-        Me.testProgressLayout.Location = New System.Drawing.Point(6, 31)
-        Me.testProgressLayout.Margin = New System.Windows.Forms.Padding(0)
-        Me.testProgressLayout.Name = "testProgressLayout"
-        Me.testProgressLayout.RowCount = 4
-        Me.testProgressLayout.RowStyles.Add(New System.Windows.Forms.RowStyle())
-        Me.testProgressLayout.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 12.0!))
-        Me.testProgressLayout.RowStyles.Add(New System.Windows.Forms.RowStyle())
-        Me.testProgressLayout.RowStyles.Add(New System.Windows.Forms.RowStyle())
-        Me.testProgressLayout.Size = New System.Drawing.Size(326, 70)
-        Me.testProgressLayout.TabIndex = 0
-        '
-        'lblTestProgressStage
-        '
-        Me.lblTestProgressStage.AutoEllipsis = True
-        Me.lblTestProgressStage.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.lblTestProgressStage.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.lblTestProgressStage.ForeColor = System.Drawing.Color.FromArgb(CType(CType(23, Byte), Integer), CType(CType(105, Byte), Integer), CType(CType(232, Byte), Integer))
-        Me.lblTestProgressStage.Name = "lblTestProgressStage"
-        Me.lblTestProgressStage.Size = New System.Drawing.Size(326, 19)
-        Me.lblTestProgressStage.TabIndex = 0
-        Me.lblTestProgressStage.Text = "等待测试"
-        Me.lblTestProgressStage.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
-        '
-        'progressTest
-        '
-        Me.progressTest.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.progressTest.MarqueeAnimationSpeed = 30
-        Me.progressTest.Name = "progressTest"
-        Me.progressTest.Size = New System.Drawing.Size(326, 12)
-        Me.progressTest.Style = System.Windows.Forms.ProgressBarStyle.Continuous
-        Me.progressTest.TabIndex = 1
-        '
-        'lblTestProgressCount
-        '
-        Me.lblTestProgressCount.AutoEllipsis = True
-        Me.lblTestProgressCount.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.lblTestProgressCount.ForeColor = System.Drawing.Color.FromArgb(CType(CType(36, Byte), Integer), CType(CType(49, Byte), Integer), CType(CType(66, Byte), Integer))
-        Me.lblTestProgressCount.Name = "lblTestProgressCount"
-        Me.lblTestProgressCount.Size = New System.Drawing.Size(106, 19)
-        Me.lblTestProgressCount.TabIndex = 2
-        Me.lblTestProgressCount.Text = "通道：0/0"
-        Me.lblTestProgressCount.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
-        '
-        'lblTestProgressElapsed
-        '
-        Me.lblTestProgressElapsed.AutoEllipsis = True
-        Me.lblTestProgressElapsed.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.lblTestProgressElapsed.ForeColor = System.Drawing.Color.FromArgb(CType(CType(36, Byte), Integer), CType(CType(49, Byte), Integer), CType(CType(66, Byte), Integer))
-        Me.lblTestProgressElapsed.Name = "lblTestProgressElapsed"
-        Me.lblTestProgressElapsed.Size = New System.Drawing.Size(71, 19)
-        Me.lblTestProgressElapsed.TabIndex = 3
-        Me.lblTestProgressElapsed.Text = "用时 00:00"
-        Me.lblTestProgressElapsed.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
-        '
-        'lblTestProgressEta
-        '
-        Me.lblTestProgressEta.AutoEllipsis = True
-        Me.lblTestProgressEta.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.lblTestProgressEta.ForeColor = System.Drawing.Color.FromArgb(CType(CType(36, Byte), Integer), CType(CType(49, Byte), Integer), CType(CType(66, Byte), Integer))
-        Me.lblTestProgressEta.Name = "lblTestProgressEta"
-        Me.lblTestProgressEta.Size = New System.Drawing.Size(71, 19)
-        Me.lblTestProgressEta.TabIndex = 4
-        Me.lblTestProgressEta.Text = "剩余 --"
-        Me.lblTestProgressEta.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
-        '
-        'lblTestProgressDetail
-        '
-        Me.lblTestProgressDetail.AutoEllipsis = True
-        Me.lblTestProgressDetail.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.lblTestProgressDetail.ForeColor = System.Drawing.Color.FromArgb(CType(CType(90, Byte), Integer), CType(CType(104, Byte), Integer), CType(CType(120, Byte), Integer))
-        Me.lblTestProgressDetail.Name = "lblTestProgressDetail"
-        Me.lblTestProgressDetail.Size = New System.Drawing.Size(326, 19)
-        Me.lblTestProgressDetail.TabIndex = 5
-        Me.lblTestProgressDetail.Text = "等待开始"
-        Me.lblTestProgressDetail.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
-        '
         'GroupBox7
         '
         Me.GroupBox7.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink
@@ -1370,21 +1247,19 @@ Partial Class frmTest
         Me.leftContentPanel.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 338.0!))
         Me.leftContentPanel.Controls.Add(Me.currentStationButton, 0, 0)
         Me.leftContentPanel.Controls.Add(Me.grpTestMode, 0, 1)
-        Me.leftContentPanel.Controls.Add(Me.grpTestProgress, 0, 2)
-        Me.leftContentPanel.Controls.Add(Me.GroupBox1, 0, 3)
-        Me.leftContentPanel.Controls.Add(Me.grpChannelSelection, 0, 4)
-        Me.leftContentPanel.Controls.Add(Me.GroupBox3, 0, 5)
-        Me.leftContentPanel.Controls.Add(Me.GroupBox5, 0, 6)
-        Me.leftContentPanel.Controls.Add(Me.GroupBox8, 0, 7)
-        Me.leftContentPanel.Controls.Add(Me.GroupBox7, 0, 8)
-        Me.leftContentPanel.Controls.Add(Me.resetAlarmLayout, 0, 9)
+        Me.leftContentPanel.Controls.Add(Me.GroupBox1, 0, 2)
+        Me.leftContentPanel.Controls.Add(Me.grpChannelSelection, 0, 3)
+        Me.leftContentPanel.Controls.Add(Me.GroupBox3, 0, 4)
+        Me.leftContentPanel.Controls.Add(Me.GroupBox5, 0, 5)
+        Me.leftContentPanel.Controls.Add(Me.GroupBox8, 0, 6)
+        Me.leftContentPanel.Controls.Add(Me.GroupBox7, 0, 7)
+        Me.leftContentPanel.Controls.Add(Me.resetAlarmLayout, 0, 8)
         Me.leftContentPanel.Dock = System.Windows.Forms.DockStyle.Top
         Me.leftContentPanel.Location = New System.Drawing.Point(0, 0)
         Me.leftContentPanel.Margin = New System.Windows.Forms.Padding(0)
         Me.leftContentPanel.Name = "leftContentPanel"
         Me.leftContentPanel.Padding = New System.Windows.Forms.Padding(6)
-        Me.leftContentPanel.RowCount = 10
-        Me.leftContentPanel.RowStyles.Add(New System.Windows.Forms.RowStyle())
+        Me.leftContentPanel.RowCount = 9
         Me.leftContentPanel.RowStyles.Add(New System.Windows.Forms.RowStyle())
         Me.leftContentPanel.RowStyles.Add(New System.Windows.Forms.RowStyle())
         Me.leftContentPanel.RowStyles.Add(New System.Windows.Forms.RowStyle())
@@ -1697,10 +1572,6 @@ Partial Class frmTest
         Me.deviceStatusLayout.PerformLayout()
         Me.GroupBox7.ResumeLayout(False)
         Me.GroupBox7.PerformLayout()
-        Me.testProgressLayout.ResumeLayout(False)
-        Me.testProgressLayout.PerformLayout()
-        Me.grpTestProgress.ResumeLayout(False)
-        Me.grpTestProgress.PerformLayout()
         Me.Panel1.ResumeLayout(False)
         Me.Panel1.PerformLayout()
         Me.leftContentPanel.ResumeLayout(False)
@@ -1733,7 +1604,6 @@ Partial Class frmTest
     Private smokeOneLayout As FlowLayoutPanel
     Private smokeTwoLayout As FlowLayoutPanel
     Private deviceStatusLayout As FlowLayoutPanel
-    Private testProgressLayout As TableLayoutPanel
     Private grpTestMode As GroupBox
     Friend WithEvents chkAutoTest As CheckBox
     Friend WithEvents chkManualTest As CheckBox
@@ -1804,13 +1674,6 @@ Partial Class frmTest
     Friend WithEvents Label1 As Label
     Friend WithEvents Label15 As Label
     Friend WithEvents GroupBox7 As GroupBox
-    Friend WithEvents grpTestProgress As GroupBox
-    Friend WithEvents lblTestProgressStage As Label
-    Friend WithEvents progressTest As ProgressBar
-    Friend WithEvents lblTestProgressCount As Label
-    Friend WithEvents lblTestProgressElapsed As Label
-    Friend WithEvents lblTestProgressEta As Label
-    Friend WithEvents lblTestProgressDetail As Label
     Friend WithEvents Button2 As Button
     Friend WithEvents txtAlarm As TextBox
     Friend WithEvents Panel1 As Panel

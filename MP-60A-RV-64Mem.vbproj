@@ -495,6 +495,12 @@
     <Compile Include="frmTest.vb">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="frmTestProgress.Designer.vb">
+      <DependentUpon>frmTestProgress.vb</DependentUpon>
+    </Compile>
+    <Compile Include="frmTestProgress.vb">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="UiUpdateService.vb" />
     <Compile Include="frmUserManage.Designer.vb">
       <DependentUpon>frmUserManage.vb</DependentUpon>
