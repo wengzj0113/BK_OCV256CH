@@ -4,7 +4,7 @@
 
 **Goal:** Apply the approved C visual scheme so ordinary left-sidebar buttons and unselected toggle buttons use a visible warm-gray surface without changing OCV behavior or layout.
 
-**Architecture:** Keep all visual tokens and state transitions centralized in `UiTheme.vb`. Add warm-gray neutral tokens, apply them only to neutral `Button` controls and unselected button-style `RadioButton`/`CheckBox` controls, and preserve semantic colors for primary, danger, warning, success, and selected states.
+**Architecture:** Keep all visual tokens and state transitions centralized in `UiTheme.vb`. Add warm-gray neutral tokens, apply them to neutral `Button` controls and unselected button-style `RadioButton`/`CheckBox` controls, and replace the existing pure-white danger surface with the existing light-red semantic background while preserving primary, warning, success, and selected states.
 
 **Tech Stack:** VB.NET 4.8, Windows Forms, `System.Drawing`, MSBuild, `XL-OCV-UIControls.vbproj`.
 
@@ -47,7 +47,7 @@ Public Shared ReadOnly NeutralButtonPressedBackground As Color = ColorTranslator
 
 In the `Else` branch of `ApplyToggleStateStyle`, set `control.BackColor` to `NeutralButtonBackground`, keep `control.ForeColor = TextPrimary`, set each `CheckBox`/`RadioButton` border to `NeutralButtonBorder`, and set its `FlatAppearance.MouseOverBackColor` and `MouseDownBackColor` to the hover and pressed tokens. Keep the selected branch blue with white text and the existing primary border.
 
-- [ ] **Step 3: Update neutral Button state**
+- [ ] **Step 3: Update neutral and danger Button states**
 
 Replace only the `Case Else` branch in `ApplyButtonStyle` with:
 
@@ -60,7 +60,16 @@ Case Else
     button.FlatAppearance.MouseDownBackColor = NeutralButtonPressedBackground
 ```
 
-Do not change `Primary`, `Danger`, or `Warning` branches.
+Do not change the `Primary` or `Warning` branches.
+
+In the `Danger` branch, keep `Danger` text and border, but change only the background from `Color.White` to `DangerBackground` so no styled button retains a pure-white surface:
+
+```vb
+Case ButtonRole.Danger
+    button.BackColor = DangerBackground
+    button.ForeColor = Danger
+    button.FlatAppearance.BorderColor = Danger
+```
 
 - [ ] **Step 4: Preserve input distinction**
 
@@ -80,6 +89,8 @@ if ($theme -notmatch 'NeutralButtonBackground.*#E7E7E5') { throw 'Missing warm-g
 if ($theme -notmatch 'NeutralButtonBorder.*#A7ADB5') { throw 'Missing warm-gray border token' }
 if ($theme -notmatch 'button\.BackColor = NeutralButtonBackground') { throw 'Neutral Button is not warm gray' }
 if ($theme -notmatch 'control\.BackColor = NeutralButtonBackground') { throw 'Unselected toggle is not warm gray' }
+if ($theme -notmatch 'button\.BackColor = DangerBackground') { throw 'Danger Button is still pure white' }
+if ($theme -match 'button\.BackColor = Color\.White') { throw 'A styled Button still uses pure white background' }
 if ($theme -notmatch 'textBox\.BackColor = CardBackground') { throw 'TextBox background changed unexpectedly' }
 Write-Output 'UiTheme style assertions passed.'
 ```
