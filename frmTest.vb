@@ -49,6 +49,7 @@ Public Class frmTest
     Dim alarmStatus As Boolean = False
     Dim logDirectory As String = AppLog.LogDirectory
     Dim logFilePath As String = Path.Combine(logDirectory, "Run.log")
+    Private ReadOnly testProgressState As New TestProgressState()
 
     Public ReadOnly Property CurrentAlarmValue As Integer
         Get
@@ -128,6 +129,7 @@ Public Class frmTest
         '****************************
         LabelAlarm.Visible = False
         LabelRun.Visible = True
+        ResetTestProgressDisplay()
         '初始化托盘状态为打开
         fixtureClose = False
         '获取分选条件项目到g_objCN
@@ -593,6 +595,8 @@ Public Class frmTest
                 ' You can add more code here if you want to handle the cancellation differently
             End If
         End If
+        BeginTestProgress(runChannels.Count, If(testType = 0, "准备 NG 复测", "准备正式测试"))
+        PublishTestProgress(TestProgressStage.Preparing, "正在检查测试设备，请稍候...", 5)
         '***********************************
         '检测中位机串口通讯
         reFlag = CheckCom_SCM()
@@ -622,14 +626,18 @@ Public Class frmTest
         Dim ocvTestTaskId As Long? = Nothing
         Dim testTaskStatusFinalized As Boolean = False
         Try
+            PublishTestProgress(TestProgressStage.CreatingTask, "正在创建 OCV_DATA 测试任务...", 10)
             ocvTestTaskId = CreateOcvDataTestTask(testType)
+            PublishTestProgress(TestProgressStage.Preparing, "正在准备仪表和控制板...", 20)
         Catch ex As Exception
+            FailTestProgress("创建测试任务失败：" & ex.Message)
             txtAlarm.AppendText($"OCV_DATA 创建测试任务异常: {ex.Message}{Environment.NewLine}")
             MsgBox("OCV_DATA 创建测试任务失败: " & ex.Message, vbOKOnly, "错误")
             GoTo exit_sub
         End Try
         '************** 正式测试：中位机只负责通道计划和 START，仪表缓存完成后统一回填 *********************
         Try
+            PublishTestProgress(TestProgressStage.Testing, "正在执行通道测试，请勿操作...", 25)
             Dim formalRunner As New FormalTestRunner()
             If testType = 0 Then
                 lastTestSelection = formalRunner.RunRetestMeasurement(retestArray)
@@ -638,7 +646,9 @@ Public Class frmTest
             Else
                 lastTestSelection = formalRunner.RunRangeMeasurement(firstCellNumToTest, lastCellNumToTest)
             End If
+            PublishTestProgress(TestProgressStage.CollectingResults, "测量完成，正在读取和整理结果...", 70)
         Catch ex As Exception
+            FailTestProgress("正式测试失败：" & ex.Message)
             CompleteOcvDataTestTaskSafely(ocvTestTaskId, "Failed", ex.Message)
             txtAlarm.AppendText($"正式测试异常: {ex.Message}{Environment.NewLine}")
             MsgBox("正式测试出现异常: " & ex.Message, vbOKOnly, "错误")
@@ -660,6 +670,8 @@ Public Class frmTest
             frmMDI.Refresh()
             ' 记录日志
             LogRun(logFilePath, strTrayNo, "测试结束")
+            testProgressState.Advance(runChannels.Count, Nothing, "测量结果已完成，正在保存...")
+            PublishTestProgress(TestProgressStage.Saving, "正在保存测试结果到 OCV_DATA...", 82)
             '设置电池的测试结果：OK或者NG'设定结果数组中的各个点位的测试结果， 分三种情况
             '1）全测，遍历所有的点位，逐个判断进行设定；(1,2合并，都作为选定的部分）
             '2）部分测：只对选定的部分进行判断；
@@ -695,6 +707,7 @@ Public Class frmTest
             testTaskStatusFinalized = True
             '把数据保存在本都文件夹中（按天建立文件夹），每个托盘保存一个文件
             SaveTestDataLocalFile(RecieveData)
+            PublishTestProgress(TestProgressStage.Saving, "数据库和本地结果已保存，正在提交后台上传...", 92)
             '主程序调用数据上传接口
             If FrmMesTask.chkResultDataUploadAssembly.Checked Then
                 '数据出站，上传到Mes
@@ -702,10 +715,13 @@ Public Class frmTest
                 mesUP.StopTimer()
                 mesUP.StartTimer()
             End If
+            PublishTestProgress(TestProgressStage.Uploading, "测试完成，MES 上传已进入后台队列。", 96)
+            CompleteTestProgress("测试完成")
             '旧库 CW_tblData_Info 并行写入已删除 (R2-15):
             '测试结果已由 SaveOcvDataTestResults 写入 OCV_DATA.TestResult,
             '托盘已由 CreateOcvDataTestTask -> usp_RegisterTray 注册到 OCV_DATA.Tray。
         Catch ex As Exception
+            FailTestProgress("结果保存失败：" & ex.Message)
             txtAlarm.AppendText($"OCV/上传/数据库写入异常: {ex.Message}{Environment.NewLine}")
             MsgBox("OCV 测量或数据上传出现异常: " & ex.Message, vbOKOnly, "错误")
         End Try
@@ -729,6 +745,7 @@ Public Class frmTest
             End If
         End If
 exit_sub:
+        StopTestProgressIfNeeded()
         testingChannelNumbers.Clear()
         RefreshChannelOverview()
         currentTestChannels = Nothing
@@ -2564,6 +2581,127 @@ exit_sub:
         If Panel1 Is Nothing OrElse Panel1.IsDisposed Then Return
         Panel1.AutoScrollPosition = New Point(0, 0)
     End Sub
+
+    Private Sub BeginTestProgress(totalCount As Integer, message As String)
+        testProgressState.Begin(totalCount, message)
+        TimerTestProgress.Start()
+        ApplyTestProgressSnapshot(testProgressState.CreateSnapshot())
+    End Sub
+
+    Private Sub PublishTestProgress(stage As TestProgressStage,
+                                    message As String,
+                                    progressPercent As Integer,
+                                    Optional currentChannel As Integer? = Nothing)
+        testProgressState.SetStage(stage, message, currentChannel, progressPercent)
+        ApplyTestProgressSnapshot(testProgressState.CreateSnapshot())
+        grpTestProgress.Refresh()
+        If frmMDI IsNot Nothing AndAlso Not frmMDI.IsDisposed Then frmMDI.Refresh()
+    End Sub
+
+    Private Sub CompleteTestProgress(message As String)
+        testProgressState.Complete(message)
+        TimerTestProgress.Stop()
+        ApplyTestProgressSnapshot(testProgressState.CreateSnapshot())
+    End Sub
+
+    Private Sub FailTestProgress(message As String)
+        testProgressState.Fail(message)
+        TimerTestProgress.Stop()
+        ApplyTestProgressSnapshot(testProgressState.CreateSnapshot())
+    End Sub
+
+    Private Sub StopTestProgressIfNeeded()
+        Dim snapshot As TestProgressSnapshot = testProgressState.CreateSnapshot()
+        If snapshot.Stage <> TestProgressStage.Idle AndAlso
+           snapshot.Stage <> TestProgressStage.Completed AndAlso
+           snapshot.Stage <> TestProgressStage.Failed Then
+            FailTestProgress("测试流程已停止")
+        Else
+            TimerTestProgress.Stop()
+            ApplyTestProgressSnapshot(snapshot)
+        End If
+    End Sub
+
+    Private Sub ResetTestProgressDisplay()
+        TimerTestProgress.Stop()
+        testProgressState.Reset("等待开始")
+        ApplyTestProgressSnapshot(testProgressState.CreateSnapshot())
+    End Sub
+
+    Private Sub TimerTestProgress_Tick(sender As Object, e As EventArgs) Handles TimerTestProgress.Tick
+        ApplyTestProgressSnapshot(testProgressState.CreateSnapshot())
+    End Sub
+
+    Private Sub ApplyTestProgressSnapshot(snapshot As TestProgressSnapshot)
+        If snapshot Is Nothing OrElse IsDisposed Then Return
+        If InvokeRequired Then
+            BeginInvoke(New Action(Of TestProgressSnapshot)(AddressOf ApplyTestProgressSnapshot), snapshot)
+            Return
+        End If
+
+        Dim stageText As String = GetTestProgressStageText(snapshot.Stage)
+        lblTestProgressStage.Text = stageText
+        lblTestProgressCount.Text = String.Format("通道：{0}/{1}", snapshot.CompletedCount, snapshot.TotalCount)
+        lblTestProgressElapsed.Text = "用时 " & FormatProgressTime(snapshot.Elapsed)
+        If snapshot.EstimatedRemaining.HasValue Then
+            lblTestProgressEta.Text = "剩余 " & FormatProgressTime(snapshot.EstimatedRemaining.Value)
+        ElseIf snapshot.Stage = TestProgressStage.Idle OrElse snapshot.Stage = TestProgressStage.Completed OrElse snapshot.Stage = TestProgressStage.Failed Then
+            lblTestProgressEta.Text = "剩余 --"
+        Else
+            lblTestProgressEta.Text = "剩余计算中"
+        End If
+        lblTestProgressDetail.Text = If(String.IsNullOrWhiteSpace(snapshot.Message), stageText, snapshot.Message)
+
+        progressTest.Style = If(snapshot.Stage = TestProgressStage.Idle OrElse snapshot.Stage = TestProgressStage.Completed OrElse snapshot.Stage = TestProgressStage.Failed,
+                                ProgressBarStyle.Continuous,
+                                ProgressBarStyle.Continuous)
+        progressTest.Value = Math.Max(0, Math.Min(100, snapshot.ProgressPercent))
+        lblTestProgressStage.ForeColor = GetTestProgressColor(snapshot.Stage)
+        SetTestStatus(stageText)
+    End Sub
+
+    Private Shared Function GetTestProgressStageText(stage As TestProgressStage) As String
+        Select Case stage
+            Case TestProgressStage.Preparing
+                Return "准备测试"
+            Case TestProgressStage.CreatingTask
+                Return "创建测试任务"
+            Case TestProgressStage.Testing
+                Return "正在测试"
+            Case TestProgressStage.CollectingResults
+                Return "读取测试结果"
+            Case TestProgressStage.Saving
+                Return "保存测试结果"
+            Case TestProgressStage.Uploading
+                Return "提交后台上传"
+            Case TestProgressStage.Completed
+                Return "测试完成"
+            Case TestProgressStage.Failed
+                Return "测试失败"
+            Case Else
+                Return "等待测试"
+        End Select
+    End Function
+
+    Private Shared Function GetTestProgressColor(stage As TestProgressStage) As Color
+        Select Case stage
+            Case TestProgressStage.Completed
+                Return Color.ForestGreen
+            Case TestProgressStage.Failed
+                Return Color.Firebrick
+            Case TestProgressStage.Saving, TestProgressStage.Uploading
+                Return Color.DarkOrange
+            Case TestProgressStage.Idle
+                Return Color.FromArgb(90, 104, 120)
+            Case Else
+                Return Color.FromArgb(23, 105, 232)
+        End Select
+    End Function
+
+    Private Shared Function FormatProgressTime(value As TimeSpan) As String
+        Dim totalSeconds As Integer = Math.Max(0, CInt(Math.Truncate(value.TotalSeconds)))
+        Return String.Format("{0:00}:{1:00}", totalSeconds \ 60, totalSeconds Mod 60)
+    End Function
 
     Private Sub SetTestStatus(ByVal message As String)
         If frmMDI Is Nothing OrElse frmMDI.IsDisposed Then Return

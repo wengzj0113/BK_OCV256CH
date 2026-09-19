@@ -370,6 +370,7 @@
     <Compile Include="CalibrationService.vb" />
     <Compile Include="ChannelCalibrationRunner.vb" />
     <Compile Include="FormalTestRunner.vb" />
+    <Compile Include="TestProgressState.vb" />
     <Compile Include="InstrumentCacheParser.vb" />
     <Compile Include="RetestModels.vb" />
     <Compile Include="Retest3562Service.vb" />
