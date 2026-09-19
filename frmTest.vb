@@ -73,6 +73,7 @@ Public Class frmTest
     Private Sub frmTest_Load(ByVal sender As Object, ByVal e As System.EventArgs) Handles MyBase.Load
         StartupTiming.Mark("frmTest-load-begin")
         InitializeChannelSelectionControls()
+        InitializeLeftPanelButtonStyles()
         StartupTiming.Mark("frmTest-selection-controls")
         'R2-18:提前标记已加载完成,确保 frmTest_Resize 的布局调整始终执行
         '       (若 myConnection 未打开,后面 Exit Sub 会提前返回,原 _isLoaded=True 在末尾无法执行)
@@ -188,6 +189,17 @@ Public Class frmTest
         StartupTiming.Mark("frmTest-deferred-complete")
     End Sub
 
+    Private Sub InitializeLeftPanelButtonStyles()
+        UiTheme.ApplyButtonStyle(btnGetBarcode, UiTheme.ButtonRole.Primary)
+        UiTheme.ApplyButtonStyle(CmdStart, UiTheme.ButtonRole.Primary)
+        UiTheme.ApplyButtonStyle(btnStop, UiTheme.ButtonRole.Danger)
+        UiTheme.ApplyButtonStyle(btnNGTest, UiTheme.ButtonRole.Warning)
+        UiTheme.ApplyButtonStyle(btnTrayState, UiTheme.ButtonRole.Neutral)
+        UiTheme.ApplyButtonStyle(btnOpen, UiTheme.ButtonRole.Neutral)
+        UiTheme.ApplyButtonStyle(btnClose, UiTheme.ButtonRole.Neutral)
+        UiTheme.ApplyButtonStyle(Button2, UiTheme.ButtonRole.Danger)
+    End Sub
+
     Private Sub InitializeChannelSelectionControls()
         SetSelectionModeButton(btnChannelSelectSingle)
         AddHandler channelGrid.SelectedChannelsChanged, AddressOf HandleSelectedChannelsChanged
@@ -215,9 +227,8 @@ Public Class frmTest
     Private Sub SetSelectionModeButton(ByVal activeButton As Button)
         Dim buttons() As Button = {btnChannelSelectAll, btnChannelClear, btnChannelRectangle, btnChannelSelectSingle}
         For Each button As Button In buttons
-            button.BackColor = If(button Is activeButton, UiTheme.Primary, UiTheme.CardBackground)
-            button.ForeColor = If(button Is activeButton, Color.White, UiTheme.TextPrimary)
-            button.FlatAppearance.BorderColor = If(button Is activeButton, UiTheme.Primary, UiTheme.CardBorder)
+            Dim role As UiTheme.ButtonRole = If(button Is activeButton, UiTheme.ButtonRole.Primary, UiTheme.ButtonRole.Neutral)
+            UiTheme.ApplyButtonStyle(button, role)
         Next
     End Sub
 
