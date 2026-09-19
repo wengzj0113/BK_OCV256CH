@@ -19,6 +19,10 @@ Public NotInheritable Class UiTheme
     Public Shared ReadOnly PageBackground As Color = ColorTranslator.FromHtml("#F3F6FA")
     Public Shared ReadOnly CardBackground As Color = Color.White
     Public Shared ReadOnly CardBorder As Color = ColorTranslator.FromHtml("#E7EBF0")
+    Public Shared ReadOnly NeutralButtonBackground As Color = ColorTranslator.FromHtml("#E7E7E5")
+    Public Shared ReadOnly NeutralButtonBorder As Color = ColorTranslator.FromHtml("#A7ADB5")
+    Public Shared ReadOnly NeutralButtonHoverBackground As Color = ColorTranslator.FromHtml("#DEDFDD")
+    Public Shared ReadOnly NeutralButtonPressedBackground As Color = ColorTranslator.FromHtml("#D4D6D3")
     Public Shared ReadOnly HeaderBackground As Color = ColorTranslator.FromHtml("#061D3B")
     Public Shared ReadOnly HeaderHighlight As Color = ColorTranslator.FromHtml("#0B2E5B")
     Public Shared ReadOnly Primary As Color = ColorTranslator.FromHtml("#1769E8")
@@ -115,16 +119,32 @@ Public NotInheritable Class UiTheme
             control.BackColor = Primary
             control.ForeColor = Color.White
             Dim checkBox As CheckBox = TryCast(control, CheckBox)
-            If checkBox IsNot Nothing Then checkBox.FlatAppearance.BorderColor = Primary
+            If checkBox IsNot Nothing Then
+                checkBox.FlatAppearance.BorderColor = Primary
+                checkBox.FlatAppearance.MouseOverBackColor = Primary
+                checkBox.FlatAppearance.MouseDownBackColor = Primary
+            End If
             Dim radioButton As RadioButton = TryCast(control, RadioButton)
-            If radioButton IsNot Nothing Then radioButton.FlatAppearance.BorderColor = Primary
+            If radioButton IsNot Nothing Then
+                radioButton.FlatAppearance.BorderColor = Primary
+                radioButton.FlatAppearance.MouseOverBackColor = Primary
+                radioButton.FlatAppearance.MouseDownBackColor = Primary
+            End If
         Else
-            control.BackColor = CardBackground
+            control.BackColor = NeutralButtonBackground
             control.ForeColor = TextPrimary
             Dim checkBox As CheckBox = TryCast(control, CheckBox)
-            If checkBox IsNot Nothing Then checkBox.FlatAppearance.BorderColor = CardBorder
+            If checkBox IsNot Nothing Then
+                checkBox.FlatAppearance.BorderColor = NeutralButtonBorder
+                checkBox.FlatAppearance.MouseOverBackColor = NeutralButtonHoverBackground
+                checkBox.FlatAppearance.MouseDownBackColor = NeutralButtonPressedBackground
+            End If
             Dim radioButton As RadioButton = TryCast(control, RadioButton)
-            If radioButton IsNot Nothing Then radioButton.FlatAppearance.BorderColor = CardBorder
+            If radioButton IsNot Nothing Then
+                radioButton.FlatAppearance.BorderColor = NeutralButtonBorder
+                radioButton.FlatAppearance.MouseOverBackColor = NeutralButtonHoverBackground
+                radioButton.FlatAppearance.MouseDownBackColor = NeutralButtonPressedBackground
+            End If
         End If
     End Sub
 
@@ -159,7 +179,7 @@ Public NotInheritable Class UiTheme
                 button.ForeColor = Color.White
                 button.FlatAppearance.BorderColor = Primary
             Case ButtonRole.Danger
-                button.BackColor = Color.White
+                button.BackColor = DangerBackground
                 button.ForeColor = Danger
                 button.FlatAppearance.BorderColor = Danger
             Case ButtonRole.Warning
@@ -167,9 +187,11 @@ Public NotInheritable Class UiTheme
                 button.ForeColor = Color.White
                 button.FlatAppearance.BorderColor = Warning
             Case Else
-                button.BackColor = Color.White
+                button.BackColor = NeutralButtonBackground
                 button.ForeColor = TextPrimary
-                button.FlatAppearance.BorderColor = CardBorder
+                button.FlatAppearance.BorderColor = NeutralButtonBorder
+                button.FlatAppearance.MouseOverBackColor = NeutralButtonHoverBackground
+                button.FlatAppearance.MouseDownBackColor = NeutralButtonPressedBackground
         End Select
     End Sub
 End Class
