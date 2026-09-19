@@ -41,6 +41,7 @@ Assert-Contains $frmInit 'LicenseManager\.UsageMode' 'Initial settings form must
 Assert-Contains $frmDebug 'LicenseManager\.UsageMode' 'Debug form must remain loadable in the designer.'
 Assert-Contains $mdi 'RequireAdministrator' 'MDI administrator handlers must enforce permissions.'
 Assert-Contains $mdi 'logoutMenu' 'MDI must expose an explicit logout entry.'
+Assert-NotContains $mdi 'If Not ready Then SetTestEntryEnabled\(False\)' 'Database health checks must not disable business test entries.'
 Assert-NotContains $login 'selectedUsername\s*=\s*["'']系统管理员["'']' 'Login must not infer role from username text.'
 
 foreach ($methodName in @('init_Click', 'btnInit_Click', 'btnDebug_Click', 'ToolDebug_Click', 'userMenage_Click')) {

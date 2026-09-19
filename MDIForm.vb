@@ -454,7 +454,6 @@ Public Class MDIForm
                                                        Me.BeginInvoke(New Action(Sub()
                                                                                      If Me.IsDisposed Then Return
                                                                                      databaseConnected = ready
-                                                                                     If Not ready Then SetTestEntryEnabled(False)
                                                                                      UpdateBottomStatus()
                                                                                  End Sub))
             Catch ex As Exception
