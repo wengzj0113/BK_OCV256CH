@@ -40,6 +40,17 @@ Public NotInheritable Class AuthorizationService
         Return _currentRole = UserRole.Administrator AndAlso IsAuthenticated()
     End Function
 
+    Public Shared Function RequireAuthenticatedUser(owner As IWin32Window) As Boolean
+        If IsAuthenticated() Then Return True
+
+        MessageBox.Show(owner,
+                        "当前未登录，请先登录后再执行测试。",
+                        "需要登录",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information)
+        Return False
+    End Function
+
     Public Shared Sub SetSession(userName As String, role As UserRole)
         If role = UserRole.Unauthenticated Then
             ResetSession()
@@ -69,7 +80,7 @@ Public NotInheritable Class AuthorizationService
     Public Shared Function CanAccess(permission As AppPermission) As Boolean
         Select Case permission
             Case AppPermission.UseBusinessFunctions
-                Return True
+                Return IsAuthenticated()
             Case AppPermission.InitialSettings, AppPermission.Debug, AppPermission.UserManagement
                 Return IsAdministrator()
             Case Else

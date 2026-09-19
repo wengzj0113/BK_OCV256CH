@@ -28,10 +28,12 @@ $userManage = Read-Source 'frmUserManage.vb'
 $designer = Read-Source 'frmUserManage.Designer.vb'
 $frmInit = Read-Source 'frmInit.vb'
 $frmDebug = Read-Source 'frmDebug.vb'
+$frmTest = Read-Source 'frmTest.vb'
 
 Assert-Contains $authorization 'Public Enum UserRole' 'Authorization must define UserRole.'
 Assert-Contains $authorization 'Public Enum AppPermission' 'Authorization must define AppPermission.'
 Assert-Contains $authorization 'Public Shared Function CanAccess' 'Authorization must centralize permission decisions.'
+Assert-Contains $authorization 'RequireAuthenticatedUser' 'Business actions must require an authenticated user.'
 Assert-Contains $accountStore 'Role' 'UserAccountStore must persist account roles.'
 Assert-Contains $login 'account\.Role' 'Login must use the authenticated account role.'
 Assert-Contains $userManage 'ComboBoxRole' 'User management must expose a role selector.'
@@ -40,9 +42,13 @@ Assert-Contains $userManage 'LicenseManager\.UsageMode' 'User management form mu
 Assert-Contains $frmInit 'LicenseManager\.UsageMode' 'Initial settings form must remain loadable in the designer.'
 Assert-Contains $frmDebug 'LicenseManager\.UsageMode' 'Debug form must remain loadable in the designer.'
 Assert-Contains $mdi 'RequireAdministrator' 'MDI administrator handlers must enforce permissions.'
+Assert-Contains $mdi 'RequireAuthenticatedUser' 'MDI business handlers must enforce authentication.'
+Assert-Contains (Read-Source 'FrmManualTest.vb') 'RequireAuthenticatedUser' 'Manual test must enforce authentication at its action entry.'
 Assert-Contains $mdi 'logoutMenu' 'MDI must expose an explicit logout entry.'
 Assert-NotContains $mdi 'If Not ready Then SetTestEntryEnabled\(False\)' 'Database health checks must not disable business test entries.'
 Assert-NotContains $login 'selectedUsername\s*=\s*["'']系统管理员["'']' 'Login must not infer role from username text.'
+Assert-Contains $frmTest 'AuthorizationService\.CurrentUserName' 'OCV_DATA test tasks must use the authenticated session user.'
+Assert-NotContains $frmTest '\.OperatorName\s*=\s*Initsetting\.curOperator' 'OCV_DATA test tasks must not use the stale compatibility operator field directly.'
 
 foreach ($methodName in @('init_Click', 'btnInit_Click', 'btnDebug_Click', 'ToolDebug_Click', 'userMenage_Click')) {
     $method = [regex]::Match($mdi, "Private Sub $methodName\b.*?\n    End Sub", [System.Text.RegularExpressions.RegexOptions]::Singleline).Value
@@ -95,7 +101,7 @@ foreach ($role in @($unauthenticated, $operator, $administrator)) {
     $setSession.Invoke($null, @('test-user', $role)) | Out-Null
     $businessAllowed = [bool]$canAccess.Invoke($null, @($business))
     $adminAllowed = [bool]$canAccess.Invoke($null, @($adminPermission))
-    if (-not $businessAllowed) { throw "Business permission denied for role $role." }
+    if (($role -eq $unauthenticated) -eq $businessAllowed) { throw "Business permission mismatch for role $role." }
     if (($role -eq $administrator) -ne $adminAllowed) { throw "Administrator permission mismatch for role $role." }
 }
 

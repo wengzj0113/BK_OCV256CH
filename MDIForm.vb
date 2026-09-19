@@ -136,12 +136,14 @@ Public Class MDIForm
     End Sub
 
     Private Sub ManualTestToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles ManualTestToolStripMenuItem.Click
+        If Not AuthorizationService.RequireAuthenticatedUser(Me) Then Return
         Using manualForm As New FrmManualTest()
             manualForm.ShowDialog(Me)
         End Using
     End Sub
 
     Private Sub NgRetestToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles NgRetestToolStripMenuItem.Click
+        If Not AuthorizationService.RequireAuthenticatedUser(Me) Then Return
         If ngRetestForm Is Nothing OrElse ngRetestForm.IsDisposed Then
             ngRetestForm = New FrmNgRetest()
         End If
@@ -164,11 +166,13 @@ Public Class MDIForm
     End Sub
 
     Private Sub ApplyOperatorPermissions()
+        Dim businessFunctionsEnabled As Boolean = AuthorizationService.CanAccess(AppPermission.UseBusinessFunctions)
         btnInit.Enabled = AuthorizationService.CanAccess(AppPermission.InitialSettings)
         ToolDebug.Enabled = AuthorizationService.CanAccess(AppPermission.Debug)
         init.Enabled = AuthorizationService.CanAccess(AppPermission.InitialSettings)
         btnDebug.Enabled = AuthorizationService.CanAccess(AppPermission.Debug)
         userMenage.Enabled = AuthorizationService.CanAccess(AppPermission.UserManagement)
+        SetTestEntryEnabled(businessFunctionsEnabled)
         logoutMenu.Enabled = AuthorizationService.IsAuthenticated()
         loginMenu.Text = If(AuthorizationService.IsAuthenticated(), "切换用户", "登录")
         operTypeNum = CInt(AuthorizationService.CurrentRole)

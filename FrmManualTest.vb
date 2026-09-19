@@ -368,6 +368,7 @@ Public Class FrmManualTest
     End Function
 
     Private Sub StartManualTest(sender As Object, e As EventArgs)
+        If Not AuthorizationService.RequireAuthenticatedUser(Me) Then Return
         Dim channels As List(Of Integer) = GetSelectedChannels()
         If channels.Count = 0 Then
             MsgBox("请选择至少一个通道。", vbOKOnly, "提示")

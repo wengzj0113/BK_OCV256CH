@@ -446,6 +446,7 @@ Public Class frmTest
         Return Nothing
     End Function
     Private Sub CmdStart_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles CmdStart.Click
+        If Not AuthorizationService.RequireAuthenticatedUser(Me) Then Return
         '复位NG标志
         haveNgPoint = False
         '初始化复测数组
@@ -472,6 +473,10 @@ Public Class frmTest
     ''' <returns></returns>
     Public Function StarTest(ByVal testType As Integer)
         StarTest = 0
+        If Not AuthorizationService.IsAuthenticated() Then
+            AuthorizationService.RequireAuthenticatedUser(Me)
+            Return StarTest
+        End If
         Dim runChannels As New List(Of Integer)()
         If testType = 0 Then
             If retestArray IsNot Nothing Then
@@ -739,6 +744,11 @@ exit_sub:
     End Function
 
     Private Function CreateOcvDataTestTask(ByVal testType As Integer) As Long?
+        Dim authenticatedUserName As String = AuthorizationService.CurrentUserName
+        If String.IsNullOrWhiteSpace(authenticatedUserName) Then
+            Throw New InvalidOperationException("当前未登录，无法创建测试任务。")
+        End If
+
         Dim service As New OcvDataService()
         Dim channels As List(Of Integer) = GetSelectedPhysicalChannels(testType)
         Dim request As New OcvCreateTestTaskRequest With {
@@ -753,7 +763,7 @@ exit_sub:
             .ChannelCount = channels.Count,
             .EquipmentCode = "XL_OCV_256CH",
             .WorkstationName = Environment.MachineName,
-            .OperatorName = Initsetting.curOperator,
+            .OperatorName = authenticatedUserName,
             .IsRetest = (testType = 0)
         }
 
