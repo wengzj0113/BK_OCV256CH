@@ -413,14 +413,14 @@ Public Class MDIForm
         'frmTest 显示放到消息队列，不阻塞 Shown。
         Try
             Me.BeginInvoke(New Action(Sub()
-                OnLineTest_Click(sender, e)
-                '窗体已经显示并完成首个 MDI 子窗体创建后，可靠启动设备/数据库检查。
-                '不能只依赖 frmTest.Paint：MDI 子窗体首次显示时该事件可能不会再次触发。
-                StartExternalDeviceChecksAsync()
-                'frmTest 在此回调中才真正创建并最大化;再排队一次,确保它读取到
-                'Shown 完成后的最终 MdiClient 客户区,而不是创建瞬间的旧尺寸。
-                Me.BeginInvoke(New MethodInvoker(AddressOf NormalizeInitialMdiChildLayout))
-            End Sub))
+                                          OnLineTest_Click(sender, e)
+                                          '窗体已经显示并完成首个 MDI 子窗体创建后，可靠启动设备/数据库检查。
+                                          '不能只依赖 frmTest.Paint：MDI 子窗体首次显示时该事件可能不会再次触发。
+                                          StartExternalDeviceChecksAsync()
+                                          'frmTest 在此回调中才真正创建并最大化;再排队一次,确保它读取到
+                                          'Shown 完成后的最终 MdiClient 客户区,而不是创建瞬间的旧尺寸。
+                                          Me.BeginInvoke(New MethodInvoker(AddressOf NormalizeInitialMdiChildLayout))
+                                      End Sub))
         Catch ex As Exception
             System.Diagnostics.Debug.WriteLine("OnLineTest BeginInvoke 失败: " & ex.Message)
         End Try
@@ -440,23 +440,23 @@ Public Class MDIForm
         If Threading.Interlocked.Exchange(databaseHealthCheckStarted, 1) = 1 Then Return
 
         Threading.ThreadPool.QueueUserWorkItem(Sub()
-            Dim ready As Boolean = False
-            Try
-                StartupTiming.Mark("database-check-start")
-                ready = CheckOcvDataHealth()
-            Catch ex As Exception
-                System.Diagnostics.Debug.WriteLine("CheckOcvDataHealth 异常: " & ex.Message)
-            End Try
+                                                   Dim ready As Boolean = False
+                                                   Try
+                                                       StartupTiming.Mark("database-check-start")
+                                                       ready = CheckOcvDataHealth()
+                                                   Catch ex As Exception
+                                                       System.Diagnostics.Debug.WriteLine("CheckOcvDataHealth 异常: " & ex.Message)
+                                                   End Try
 
-            StartupTiming.Mark("database-check-end", If(ready, "connected", "disconnected"))
-            Try
-                If Me.IsDisposed Then Return
-                Me.BeginInvoke(New Action(Sub()
-                    If Me.IsDisposed Then Return
-                    databaseConnected = ready
-                    If Not ready Then SetTestEntryEnabled(False)
-                    UpdateBottomStatus()
-                End Sub))
+                                                   StartupTiming.Mark("database-check-end", If(ready, "connected", "disconnected"))
+                                                   Try
+                                                       If Me.IsDisposed Then Return
+                                                       Me.BeginInvoke(New Action(Sub()
+                                                                                     If Me.IsDisposed Then Return
+                                                                                     databaseConnected = ready
+                                                                                     If Not ready Then SetTestEntryEnabled(False)
+                                                                                     UpdateBottomStatus()
+                                                                                 End Sub))
             Catch ex As Exception
                 System.Diagnostics.Debug.WriteLine("数据库状态回调失败: " & ex.Message)
             End Try

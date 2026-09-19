@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>XL-OCV-256CH 软件功能要求差距分析报告</title>
+  <style>
+    :root { --navy:#14324a; --blue:#1f6feb; --teal:#0f766e; --green:#15803d; --amber:#b45309; --red:#b91c1c; --ink:#1f2937; --muted:#64748b; --line:#dbe3ec; --bg:#f4f7fb; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.65 "Microsoft YaHei", "Segoe UI", sans-serif; }
+    .wrap { max-width:1680px; margin:0 auto; padding:28px 28px 48px; }
+    header { background:linear-gradient(135deg,#102b42,#1d5c83); color:#fff; padding:30px 34px; border-radius:16px; box-shadow:0 10px 30px #15334b22; }
+    h1 { margin:0 0 8px; font-size:28px; letter-spacing:.02em; }
+    h2 { color:var(--navy); margin:28px 0 12px; font-size:20px; }
+    h3 { color:var(--navy); margin:20px 0 8px; font-size:16px; }
+    .subtitle { opacity:.9; font-size:15px; }
+    .meta { display:flex; flex-wrap:wrap; gap:10px 24px; margin-top:18px; font-size:13px; opacity:.88; }
+    .notice { margin:18px 0; padding:14px 16px; background:#fff; border-left:4px solid var(--blue); border-radius:8px; box-shadow:0 2px 8px #15334b10; }
+    .notice.warn { border-left-color:var(--amber); background:#fffaf0; }
+    .cards { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin:18px 0; }
+    .card { background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px; box-shadow:0 2px 8px #15334b0a; }
+    .card .n { font-size:28px; font-weight:700; color:var(--navy); line-height:1.1; }
+    .card .label { color:var(--muted); margin-top:4px; }
+    .card.ok .n { color:var(--green); } .card.partial .n { color:var(--amber); } .card.gap .n { color:var(--red); }
+    .controls { background:#fff; border:1px solid var(--line); border-radius:12px; padding:14px; display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin:16px 0; position:sticky; top:8px; z-index:2; box-shadow:0 4px 16px #15334b10; }
+    input, select { border:1px solid #cbd5e1; border-radius:7px; padding:8px 10px; font:inherit; background:#fff; }
+    input { min-width:260px; flex:1; }
+    .table-wrap { overflow:auto; background:#fff; border:1px solid var(--line); border-radius:12px; box-shadow:0 2px 8px #15334b0a; }
+    table { width:100%; min-width:1420px; border-collapse:separate; border-spacing:0; }
+    th, td { padding:11px 12px; border-right:1px solid var(--line); border-bottom:1px solid var(--line); vertical-align:top; text-align:left; }
+    th { position:sticky; top:68px; z-index:1; background:#eaf1f7; color:var(--navy); font-weight:700; white-space:nowrap; }
+    tr:last-child td { border-bottom:0; } th:last-child, td:last-child { border-right:0; }
+    td.no { width:48px; text-align:center; font-weight:700; color:var(--muted); }
+    td.category { width:126px; color:var(--navy); font-weight:600; }
+    td.item { width:185px; font-weight:600; }
+    td.requirement { width:260px; }
+    td.evidence { width:315px; }
+    td.gap { width:340px; }
+    td.action { width:260px; }
+    .status { display:inline-block; padding:3px 9px; border-radius:999px; font-weight:700; font-size:12px; white-space:nowrap; }
+    .status.ok { color:#166534; background:#dcfce7; } .status.partial { color:#92400e; background:#fef3c7; } .status.gap { color:#991b1b; background:#fee2e2; }
+    .priority { display:inline-block; margin-left:6px; padding:2px 6px; border-radius:5px; font-size:11px; color:#fff; background:#64748b; }
+    .priority.p0 { background:#b91c1c; } .priority.p1 { background:#b45309; } .priority.p2 { background:#64748b; }
+    code { font-family:Consolas, "Courier New", monospace; font-size:12px; background:#eef2f7; padding:1px 4px; border-radius:4px; }
+    a { color:#075985; text-decoration:none; } a:hover { text-decoration:underline; }
+    ul { margin:6px 0 6px 20px; padding:0; }
+    .summary-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+    .panel { background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px 18px; }
+    .panel ul { margin-bottom:0; }
+    .legend { color:var(--muted); font-size:12px; }
+    footer { margin-top:28px; color:var(--muted); font-size:12px; }
+    @media (max-width:900px) { .wrap{padding:16px;} .cards{grid-template-columns:repeat(2,minmax(0,1fr));} .summary-grid{grid-template-columns:1fr;} h1{font-size:22px;} }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>XL-OCV-256CH 软件功能要求差距分析报告</h1>
+    <div class="subtitle">基于《OCV测试机上位机软件功能要求.xlsx》与当前工作区源码/文档的逐项核查</div>
+    <div class="meta"><span>分析日期：2026-09-18</span><span>要求条目：36 条</span><span>系统形态：VB.NET WinForms / .NET Framework 4.8</span><span>核查范围：当前工作区代码快照</span></div>
+  </header>
+
+  <div class="notice warn"><strong>结论先行：</strong>当前系统已具备 256 通道测量数据链路、托盘/电芯条码追溯、OCV_DATA 数据库、MES 结果上传、分档规则管理、3562/34461 仪表通讯，以及急停/烟感/温度等部分监控能力；但距离技术协议要求仍有较大差距，尤其是安全执行机构联动、测量精度与分辨率、GR&amp;R/NDC、150PPM/合格率/稼动率 KPI、复测次数、托盘方向检测、FFU/门禁等。</div>
+
+  <div class="cards">
+    <div class="card ok"><div class="n">7</div><div class="label">已具备代码证据</div></div>
+    <div class="card partial"><div class="n">15</div><div class="label">部分具备或需现场联调</div></div>
+    <div class="card gap"><div class="n">14</div><div class="label">未发现实现 / 待确认</div></div>
+    <div class="card"><div class="n">36</div><div class="label">Excel 功能要求总数</div></div>
+  </div>
+
+  <h2>一、评估口径</h2>
+  <div class="summary-grid">
+    <div class="panel">
+      <h3>证据优先级</h3>
+      <ul>
+        <li><strong>直接代码证据：</strong>源码中存在可执行的页面、服务、数据结构或调用链。</li>
+        <li><strong>部分具备：</strong>有局部能力，但缺少要求中的完整闭环、参数化、指标计算、现场点位或实机验证。</li>
+        <li><strong>未发现 / 待确认：</strong>在当前源码、项目文档和操作手册中没有找到足够证据，或必须依赖现场硬件/PLC 点位表才能判断。</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h3>本次未做的验证</h3>
+      <ul>
+        <li>未连接真实 PLC、机械手、扫码器、3562、34461、温感/烟感、门禁或 FFU 进行运行验证。</li>
+        <li>未读取现场 PLC 点位表、工控机资产信息、仪表校准证书和 MSA 统计记录。</li>
+        <li>未把设计文档或操作手册中的“计划/应当”直接当作已实现证据；表中优先引用当前源码。</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>二、重点差距与建议优先级</h2>
+  <div class="summary-grid">
+    <div class="panel"><h3><span class="priority p0">P0</span> 安全与机械闭环</h3><p>要求 7、8、24、25、27、30、36 涉及 NG 剔除、夹爪干涉、安全门、替罪羊、托盘方向/缺角和 FFU。当前主要停留在状态显示、托盘开合或报警监控，未形成完整的 PLC/机械手/传送带安全联锁闭环。建议先冻结现场 I/O 点位表和异常状态机，再做仿真与实机验证。</p></div>
+    <div class="panel"><h3><span class="priority p1">P1</span> 测量规格与质量判定</h3><p>要求 2～5、19 目前主要是数值读取和上下限判定，未看到精度公式、分辨率档位、GR&amp;R/NDC 采集展示、K 值参与判定的完整闭环。建议将精度/分辨率/校准/判定规则纳入可追溯的测试规格，并补充 MSA 数据模型与报告。</p></div>
+    <div class="panel"><h3><span class="priority p1">P1</span> 生产 KPI 与分选结果</h3><p>要求 16、20～22 要求档位计数、150PPM、99.8% 合格率、98% 稼动率。当前只有 256 通道 OK/NG/测试中/空闲统计，没有生产周期、停机原因、档位计数和 OEE/PPM 计算。建议先定义统计口径，再补齐数据采集、实时看板和日报/班报。</p></div>
+    <div class="panel"><h3><span class="priority p2">P2</span> 复测与现场配置</h3><p>要求 9～11、17、31～35 需要明确复测次数、独立日志、仪表型号、PLC 型号、工控机资产和不良收料位。当前有可用的 NG 复测基础，但还需要把协议要求转成可配置、可审计、可现场验收的条目。</p></div>
+  </div>
+
+  <h2>三、逐项差距矩阵</h2>
+  <div class="controls">
+    <input id="search" type="search" placeholder="搜索序号、功能项、要求、差距或证据…">
+    <select id="status"><option value="">全部状态</option><option value="ok">已具备</option><option value="partial">部分具备</option><option value="gap">未发现/待确认</option></select>
+    <select id="category"><option value="">全部分类</option></select>
+    <span class="legend" id="shown">显示 36 / 36 条</span>
+  </div>
+  <div class="table-wrap">
+    <table id="matrix">
+      <thead><tr><th>序号</th><th>功能分类</th><th>功能项</th><th>协议要求</th><th>当前系统证据</th><th>状态 / 优先级</th><th>主要差距与风险</th><th>建议动作</th></tr></thead>
+      <tbody>
+        <tr data-status="partial" data-category="测试与测量控制"><td class="no">1</td><td class="category">测试与测量控制</td><td class="item">批量电压内阻测试</td><td class="requirement">支持 256 托盘内电压、内阻测试，1 次完成 256 个电池。</td><td class="evidence"><a href="../ChannelGridControl.vb#L14">ChannelGridControl.vb:14-15</a> 定义 16×16/256 通道；<a href="../FormalTestRunner.vb#L32">FormalTestRunner.vb:32-90</a> 支持范围/零星测试；<a href="../frmTest.vb#L945">frmTest.vb:945-946</a> 按 256 通道保存。</td><td><span class="status partial">部分具备</span><span class="priority p1">P1</span></td><td class="gap">测量与数据层支持 256，但当前生产闭环是否默认一次跑完 256、现场节拍是否满足，缺少运行证据。</td><td class="action">用全盘 256 通道现场用例验收：计划下发、两台仪表读数数量、结果保存和异常恢复。</td></tr>
+        <tr data-status="partial" data-category="测试与测量控制"><td class="no">2</td><td class="category">测试与测量控制</td><td class="item">电压测试精度显示与判定</td><td>按 ±(0.01%RDG+3dgt)、±0.1mV 的精度显示与判定。</td><td class="evidence"><a href="../Module1.vb#L197">Module1.vb:197-207</a> 只按上下限判定；<a href="../frmTest.vb#L2426">frmTest.vb:2426</a> 以 0.00mV 显示。</td><td><span class="status partial">部分具备</span><span class="priority p1">P1</span></td><td>没有发现精度公式、dgt/最小判定步进、仪表误差合成或精度超限告警；固定两位小数也无法证明满足 ±0.1mV。</td><td>定义电压测试规格对象，明确显示位数、判定容差、校准来源和边界测试，并与 34461 实机数据验收。</td></tr>
+        <tr data-status="partial" data-category="测试与测量控制"><td class="no">3</td><td class="category">测试与测量控制</td><td class="item">内阻测试精度显示与判定</td><td>按 ±(0.5%RDG+10dgt) 的精度显示与判定。</td><td class="evidence"><a href="../Module1.vb#L197">Module1.vb:197-207</a> 只按内阻上下限判定；<a href="../Retest3562Service.vb#L45">Retest3562Service.vb:45-72</a> 有 3562 读数与结果判定；主界面显示 0.000mΩ。</td><td><span class="status partial">部分具备</span><span class="priority p1">P1</span></td><td>有读数、校准和上下限，但未发现按协议精度计算/显示/判定的实现，也未看到 dgt 与量程配置。</td><td>补充 3562 精度参数、分辨率及校准误差模型，建立典型值/低值/满量程验收用例。</td></tr>
+        <tr data-status="gap" data-category="测试与测量控制"><td class="no">4</td><td class="category">测试与测量控制</td><td class="item">分辨率要求</td><td>支持 0.1μΩ：±(0.5%RDG+5dgt)，以及 1μΩ 分辨率。</td><td class="evidence">当前源码中未发现“0.1μΩ/1μΩ”分辨率档位、单位切换或相应判定配置。</td><td><span class="status gap">未发现 / 待确认</span><span class="priority p1">P1</span></td><td>目前数据字段主要以 mΩ 存储/展示，无法证明已按两种分辨率执行。</td><td>确认 3562 实际量程与分辨率能力；补充分辨率选择、显示和结果精度验收。</td></tr>
+        <tr data-status="gap" data-category="测试与测量控制"><td class="no">5</td><td class="category">测试与测量控制</td><td class="item">测量系统指标监控</td><td>GR&amp;R &lt;10%、NDC≥5，软件支持 MSA 数据采集与展示。</td><td class="evidence">在当前源码、操作手册和项目文档中未发现 GR&amp;R、NDC、MSA 数据模型或报告页面。</td><td><span class="status gap">未发现 / 待确认</span><span class="priority p1">P1</span></td><td>协议要求的质量指标没有采集、计算、趋势和判定闭环。</td><td>新增 MSA 采样计划、操作者/样本/重复测量数据结构，计算 GR&amp;R/NDC 并生成可追溯报告。</td></tr>
+        <tr data-status="partial" data-category="测试与测量控制"><td class="no">6</td><td class="category">测试与测量控制</td><td class="item">多阶段测试流程</td><td>支持 OCV0、OCV1/IR1、OCV2/IR2 多阶段测试流程控制。</td><td class="evidence"><a href="../frmTest.vb#L855">frmTest.vb:855-865</a> 有 OCV0/1/2 阶段码；<a href="../frmTest.vb#L2502">frmTest.vb:2502-2548</a> 有工位选择；但 <a href="../frmTest.vb#L947">frmTest.vb:947-997</a> 本地 CSV 只处理 currentOCVNum=1/2。</td><td><span class="status partial">部分具备</span><span class="priority p1">P1</span></td><td>阶段标识存在，但 OCV0 的本地文件字段映射、IR1/IR2 与阶段数据的端到端一致性仍需修正和现场确认。</td><td>按阶段定义统一数据库、CSV、MES 字段映射，分别验证 OCV0/OCV1/OCV2 的全流程。</td></tr>
+        <tr data-status="gap" data-category="测试与测量控制"><td class="no">7</td><td class="category">测试与测量控制</td><td class="item">NG 电池自动剔除</td><td>NG 判定后，控制机械手抓取不良电池到收料皮带线。</td><td class="evidence"><a href="../frmTest.vb#L711">frmTest.vb:711-721</a> 只弹框询问 NG 复测；<a href="../frmTest.vb#L730">frmTest.vb:730</a> 明确“PLC负责测试完成后的后续动作”，未见机械手/皮带剔除调用。</td><td><span class="status gap">未发现 / 待确认</span><span class="priority p0">P0</span></td><td>缺少 NG 位置下发、机械手动作、到位反馈、超时和安全互锁，不能据此证明满足协议。</td><td>基于 PLC 点位表实现 NG 队列/位置/动作 ACK/超时/报警状态机，做空载与带料验证。</td></tr>
+        <tr data-status="gap" data-category="测试与测量控制"><td class="no">8</td><td class="category">测试与测量控制</td><td class="item">OCV0 NG 挑选</td><td>OCV0 带 NG 挑选，配 NG 传送带，不需要分档。</td><td class="evidence">当前未发现 OCV0 专用 NG 传送带、剔除位置或挑选动作代码。</td><td><span class="status gap">未发现 / 待确认</span><span class="priority p0">P0</span></td><td>OCV0 阶段虽有阶段码，但 NG 挑选设备链路没有代码证据。</td><td>明确 OCV0 NG 点位、传送带控制权和异常恢复流程，纳入现场联调清单。</td></tr>
+        <tr data-status="partial" data-category="NG复测功能"><td class="no">9</td><td class="category">NG复测功能</td><td class="item">外置复测软件</td><td>OCV1/IR1、OCV2/IR2 接触 NG 时，外置仪表扫电芯，上传并按实测数据复判。</td><td class="evidence"><a href="../FrmNgRetest.vb#L73">FrmNgRetest.vb:73-129</a> 支持电池条码查询、3562 测量和保存；<a href="../NgRetestDataService.vb#L11">NgRetestDataService.vb:11-69</a> 保存原始/复测结果。</td><td><span class="status partial">部分具备</span><span class="priority p1">P1</span></td><td>有独立复测窗口和数据库保存，但未发现按 OCV1/OCV2 阶段区分、MES 结果上传和与正式结果的完整覆盖规则。</td><td>定义复测业务状态和上传接口；明确“接触 NG”识别规则、覆盖策略及复测结果在 MES 的字段。</td></tr>
+        <tr data-status="gap" data-category="NG复测功能"><td class="no">10</td><td class="category">NG复测功能</td><td class="item">复测次数可设定</td><td>NG 可复测，复测次数可在软件中设定。</td><td class="evidence"><a href="../Module1.vb#L55">Module1.vb:55</a> 只有 256 位复测标志数组；<a href="../frmTest.vb#L711">frmTest.vb:711-721</a> 只进入一次 NG 复测入口；未找到复测次数配置。</td><td><span class="status gap">未发现 / 待确认</span><span class="priority p1">P1</span></td><td>当前实现是“是否复测/按点位复测”，不是可配置的最大复测次数。</td><td>增加最大次数、当前次数、按阶段/按点位策略和超限处理，并写入测试任务审计记录。</td></tr>
+        <tr data-status="partial" data-category="NG复测功能"><td class="no">11</td><td class="category">NG复测功能</td><td class="item">单颗电池扫码复测</td><td>OCV0/OCV1/OCV2 单颗扫码复测，使用夹具及独立 BT3562A 日志表。</td><td class="evidence"><a href="../FrmNgRetest.vb#L21">FrmNgRetest.vb:21-49</a> 有单颗扫码复测界面；<a href="../frmInit.vb#L681">frmInit.vb:681-715</a> 有复测 3562 配置；<a href="../NgRetestDataService.vb#L42">NgRetestDataService.vb:42-69</a> 保存复测结果。</td><td><span class="status partial">部分具备</span><span class="priority p1">P1</span></td><td>软件窗口存在，但夹具动作、三阶段入口和协议指定的“独立 BT3562A 日志表”未被源码明确证明。</td><td>补充复测夹具/PLC 互锁、阶段选择和独立日志表结构；现场核对 3562A 读数与日志一致性。</td></tr>
+        <tr data-status="partial" data-category="数据管理与追溯"><td class="no">12</td><td class="category">数据管理与追溯</td><td class="item">托盘扫码</td><td>上料时进行托盘扫码，并关联托盘与测试数据。</td><td class="evidence"><a href="../frmTest.vb#L1312">frmTest.vb:1312-1356</a> 按托盘码查询并装载电芯条码；<a href="../MDIForm.vb#L592">MDIForm.vb:592-602</a> 有扫码入口；测试任务携带 TrayCode。</td><td><span class="status partial">部分具备</span><span class="priority p1">P1</span></td><td>支持扫码/输入和关联，但“上料时自动触发”及扫码成功后自动测试状态机在当前源码中未形成充分证据。</td><td>把扫码器、托盘到位、查询完整性、夹具压合和测试启动串成自动状态机，验证重复托盘与离位场景。</td></tr>
+        <tr data-status="ok" data-category="数据管理与追溯"><td class="no">13</td><td class="category">数据管理与追溯</td><td class="item">单颗电池扫码追溯</td><td>支持单颗电池扫码，实现电芯级数据追溯。</td><td class="evidence"><a href="../OcvDataService.vb#L637">OcvDataService.vb:637-665</a> 测试结果包含 BatteryCode；<a href="../frmTest.vb#L787">frmTest.vb:787-798</a> 将电芯条码写入结果；复测服务按 BatteryCode 查询。</td><td><span class="status ok">已具备</span><span class="priority p2">P2</span></td><td>代码链路已具备；仍需现场确认 MES/OCV_DATA 的条码绑定数据完整性和重复条码处理。</td><td>用重复条码、空条码、缺通道和复测覆盖用例验收追溯一致性。</td></tr>
+        <tr data-status="partial" data-category="数据管理与追溯"><td class="no">14</td><td class="category">数据管理与追溯</td><td class="item">分选数据实时保存</td><td>分选数据实时保存到本地/数据库。</td><td class="evidence"><a href="../frmTest.vb#L688">frmTest.vb:688-699</a> 测试结束后保存 OCV_DATA、本地 CSV 并启动 MES；<a href="../OcvDataService.vb#L111">OcvDataService.vb:111-130</a> 有测试任务。</td><td><span class="status partial">部分具备</span><span class="priority p1">P1</span></td><td>当前明显是测试完成后的批量落库/落盘，不是每颗或每个结果实时提交；中途掉电保护和断点恢复未证明。</td><td>明确“实时”的粒度；增加批次事务、断电恢复、未完成任务恢复和保存成功 ACK。</td></tr>
+        <tr data-status="ok" data-category="数据管理与追溯"><td class="no">15</td><td class="category">数据管理与追溯</td><td class="item">数据上传数据库</td><td>测试完成后上传数据库（MES/上位系统）。</td><td class="evidence"><a href="../ResultDataUploadAssembly.vb#L71">ResultDataUploadAssembly.vb:71-105</a> 有 MES HTTP 上传和失败本地缓存；<a href="../ResultDataUploadAssembly.vb#L224">ResultDataUploadAssembly.vb:224-245</a> 有待上传重试；<a href="../OcvDataService.vb#L199">OcvDataService.vb:199-214</a> 有 UploadOutbox。</td><td><span class="status ok">已具备</span><span class="priority p1">P1</span></td><td>上传开关、MES 地址和真实接口返回仍需现场联调；代码证据表明已具备上传、缓存和重试框架。</td><td>确认接口字段、返回码、幂等键、失败重试和最终一致性；形成联调记录。</td></tr>
+        <tr data-status="partial" data-category="数据管理与追溯"><td class="no">16</td><td class="category">数据管理与追溯</td><td class="item">档位计数实时显示</td><td>实时显示各档位（OK/NG 各档）电池数量。</td><td class="evidence"><a href="../StatisticsControl.vb#L4">StatisticsControl.vb:4-33</a> 只有 Total/Pass/NG/Testing/Idle；<a href="../frmTest.vb#L2429">frmTest.vb:2429-2444</a> 按通道状态统计。</td><td><span class="status partial">部分具备</span><span class="priority p1">P1</span></td><td>有 OK/NG 总数，但没有按 GradeCode/档位拆分和实时计数，也未发现 NG 各档看板。</td><td>将最终分档结果纳入通道统计模型，增加档位计数、清零时机和班次/托盘维度。</td></tr>
+        <tr data-status="partial" data-category="数据管理与追溯"><td class="no">17</td><td class="category">数据管理与追溯</td><td class="item">独立日志表</td><td>复测数据生成独立日志表（BT3562A）。</td><td class="evidence"><a href="../NgRetestDataService.vb#L42">NgRetestDataService.vb:42-69</a> 调用独立的 <code>usp_SaveNgRetest</code> 保存原始/复测值、时间、操作者、端口。</td><td><span class="status partial">部分具备</span><span class="priority p1">P1</span></td><td>有独立复测保存过程，但当前源码没有明确表名、BT3562A 专用日志格式或导出报表，不能直接等同协议“独立日志表”。</td><td>核对数据库表/存储过程定义；补充 BT3562A 日志字段、查询和导出，并保留原始值。</td></tr>
+        <tr data-status="ok" data-category="参数与生产管理"><td class="no">18</td><td class="category">参数与生产管理</td><td class="item">多组分选参数管理</td><td>可保存并调用多组分选参数进行分选。</td><td class="evidence"><a href="../frmSetCondition.vb#L57">frmSetCondition.vb:57-73</a> 加载多个分档方案；<a href="../OcvDataService.vb#L306">OcvDataService.vb:306-365</a> 有 GradeScheme/GradeRule 查询；<a href="../frmSetCondition.vb#L203">frmSetCondition.vb:203-286</a> 支持保存。</td><td><span class="status ok">已具备</span><span class="priority p2">P2</span></td><td>代码已覆盖方案选择、规则保存和调用；需补充权限、版本、生效时间和现场数据迁移验收。</td><td>增加方案版本/生效审计，验证切换方案后判定和 MES 字段同步变化。</td></tr>
+        <tr data-status="partial" data-category="参数与生产管理"><td class="no">19</td><td class="category">参数与生产管理</td><td class="item">分选参数配置</td><td>电压、内阻、K 值等阈值可配置。</td><td class="evidence"><a href="../Module1.vb#L197">Module1.vb:197-207</a> 支持电压/内阻上下限；<a href="../frmSetCondition.vb#L203">frmSetCondition.vb:203-286</a> 支持通用分档规则；当前未发现 KValue 参与实际判定的完整链路。</td><td><span class="status partial">部分具备</span><span class="priority p1">P1</span></td><td>电压、内阻配置存在，但 K 值的来源、计算、上下限和分档判定未被证明；配置与测试任务规格的绑定也不完整。</td><td>补充 K 值定义与计算；将启用的分档方案/测试规格 ID 固化到 TestTask 和结果中。</td></tr>
+        <tr data-status="gap" data-category="参数与生产管理"><td class="no">20</td><td class="category">参数与生产管理</td><td class="item">分选效率监控</td><td>分选效率 ≥150PPM，软件实时统计与显示。</td><td class="evidence">当前源码中未发现 PPM、节拍、每分钟产出或 150PPM 阈值计算；<a href="../StatisticsControl.vb#L62">StatisticsControl.vb:62-72</a> 只显示计数/比例。</td><td><span class="status gap">未发现 / 待确认</span><span class="priority p1">P1</span></td><td>无法验证协议要求的产能指标，也没有周期/停机/异常剔除对 PPM 的口径定义。</td><td>采集测试开始/结束、有效产出和停机时间，定义 PPM 公式并实现实时/班次看板。</td></tr>
+        <tr data-status="partial" data-category="参数与生产管理"><td class="no">21</td><td class="category">参数与生产管理</td><td class="item">设备合格率统计</td><td>设备合格率 ≥99.8%，软件统计与显示。</td><td class="evidence"><a href="../StatisticsControl.vb#L4">StatisticsControl.vb:4-33</a> 有 PassRate；<a href="../frmTest.vb#L2429">frmTest.vb:2429-2444</a> 从 256 通道结果计算。</td><td><span class="status partial">部分具备</span><span class="priority p1">P1</span></td><td>有通道层面的 OK 比例，但没有 99.8% 目标线、时间范围/班次口径、空闲通道排除规则和设备级累计统计。</td><td>定义设备合格率口径，增加目标线、时间窗口、历史汇总和异常数据校验。</td></tr>
+        <tr data-status="gap" data-category="参数与生产管理"><td class="no">22</td><td class="category">参数与生产管理</td><td class="item">设备稼动率统计</td><td>设备稼动率 ≥98%，软件统计与显示。</td><td class="evidence">当前未发现 OEE、稼动率、运行/停机时间累计或 98% 目标判定实现；现有统计控件只按通道状态计数。</td><td><span class="status gap">未发现 / 待确认</span><span class="priority p1">P1</span></td><td>没有停机原因、计划时间、运行时间和故障时间数据，无法形成设备稼动率。</td><td>建立运行状态/报警/停机原因事件模型，再计算班次、日、月稼动率。</td></tr>
+        <tr data-status="partial" data-category="监控与报警"><td class="no">23</td><td class="category">监控与报警</td><td class="item">生产监控系统</td><td>监控针点/使用寿命，避免造成电池外观问题。</td><td class="evidence"><a href="../frmTest.vb#L95">frmTest.vb:95-98</a> 显示探针总寿命/已用/剩余；<a href="../frmTest.vb#L598">frmTest.vb:598-604</a> 测试前累计使用次数并提示到期。</td><td><span class="status partial">部分具备</span><span class="priority p1">P1</span></td><td>有寿命计数，但没有针点状态/磨损/压力/外观风险监控，也没有“禁止造成外观问题”的质量判定闭环。</td><td>明确针点监控所需传感器和寿命规则；将超寿命、接触异常和外观风险纳入阻止测试条件。</td></tr>
+        <tr data-status="gap" data-category="监控与报警"><td class="no">24</td><td class="category">监控与报警</td><td class="item">夹爪干涉报警</td><td>柔性夹爪干涉时上升，并报警停机。</td><td class="evidence">当前源码未发现夹爪干涉信号、上升动作、报警码或停机状态机。</td><td><span class="status gap">未发现 / 待确认</span><span class="priority p0">P0</span></td><td>安全动作和报警联锁未被证明，属于现场验收阻断项。</td><td>由 PLC/安全控制器实现硬联锁，上位机展示报警码并禁止继续测试；做干涉模拟验收。</td></tr>
+        <tr data-status="gap" data-category="监控与报警"><td class="no">25</td><td class="category">监控与报警</td><td class="item">安全门禁监控</td><td>安全门可屏蔽；运行时开门停机报警。</td><td class="evidence">当前源码未发现安全门、门禁屏蔽权限、运行中开门停机或相应报警码。</td><td><span class="status gap">未发现 / 待确认</span><span class="priority p0">P0</span></td><td>缺少安全门输入、屏蔽审计和运行态联锁；不能用普通报警状态替代安全门功能。</td><td>明确安全回路责任边界；实现屏蔽权限/审计、运行中开门急停和复位条件。</td></tr>
+        <tr data-status="ok" data-category="监控与报警"><td class="no">26</td><td class="category">监控与报警</td><td class="item">急停按钮监控</td><td>软件监控急停状态。</td><td class="evidence"><a href="../frmTest.vb#L1452">frmTest.vb:1452-1483</a> 读取急停位，设置报警状态、停止监控定时器、提示并打开夹具；测试入口在报警时禁止启动。</td><td><span class="status ok">已具备</span><span class="priority p0">P0</span></td><td>已有代码闭环，但来源仍依赖旧 Socket/IO 位定义，需现场确认急停实际安全回路是否由硬件优先切断。</td><td>进行急停按下/释放/复位/测试中触发的实机验证，保留报警日志和 PLC/安全继电器证据。</td></tr>
+        <tr data-status="gap" data-category="监控与报警"><td class="no">27</td><td class="category">监控与报警</td><td class="item">替罪羊监控</td><td>替罪羊取走后停机报警。</td><td class="evidence">当前源码、操作手册和项目文档中未发现“替罪羊”/维修清洁件检测信号或报警逻辑。</td><td><span class="status gap">未发现 / 待确认</span><span class="priority p0">P0</span></td><td>缺少传感器、报警码、停机动作和复位条件。</td><td>确认现场“替罪羊”定义和传感器点位，加入 PLC 安全输入及上位机报警展示。</td></tr>
+        <tr data-status="ok" data-category="监控与报警"><td class="no">28</td><td class="category">监控与报警</td><td class="item">温感监控</td><td>每台 OCV 两个温感探头，软件实时监控温度。</td><td class="evidence"><a href="../frmTest.vb#L1874">frmTest.vb:1874-1892</a> 解析 4 路温度并刷新 t1～t4；<a href="../frmTest.vb#L2160">frmTest.vb:2160-2280</a> 有超温报警和打开夹具逻辑。</td><td><span class="status ok">已具备</span><span class="priority p1">P1</span></td><td>代码能力覆盖不少于 2 路；需确认 4 路字节映射与现场两探头定义一致，以及超温阈值/采样周期。</td><td>现场逐路校准温度映射、阈值、报警恢复和测试禁止条件。</td></tr>
+        <tr data-status="ok" data-category="监控与报警"><td class="no">29</td><td class="category">监控与报警</td><td class="item">烟感监控</td><td>每台 OCV 两个烟感，实时监控烟雾报警。</td><td class="evidence"><a href="../frmTest.vb#L1487">frmTest.vb:1487-1551</a> 处理烟感 1/2，红色显示、停止监控、设置报警状态并记录日志。</td><td><span class="status ok">已具备</span><span class="priority p0">P0</span></td><td>已有软件监控代码；需现场确认位定义、报警保持/复位和安全回路是否可靠。</td><td>做两路烟感逐路触发、停机、复位、日志和 MES 报警上传验收。</td></tr>
+        <tr data-status="gap" data-category="上料检测"><td class="no">30</td><td class="category">上料检测</td><td class="item">托盘缺角/方向检测</td><td>上料检测缺角或方向，针点下降前必须检测。</td><td class="evidence">当前仅发现 PLC 托盘开合/状态读取：<a href="../PlcController.vb#L7">PlcController.vb:7-10</a>、<a href="../frmTest.vb#L235">frmTest.vb:235-253</a>；未发现缺角/方向检测。</td><td><span class="status gap">未发现 / 待确认</span><span class="priority p0">P0</span></td><td>没有防呆信号和“针点下降前”硬前置条件，存在误放盘和电池/设备损伤风险。</td><td>增加视觉/光电/编码检测及 PLC 允许下压信号；将检测失败锁定为不可测试状态。</td></tr>
+        <tr data-status="partial" data-category="系统架构与硬件"><td class="no">31</td><td class="category">系统架构与硬件</td><td class="item">控制系统架构</td><td>松下 PLC + 工控机架构。</td><td class="evidence"><a href="../PlcController.vb#L18">PlcController.vb:18-22</a> 有 Modbus RTU/TCP PLC 抽象；项目是 WinForms 工控机程序，<a href="../MP-60A-RV-64Mem.vbproj#L1">项目文件</a>目标为 .NET Framework 4.8。</td><td><span class="status partial">部分具备</span><span class="priority p1">P1</span></td><td>上位机+PLC 架构存在，但源码未证明现场 PLC 厂商为松下，且仍保留中位机/旧 Socket 等多种链路。</td><td>以现场接线和 PLC 型号为准，收敛通讯边界，形成设备架构图和通讯责任矩阵。</td></tr>
+        <tr data-status="gap" data-category="系统架构与硬件"><td class="no">32</td><td class="category">系统架构与硬件</td><td class="item">工控机配置要求</td><td>研华工控机，10 代 i5 以上、8G、1T、21 英寸，另含 500G 硬盘要求。</td><td class="evidence">源码/项目文件只能证明软件运行环境，未发现工控机品牌、CPU、内存、硬盘、显示器资产检测或清单。</td><td><span class="status gap">未发现 / 待确认</span><span class="priority p2">P2</span></td><td>属于现场硬件配置，不能由当前源码判定；“1T + 精视500G”本身也需要澄清是系统盘/数据盘还是两项设备要求。</td><td>补齐设备资产清单和验收照片/BIOS 信息；澄清双硬盘容量口径。</td></tr>
+        <tr data-status="gap" data-category="系统架构与硬件"><td class="no">33</td><td class="category">系统架构与硬件</td><td class="item">PLC 配置</td><td>松下 FP-XH C60T。</td><td class="evidence"><a href="../PlcController.vb#L60">PlcController.vb:60-105</a> 只体现 Modbus RTU 实现，未出现 FP-XH C60T 型号或硬件身份校验。</td><td><span class="status gap">未发现 / 待确认</span><span class="priority p1">P1</span></td><td>不能从当前软件源码确认现场 PLC 型号与协议映射是否一致。</td><td>以 PLC 铭牌、工程文件和点位表核对；在连接诊断中记录设备身份和通讯模式。</td></tr>
+        <tr data-status="ok" data-category="系统架构与硬件"><td class="no">34</td><td class="category">系统架构与硬件</td><td class="item">测试仪配置</td><td>内阻表日置 3562A，电压表安捷伦 34461。</td><td class="evidence"><a href="../DebugModels.vb#L1">DebugModels.vb</a>、<a href="../DebugProbeService.vb#L70">DebugProbeService.vb:70-123</a> 明确 Hioki 3562/Keysight 34461A；<a href="../FormalTestRunner.vb#L60">FormalTestRunner.vb:60-90</a> 使用两台仪表缓存。</td><td><span class="status ok">已具备</span><span class="priority p1">P1</span></td><td>软件驱动/配置证据充分；仍需现场确认实物型号、外触发接线、缓存数量与返回顺序。</td><td>完成仪表 IDN、外触发、256 点缓存、读数顺序、超时和校准验收。</td></tr>
+        <tr data-status="partial" data-category="其他功能"><td class="no">35</td><td class="category">其他功能</td><td class="item">不良收料管理</td><td>1 个不良收料位，记录不良电池数量与位置。</td><td class="evidence"><a href="../frmTest.vb#L1193">frmTest.vb:1193-1215</a> 记录 NG 通道位置并显示；<a href="../NgRetestDataService.vb#L22">NgRetestDataService.vb:22-32</a> 保存托盘位置。</td><td><span class="status partial">部分具备</span><span class="priority p1">P1</span></td><td>软件能识别/记录 NG 通道，但没有发现单一不良收料位的机械控制、满料报警和实时数量看板。</td><td>补充 NG 收料位状态、容量/满料、数量确认和位置映射，与自动剔除动作联调。</td></tr>
+        <tr data-status="gap" data-category="其他功能"><td class="no">36</td><td class="category">其他功能</td><td class="item">防尘罩与 FFU 监控</td><td>设备加防尘罩，顶部 FFU，软件监控 FFU 运行状态。</td><td class="evidence">当前源码、配置和操作手册中未发现 FFU 设备、运行信号、风机状态或防尘罩联锁。</td><td><span class="status gap">未发现 / 待确认</span><span class="priority p1">P1</span></td><td>缺少 FFU 输入点、报警、停机策略和维护记录。</td><td>确认 FFU 数量/信号类型；增加运行、故障、风量异常和测试禁止/报警逻辑。</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>四、建议的落地顺序</h2>
+  <div class="panel">
+    <ol>
+      <li><strong>先做 P0 安全闭环：</strong>冻结 PLC/安全回路点位表，完成门禁、急停、夹爪干涉、替罪羊、方向/缺角、针点下降许可、NG 剔除与收料位的状态机和实机验收。</li>
+      <li><strong>再做 P1 测量与质量：</strong>把精度、分辨率、校准、K 值、复测次数、GR&amp;R/NDC 纳入统一测试规格与数据库，补齐边界测试和 MSA 报告。</li>
+      <li><strong>补齐生产 KPI：</strong>定义实时保存粒度、PPM、合格率、稼动率、档位计数和停机原因口径，增加看板和历史查询。</li>
+      <li><strong>最后做现场配置与联调：</strong>核实松下 PLC FP-XH C60T、研华工控机和两台仪表的实物/点位/接线，完成 MES、扫码、FFU、温感烟感和异常恢复的整机验收。</li>
+    </ol>
+  </div>
+
+  <h2>五、源文件与工作区状态说明</h2>
+  <div class="panel">
+    <ul>
+      <li>需求来源：<code>C:\Users\user\Downloads\OCV测试机上位机软件功能要求.xlsx</code>，解析得到 1 个工作表、36 条要求。</li>
+      <li>重点核查文件：<a href="../frmTest.vb">frmTest.vb</a>、<a href="../Module1.vb">Module1.vb</a>、<a href="../OcvDataService.vb">OcvDataService.vb</a>、<a href="../FormalTestRunner.vb">FormalTestRunner.vb</a>、<a href="../FrmNgRetest.vb">FrmNgRetest.vb</a>、<a href="../PlcController.vb">PlcController.vb</a>、<a href="../ResultDataUploadAssembly.vb">ResultDataUploadAssembly.vb</a>。</li>
+      <li>当前工作区不是干净发布快照：检测到 <code>MDIForm.vb</code>、<code>MP-60A-RV-64Mem.vbproj</code> 等已修改文件，以及多个构建验证目录/未跟踪文档。因此本报告代表“当前工作区代码状态”，不代表某个已签名发布包。</li>
+      <li>报告性质：源码和文档静态差距分析；对真实设备指标、协议精度、硬件型号、安全动作和现场 I/O 的结论，必须以实机测试记录、PLC 点位表和资产清单最终确认。</li>
+    </ul>
+  </div>
+  <footer>报告生成于 2026-09-18 · XL-OCV-256CH · 状态矩阵可使用上方搜索和筛选控件浏览</footer>
+</div>
+<script>
+  const table = document.querySelector('#matrix');
+  const rows = [...table.querySelectorAll('tbody tr')];
+  const category = document.querySelector('#category');
+  const categories = [...new Set(rows.map(r => r.dataset.category))].sort((a,b) => a.localeCompare(b, 'zh-CN'));
+  categories.forEach(c => { const o = document.createElement('option'); o.value = c; o.textContent = c; category.appendChild(o); });
+  const search = document.querySelector('#search');
+  const status = document.querySelector('#status');
+  const shown = document.querySelector('#shown');
+  function filter() {
+    const q = search.value.trim().toLowerCase();
+    const s = status.value;
+    const c = category.value;
+    let count = 0;
+    rows.forEach(row => {
+      const match = (!q || row.textContent.toLowerCase().includes(q)) && (!s || row.dataset.status === s) && (!c || row.dataset.category === c);
+      row.hidden = !match; if (match) count++;
+    });
+    shown.textContent = `显示 ${count} / ${rows.length} 条`;
+  }
+  [search, status, category].forEach(el => el.addEventListener('input', filter));
+</script>
+</body>
+</html>

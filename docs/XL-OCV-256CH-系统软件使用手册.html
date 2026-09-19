@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>XL-OCV-256CH 系统软件使用手册</title>
+  <style>
+    :root {
+      --navy: #102a43;
+      --blue: #1769aa;
+      --light-blue: #eaf4ff;
+      --green: #18794e;
+      --light-green: #ecfdf3;
+      --orange: #9a6700;
+      --light-orange: #fff8e1;
+      --red: #b42318;
+      --light-red: #fff1f0;
+      --ink: #243b53;
+      --muted: #627d98;
+      --line: #d9e2ec;
+      --paper: #ffffff;
+      --canvas: #f4f7fb;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--canvas);
+      color: var(--ink);
+      font-family: "Microsoft YaHei", "Segoe UI", Arial, sans-serif;
+      line-height: 1.7;
+    }
+    .page { max-width: 1240px; margin: 0 auto; background: var(--paper); min-height: 100vh; }
+    header { padding: 48px 56px 36px; color: #fff; background: linear-gradient(135deg, #102a43, #1769aa); }
+    header h1 { margin: 0 0 12px; font-size: 34px; letter-spacing: 1px; }
+    header p { margin: 5px 0; color: #d9eaff; }
+    .version { display: inline-block; margin-top: 18px; padding: 5px 12px; border: 1px solid #8cc8ff; border-radius: 999px; font-size: 13px; color: #eaf6ff; }
+    .layout { display: grid; grid-template-columns: 235px 1fr; gap: 28px; padding: 28px 34px 64px; }
+    nav { position: sticky; top: 18px; align-self: start; padding: 16px; border: 1px solid var(--line); border-radius: 10px; background: #f8fbff; }
+    nav strong { display: block; margin-bottom: 8px; color: var(--navy); }
+    nav a { display: block; padding: 4px 0; color: var(--blue); text-decoration: none; font-size: 13px; }
+    nav a:hover { text-decoration: underline; }
+    main { min-width: 0; }
+    h2 { margin: 34px 0 14px; padding: 8px 0 8px 12px; border-left: 5px solid var(--blue); color: var(--navy); font-size: 23px; }
+    h3 { margin: 24px 0 9px; color: var(--navy); font-size: 18px; }
+    h4 { margin: 18px 0 6px; color: var(--ink); }
+    p { margin: 8px 0 12px; }
+    code { padding: 2px 5px; border-radius: 4px; background: #eef2f7; color: #16324f; font-family: Consolas, "Courier New", monospace; }
+    pre { overflow-x: auto; margin: 12px 0 18px; padding: 15px 17px; border-radius: 8px; background: #102a43; color: #f0f4f8; font: 13px/1.65 Consolas, "Courier New", monospace; }
+    table { width: 100%; border-collapse: collapse; margin: 12px 0 20px; font-size: 14px; }
+    th, td { padding: 9px 11px; border: 1px solid var(--line); vertical-align: top; text-align: left; }
+    th { background: #eef4fb; color: var(--navy); }
+    tr:nth-child(even) td { background: #fbfdff; }
+    ul, ol { padding-left: 24px; }
+    li { margin: 4px 0; }
+    .callout { margin: 14px 0 18px; padding: 12px 15px; border-left: 5px solid var(--blue); border-radius: 5px; background: var(--light-blue); }
+    .callout.ok { border-color: var(--green); background: var(--light-green); }
+    .callout.warn { border-color: var(--orange); background: var(--light-orange); }
+    .callout.danger { border-color: var(--red); background: var(--light-red); }
+    .flow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 14px 0 20px; }
+    .step { flex: 1 1 135px; min-width: 120px; padding: 10px 12px; border: 1px solid #b8d8f5; border-radius: 8px; background: #f4faff; text-align: center; font-size: 14px; }
+    .step strong { display: block; color: var(--navy); }
+    .arrow { color: var(--blue); font-size: 20px; font-weight: bold; }
+    .state-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .state { padding: 11px 13px; border: 1px solid var(--line); border-radius: 7px; background: #fff; }
+    .state b { display: block; color: var(--blue); }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .card { padding: 15px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+    .muted { color: var(--muted); font-size: 13px; }
+    .small { font-size: 13px; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #e8f1fb; color: var(--blue); font-size: 12px; }
+    footer { padding: 22px 56px 36px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+    @media (max-width: 850px) {
+      .layout { display: block; padding: 20px; }
+      nav { position: static; margin-bottom: 22px; }
+      header { padding: 34px 24px 28px; }
+      header h1 { font-size: 27px; }
+      .state-grid, .two-col { grid-template-columns: 1fr; }
+      .arrow { display: none; }
+    }
+    @media print {
+      body, .page { background: #fff; }
+      header { color: #000; background: #fff; border-bottom: 2px solid #000; padding: 20px 0; }
+      header p, .version { color: #000; }
+      .layout { display: block; padding: 0; }
+      nav { display: none; }
+      h2 { break-before: page; }
+      h2:first-of-type { break-before: auto; }
+      pre, table, .callout { break-inside: avoid; }
+      footer { padding-left: 0; padding-right: 0; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <h1>XL-OCV-256CH 系统软件使用手册</h1>
+    <p>256 通道 OCV 测试系统 · 自动测试状态机版</p>
+    <p>适用软件：<code>XL_OCV_256CH</code> · 程序版本：<code>1.0.0.0</code></p>
+    <span class="version">手册版本：2026-09-18</span>
+  </header>
+
+  <div class="layout">
+    <nav aria-label="目录">
+      <strong>目录</strong>
+      <a href="#scope">1. 使用范围</a>
+      <a href="#startup">2. 启动前检查</a>
+      <a href="#screen">3. 主页面说明</a>
+      <a href="#modes">4. 自动/手动对照</a>
+      <a href="#auto">5. 自动模式</a>
+      <a href="#manual">6. 手动模式</a>
+      <a href="#query">7. 托盘码查询电芯码</a>
+      <a href="#result">8. 保存、MES 与 PLC</a>
+      <a href="#retest">9. NG 复测</a>
+      <a href="#config">10. 系统配置</a>
+      <a href="#fault">11. 异常处理</a>
+      <a href="#checklist">12. 操作员检查表</a>
+    </nav>
+
+    <main>
+      <section id="scope">
+        <h2>1. 使用范围</h2>
+        <p>本手册用于操作员、设备工程师和维护人员使用 XL-OCV-256CH 系统，覆盖托盘识别、256 通道电芯条码加载、正式 OCV 测试、PLC 联动、本地保存、MES 后台上传和 NG 复测。</p>
+        <div class="callout warn"><strong>版本说明：</strong>本手册以最新的自动测试状态机流程为准。自动测试的主入口是托盘状态机，不再使用旧的 <code>autoStartFlag + Timer4</code> 直接触发 <code>StarTest(1)</code>。</div>
+        <div class="callout danger"><strong>安全原则：</strong>托盘码、电芯条码或托盘压合状态任一项不满足时，系统不得调用正式测试入口，也不得向 PLC 发送“测试完成”。</div>
+      </section>
+
+      <section id="startup">
+        <h2>2. 启动前检查</h2>
+        <ol>
+          <li>确认测试电脑、PLC、扫码器、中位机、3562 内阻仪和 34461A 电压仪已通电。</li>
+          <li>确认测试软件以正确用户登录；参数设置、测试上下限和工位选择与当前产品匹配。</li>
+          <li>确认 PLC 通讯模式、地址和托盘压合地址已配置；旧配置文件缺少压合地址时，自动模式不可用。</li>
+          <li>确认 MES 数据库配置完整，网络可访问。</li>
+          <li>确认夹具处于安全状态，没有急停、烟感、超温等报警。</li>
+          <li>首次开机或更换设备后，在调试/状态页面逐项确认设备连接状态。</li>
+        </ol>
+        <div class="callout ok"><strong>建议：</strong>生产前先用一盘已在 MES 完整建档的托盘做小范围验证，确认扫码、条码查询、压合状态和结果保存链路均正常，再进入连续生产。</div>
+      </section>
+
+      <section id="screen">
+        <h2>3. 主页面说明</h2>
+        <table>
+          <thead><tr><th>区域/控件</th><th>用途</th><th>操作注意</th></tr></thead>
+          <tbody>
+            <tr><td>自动 / 手动</td><td>选择当前测试模式，两个模式互斥。</td><td>自动流程执行、保存或等待 PLC 应答期间不能切换。</td></tr>
+            <tr><td><code>txtTray</code> 托盘码</td><td>显示当前托盘码；手动模式由操作员输入，自动模式由扫码结果写入。</td><td>查询数据库使用最终读取到的托盘码；不要在查询或测试中途修改。</td></tr>
+            <tr><td>获取条码</td><td>按当前托盘码查询并显示电芯条码，用于人工核查。</td><td>正式开始测试仍会再次执行严格的完整性校验。</td></tr>
+            <tr><td>启动测试</td><td>手动模式正式测试入口，执行 <code>StarTest(1)</code>。</td><td>必须有托盘码、有效电芯数据、已选择通道且托盘已压合。</td></tr>
+            <tr><td>停止测试</td><td>请求停止当前测量。</td><td>停止后的结果按失败/未完成处理，不应直接当作合格结果。</td></tr>
+            <tr><td>NG点测试</td><td>单独执行 NG 通道复测，执行 <code>StarTest(0)</code>。</td><td>复测前仍需确认托盘压合；不会重新触发自动 PLC 流程。</td></tr>
+            <tr><td>通道选择区</td><td>选择本次手动测试的物理通道 1～256。</td><td>自动模式的测试通道由当前自动测试周期冻结，不能中途修改。</td></tr>
+            <tr><td>状态/报警区</td><td>显示测试、PLC、仪表、数据库和 MES 状态。</td><td>出现错误时先记录提示内容，再按异常处理章节操作。</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="modes">
+        <h2>4. 自动模式与手动模式对照</h2>
+        <table>
+          <thead><tr><th>项目</th><th>自动模式</th><th>手动模式</th></tr></thead>
+          <tbody>
+            <tr><td>启动方式</td><td>PLC 检测托盘到位并稳定后自动启动流程。</td><td>操作员点击“启动测试”。</td></tr>
+            <tr><td>托盘码来源</td><td>扫码成功后写入 <code>txtTray</code>，再从控件读取。</td><td>操作员直接输入或粘贴到 <code>txtTray</code>。</td></tr>
+            <tr><td>电芯码加载</td><td>查询成功后保存到当前自动测试周期上下文。</td><td>查询成功并校验后写入测试执行缓存。</td></tr>
+            <tr><td>压合检查</td><td>未压合时进入等待；托盘离位则取消本轮。</td><td>未压合或 PLC 读取失败时弹框并停止。</td></tr>
+            <tr><td>正式测试</td><td>条件满足后自动调用一次 <code>StarTest(1)</code>。</td><td>前置检查全部成功后调用 <code>StarTest(1)</code>。</td></tr>
+            <tr><td>PLC 完成通知</td><td>本地保存成功后通知 PLC，等待 ACK。</td><td>手动测试不发送自动流程完成通知。</td></tr>
+            <tr><td>MES 上传</td><td colspan="2">均使用测试结果快照后台上传，不阻塞主测试流程。</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="auto">
+        <h2>5. 自动模式操作流程</h2>
+        <div class="flow">
+          <div class="step"><strong>1</strong>选择自动</div><span class="arrow">→</span>
+          <div class="step"><strong>2</strong>托盘到位稳定</div><span class="arrow">→</span>
+          <div class="step"><strong>3</strong>启动扫码</div><span class="arrow">→</span>
+          <div class="step"><strong>4</strong>写入 txtTray</div><span class="arrow">→</span>
+          <div class="step"><strong>5</strong>查询 1～256 电芯码</div><span class="arrow">→</span>
+          <div class="step"><strong>6</strong>确认托盘压合</div><span class="arrow">→</span>
+          <div class="step"><strong>7</strong>StarTest(1)</div>
+        </div>
+
+        <h3>5.1 状态说明</h3>
+        <div class="state-grid">
+          <div class="state"><b>WaitingForTray</b>等待托盘到位。</div>
+          <div class="state"><b>TrayDetected</b>托盘到位已稳定。</div>
+          <div class="state"><b>Scanning</b>正在等待扫码结果。</div>
+          <div class="state"><b>LoadingCellBarcodes</b>按托盘码查询和校验电芯码。</div>
+          <div class="state"><b>ReadyToTest</b>条码已准备，等待最终设备检查。</div>
+          <div class="state"><b>WaitingForClamp</b>等待 PLC 确认托盘压合。</div>
+          <div class="state"><b>Testing</b>执行正式 OCV 测试。</div>
+          <div class="state"><b>SavingLocalResult</b>保存本地测试结果。</div>
+          <div class="state"><b>PlcCompletionPending</b>准备发送测试完成通知。</div>
+          <div class="state"><b>WaitingForPlcAck</b>等待 PLC 完成应答。</div>
+          <div class="state"><b>Completed</b>本轮完成，等待托盘离开。</div>
+          <div class="state"><b>Error</b>本轮异常，处理后重新开始。</div>
+        </div>
+
+        <h3>5.2 操作员需要注意</h3>
+        <ul>
+          <li>同一托盘在未离开前不会重复扫码、重复查询或重复启动测试。</li>
+          <li>扫码成功后，主页面的 <code>txtTray</code> 应显示本次托盘码；显示为空代表流程不能继续。</li>
+          <li>查询成功但夹具未压合时，界面显示“等待托盘压合”，不会弹出阻塞式确认框，也不会开始测试。</li>
+          <li>等待压合期间托盘离位，本轮自动任务取消，系统回到等待下一托盘状态。</li>
+          <li>正式测试完成后，由 PLC 安排松夹具、放行和下一步动作，上位机不自行安排机械流程。</li>
+        </ul>
+      </section>
+
+      <section id="manual">
+        <h2>6. 手动模式操作流程</h2>
+        <ol>
+          <li>选择“手动”。</li>
+          <li>在 <code>txtTray</code> 输入托盘码。</li>
+          <li>点击“启动测试”。</li>
+          <li>系统检查托盘码是否为空；为空时提示并结束。</li>
+          <li>系统按托盘码查询 1～256 节电芯条码，并完成完整性校验。</li>
+          <li>系统读取 PLC 托盘压合状态。</li>
+          <li>确认压合后，将本次数据装载到测试执行缓存并调用 <code>StarTest(1)</code>。</li>
+          <li>测试完成后保存结果，MES 上传在后台执行。</li>
+        </ol>
+        <div class="callout danger"><strong>禁止事项：</strong>不能在未查询到电芯条码、条码不完整、PLC 无法读取或托盘未压合时继续测试，也不能使用上一托盘残留条码代替当前托盘数据。</div>
+      </section>
+
+      <section id="query">
+        <h2>7. 托盘码查询电芯码</h2>
+        <h3>7.1 查询关系</h3>
+        <pre>txtTray 托盘码
+    ↓ 参数化查询
+MES 数据库 batcode
+    ↓ 返回 ChannelNo + BatteryCode
+1～256 通道电芯条码字典
+    ↓ 完整性校验
+测试周期上下文 / 测试执行缓存
+    ↓
+StarTest(1)</pre>
+        <p>数据库查询使用托盘码参数，不使用字符串拼接。正式测试要求完整返回 1～256 通道数据，即使本次手动只选择部分通道，也必须先确认托盘基础数据完整。</p>
+        <h3>7.2 查询失败处理</h3>
+        <table>
+          <thead><tr><th>失败情况</th><th>界面/流程处理</th><th>操作员处理</th></tr></thead>
+          <tbody>
+            <tr><td>托盘码为空</td><td>不访问数据库，不开始测试。</td><td>重新输入或重新扫码。</td></tr>
+            <tr><td>托盘码不存在</td><td>判定为无数据/数据不完整，不调用 <code>StarTest</code>。</td><td>确认托盘码，确认 MES 是否已经建档。</td></tr>
+            <tr><td>少于 256 条或缺少通道</td><td>提示缺失通道，不装载部分数据。</td><td>补齐 MES 数据后重新查询。</td></tr>
+            <tr><td>通道非法或重复</td><td>查询校验失败，不开始测试。</td><td>修正数据库基础数据。</td></tr>
+            <tr><td>电芯码为空或重复</td><td>查询校验失败，不开始测试。</td><td>检查电芯条码绑定关系。</td></tr>
+            <tr><td>数据库配置不完整</td><td>提示 MES 数据库配置错误。</td><td>由工程师检查服务器、数据库、账号、密码。</td></tr>
+            <tr><td>网络、连接或 SQL 异常</td><td>查询异常，不保存结果、不通知 PLC。</td><td>检查网络和数据库服务后重试。</td></tr>
+          </tbody>
+        </table>
+        <div class="callout ok"><strong>安全边界：</strong>查询失败时不会调用 <code>StarTest(1)</code>，不会保存本轮正式结果，也不会发送 PLC 测试完成信号。</div>
+      </section>
+
+      <section id="result">
+        <h2>8. 结果保存、MES 上传与 PLC 通知</h2>
+        <div class="flow">
+          <div class="step"><strong>测量完成</strong>生成 OK/NG 结果</div><span class="arrow">→</span>
+          <div class="step"><strong>本地保存</strong>OCV_DATA / 本地文件</div><span class="arrow">→</span>
+          <div class="step"><strong>PLC 完成通知</strong>自动模式专用</div><span class="arrow">→</span>
+          <div class="step"><strong>PLC ACK</strong>等待确认</div>
+        </div>
+        <p>MES 上传是旁路任务：</p>
+        <pre>本地保存成功
+    ├── 自动模式：通知 PLC 测试完成，并等待 ACK
+    └── 后台：将不可变结果快照加入 MES 上传队列
+
+MES 上传失败 → 记录失败 → 使用同一任务快照和幂等键重试</pre>
+        <table>
+          <thead><tr><th>结果环节</th><th>失败时处理</th></tr></thead>
+          <tbody>
+            <tr><td>测量失败</td><td>不认定为完成，不通知 PLC 完成。</td></tr>
+            <tr><td>本地保存失败</td><td>不通知 PLC 完成；保留任务信息，允许人工处理。</td></tr>
+            <tr><td>MES 上传失败</td><td>不阻塞已完成的本地流程和 PLC 放行，进入后台重试。</td></tr>
+            <tr><td>PLC ACK 超时</td><td>不重新测量；按同一任务号/幂等键重发完成通知。</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="retest">
+        <h2>9. NG 复测</h2>
+        <ol>
+          <li>正式测试完成后查看 NG 通道。</li>
+          <li>确认托盘仍在位且已压合。</li>
+          <li>选择需要复测的 NG 通道。</li>
+          <li>点击“NG点测试”，执行 <code>StarTest(0)</code>。</li>
+          <li>复测结果单独保存并后台上传 MES。</li>
+        </ol>
+        <div class="callout warn"><strong>复测边界：</strong>复测不会重新扫码，不重新创建自动 PLC 完成任务，也不会替代已经通知 PLC 的正式测试完成状态。复测不能与新的正式测试并发执行。</div>
+      </section>
+
+      <section id="config">
+        <h2>10. 系统配置</h2>
+        <h3>10.1 PLC 通讯和自动流程地址</h3>
+        <table>
+          <thead><tr><th>配置项</th><th>含义</th><th>要求</th></tr></thead>
+          <tbody>
+            <tr><td>PLC 通讯方式</td><td>Modbus TCP 或 Modbus RTU/COM。</td><td>必须与现场 PLC 接口一致。</td></tr>
+            <tr><td>托盘到位地址</td><td>判断托盘是否进入工位。</td><td>不能代替压合地址。</td></tr>
+            <tr><td>托盘压合地址</td><td>判断夹具是否已压合。</td><td>必须单独配置，不能默认为地址 0。</td></tr>
+            <tr><td>测试允许地址</td><td>PLC 是否允许上位机开始测试。</td><td>自动模式使用。</td></tr>
+            <tr><td>测试完成命令地址</td><td>上位机通知 PLC 测试完成。</td><td>由 PLC 点位表确认。</td></tr>
+            <tr><td>完成 ACK 地址</td><td>PLC 确认收到完成通知。</td><td>用于完成握手和重试。</td></tr>
+            <tr><td>稳定采样/离位采样</td><td>避免单次信号抖动导致重复启动或误结束。</td><td>按现场信号质量调整。</td></tr>
+          </tbody>
+        </table>
+        <h3>10.2 MES 数据库</h3>
+        <ul>
+          <li>配置 MES 数据库服务器、数据库名、用户名和密码。</li>
+          <li>确认托盘码与 1～256 通道电芯码已在 MES 中完成绑定。</li>
+          <li>同一托盘的通道号和电芯码不能重复。</li>
+          <li>修改配置后重新启动或重新加载设置，避免继续使用旧连接参数。</li>
+        </ul>
+      </section>
+
+      <section id="fault">
+        <h2>11. 异常处理</h2>
+        <table>
+          <thead><tr><th>现象</th><th>优先检查</th><th>恢复方式</th></tr></thead>
+          <tbody>
+            <tr><td>自动模式不可用</td><td>PLC 自动流程地址是否完整，尤其是托盘压合地址。</td><td>补齐配置并重新启动流程。</td></tr>
+            <tr><td>一直等待托盘</td><td>托盘到位信号、PLC 通讯、传感器和工位位置。</td><td>确认托盘实际到位并重新观察状态。</td></tr>
+            <tr><td>扫码失败</td><td>扫码器串口、扫码距离、条码质量、托盘在位状态。</td><td>重新扫码；必要时切换手动模式输入托盘码。</td></tr>
+            <tr><td>查不到电芯码</td><td>托盘码是否正确、MES 是否建档、网络和数据库连接。</td><td>修正数据或配置后重新查询，禁止使用旧数据测试。</td></tr>
+            <tr><td>等待托盘压合</td><td>夹具机械状态、托盘压合地址、PLC 点位映射。</td><td>压合托盘；不要强行点击启动测试。</td></tr>
+            <tr><td>测试完成但 PLC 未继续</td><td>本地保存状态、完成通知队列、PLC ACK 地址和通讯。</td><td>查看通知日志并重发同一任务，不要重测。</td></tr>
+            <tr><td>MES 上传失败</td><td>MES 网络、接口地址和后台队列。</td><td>保留本地结果，恢复网络后等待后台重试。</td></tr>
+            <tr><td>报警或急停</td><td>现场安全状态、急停、烟感、温度和夹具。</td><td>排除现场故障并复位报警，再重新执行前置检查。</td></tr>
+          </tbody>
+        </table>
+        <div class="callout danger"><strong>不要这样处理：</strong>不要通过重复点击启动、直接改写条码、跳过压合检查、重测来代替 PLC 完成通知，或删除本地结果文件来“清除”失败。</div>
+      </section>
+
+      <section id="checklist">
+        <h2>12. 操作员检查表</h2>
+        <h3>每盘测试前</h3>
+        <ul>
+          <li>□ 当前模式正确：自动或手动。</li>
+          <li>□ 托盘码已正确识别/输入。</li>
+          <li>□ 电芯条码查询成功且数据完整。</li>
+          <li>□ 托盘已到位并完成压合。</li>
+          <li>□ 无报警，仪表和 PLC 通讯正常。</li>
+          <li>□ 手动模式已选择正确测试通道。</li>
+        </ul>
+        <h3>每盘测试后</h3>
+        <ul>
+          <li>□ 已生成本地测试结果。</li>
+          <li>□ 自动模式已看到 PLC 完成通知/应答状态。</li>
+          <li>□ MES 上传任务没有持续失败。</li>
+          <li>□ NG 通道已记录；需要时单独执行复测。</li>
+          <li>□ PLC 已安排下一步动作，未人工重复操作夹具。</li>
+        </ul>
+        <h3>维护人员验收顺序</h3>
+        <ol>
+          <li>验证空托盘码不会访问数据库或启动测试。</li>
+          <li>验证托盘码无记录、部分条码、重复条码都会阻止测试。</li>
+          <li>验证托盘未压合时自动模式保持等待，手动模式弹框停止。</li>
+          <li>验证本地保存成功后 PLC 能收到完成通知。</li>
+          <li>断开 MES 网络，确认本地保存和 PLC 流程不被阻塞。</li>
+          <li>模拟 PLC ACK 超时，确认重发通知而不是重新测量。</li>
+          <li>验证复测不会重新触发自动 PLC 完成流程。</li>
+        </ol>
+      </section>
+
+      <section>
+        <h2>附录：关键术语</h2>
+        <table>
+          <thead><tr><th>术语</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td><code>txtTray</code></td><td>主页面托盘码控件，是当前托盘码的显示和输入入口。</td></tr>
+            <tr><td><code>StarTest(1)</code></td><td>正式测试入口。</td></tr>
+            <tr><td><code>StarTest(0)</code></td><td>NG 点复测入口。</td></tr>
+            <tr><td><code>AutoTestContext</code></td><td>自动测试周期的不可变业务快照，包含托盘码、电芯码和通道集合。</td></tr>
+            <tr><td><code>RecieveData(0～255)</code></td><td>256 通道测试执行和显示数据缓存，CH1 对应下标 0。</td></tr>
+            <tr><td>本地保存</td><td>测试结果已写入规定的本地结果存储，达到 PLC 放行前置条件。</td></tr>
+            <tr><td>PLC ACK</td><td>PLC 对测试完成通知的确认，不等同于 MES 上传成功。</td></tr>
+          </tbody>
+        </table>
+        <p class="muted">文档文件：<code>docs/XL-OCV-256CH-系统软件使用手册.html</code></p>
+      </section>
+    </main>
+  </div>
+  <footer>XL-OCV-256CH 系统软件使用手册 · 2026-09-18 · 本手册描述生产操作流程，具体 PLC 地址以现场点位表和已验证配置为准。</footer>
+</div>
+</body>
+</html>
