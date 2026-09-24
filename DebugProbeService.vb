@@ -124,6 +124,7 @@ Public NotInheritable Class DebugProbeService
                 Return Success(deviceId, "VISA / *IDN? 响应正常")
 
             Case DebugDeviceId.PlcTray
+                If plcAutomaticModeActive Then Return Success(deviceId, "由 PLC 自动测试流程独占")
                 If plcController Is Nothing Then plcController = PlcControllerFactory.Create(Initsetting)
                 If Not plcController.Connect() Then Return Failure(deviceId, "PLC 连接失败")
                 plcConnected = True

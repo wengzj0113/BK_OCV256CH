@@ -103,6 +103,12 @@ Public Class FrmManualTest
             Return
         End If
 
+        If plcAutomaticModeActive Then
+            lblStatus.Text = "PLC由自动测试流程占用"
+            MsgBox("自动测试流程运行中，暂不能手动操作夹具。", vbOKOnly, "夹具控制")
+            Return
+        End If
+
         If Not plcConnected OrElse plcController Is Nothing Then
             lblStatus.Text = "PLC未连接"
             MsgBox("PLC未连接，无法控制夹具。", vbOKOnly, "夹具控制")

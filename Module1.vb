@@ -19,8 +19,14 @@ Module Module1
     Public Com_scaner As SerialPort
     Public Com_IOCard As SerialPort
     Public plcController As IPlcController
+    '串口 PLC 自动流程使用 ASCII 协议并独占串口，禁止旧 Modbus 控制链并行连接。
+    Public plcAutomaticModeActive As Boolean
     Public plcConnected As Boolean = False
     Public Const MAX_CHANNEL = 256
+    Public Const DefaultPlcBaudRate As Integer = 38400
+    Public Const DefaultScannerBaudRate As Integer = 9600
+    Public Const PlcPortLogicalName As String = "serialPortPLC"
+    Public Const ScannerPortLogicalName As String = "serialPortTPM"
     Public CommunicationCounts As Integer
     Public FirstCom As Boolean
     Public blnOnLine As Boolean   '设备是否联机正常
@@ -774,6 +780,13 @@ Loop_Begin:
     Public Function CheckPlc() As Short
         plcConnected = False
         Try
+            If Initsetting.PLCMode = 0 Then
+                '串口 PLC 的正式连接由 PlcAutomaticTestCoordinator 在自动流程启动时建立。
+                '启动检查只验证配置路径，不打开旧的 Modbus 串口，避免与 ASCII 协议争用。
+                If plcController IsNot Nothing Then plcController.Disconnect()
+                plcController = Nothing
+                Return 1
+            End If
             If plcController IsNot Nothing Then plcController.Disconnect()
             plcController = PlcControllerFactory.Create(Initsetting)
             If plcController Is Nothing OrElse Not plcController.Connect() Then Return -1
@@ -1246,7 +1259,7 @@ Loop_Begin:
         If FS.Position < FS.Length Then
             Initsetting.PLCComRate = BR.ReadInt32()
         Else
-            Initsetting.PLCComRate = 115200
+            Initsetting.PLCComRate = DefaultPlcBaudRate
         End If
         If FS.Position < FS.Length Then
             Initsetting.Retest3562Port = BR.ReadInt32()

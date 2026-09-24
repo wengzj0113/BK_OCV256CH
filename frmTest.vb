@@ -11,6 +11,7 @@ Imports MpFByteArrDLL
 Imports File = System.IO.File
 Imports Timer = System.Timers.Timer
 Public Class frmTest
+    Implements IAutomaticTestHost
     Dim PaintFlag As Boolean
     Dim objOLECommamd As OleDb.OleDbCommand
     Dim intNumber As Short
@@ -51,6 +52,10 @@ Public Class frmTest
     Dim logFilePath As String = Path.Combine(logDirectory, "Run.log")
     Private ReadOnly testProgressState As New TestProgressState()
     Private testProgressDialog As frmTestProgress
+    Private plcAutomationClient As IPlcAutomationClient
+    Private trayScannerClient As ITrayScannerClient
+    Private plcAutomaticCoordinator As PlcAutomaticTestCoordinator
+    Private automaticTestPassInProgress As Boolean
 
     Public ReadOnly Property CurrentAlarmValue As Integer
         Get
@@ -88,6 +93,7 @@ Public Class frmTest
         channelGrid.ApplyStatusColors(channelStatusColors)
         statisticsControl.ApplyStatusColors(channelStatusColors)
         ConfigureStationControls()
+        InitializeAutomaticTestControls()
         StartupTiming.Mark("frmTest-station-controls")
         '合格范围
         txtMaxV.Text = Initsetting.upVoltage
@@ -186,6 +192,8 @@ Public Class frmTest
         timer3.Start()
         Timer4.Start()
 
+        StartPlcAutomaticTest()
+
         StartupTiming.Mark("frmTest-deferred-complete")
     End Sub
 
@@ -198,6 +206,16 @@ Public Class frmTest
         UiTheme.ApplyButtonStyle(btnOpen, UiTheme.ButtonRole.Neutral)
         UiTheme.ApplyButtonStyle(btnClose, UiTheme.ButtonRole.Neutral)
         UiTheme.ApplyButtonStyle(Button2, UiTheme.ButtonRole.Danger)
+    End Sub
+
+    Private Sub InitializeAutomaticTestControls()
+        If cmbRetestNum.Items.Count = 0 Then
+            For roundNumber As Integer = 1 To 3
+                cmbRetestNum.Items.Add(roundNumber.ToString())
+            Next
+        End If
+        If cmbRetestNum.SelectedIndex < 0 Then cmbRetestNum.SelectedIndex = 0
+        btnNeedNGRetest.Checked = False
     End Sub
 
     Private Sub InitializeChannelSelectionControls()
@@ -485,9 +503,18 @@ Public Class frmTest
     ''' </summary>
     ''' <param name="testType"></param>
     ''' <returns></returns>
-    Public Function StarTest(ByVal testType As Integer)
+    Public Function StarTest(ByVal testType As Integer,
+                             Optional ByVal automaticMode As Boolean = False,
+                             Optional ByVal automaticCompleted As Action(Of TestPassResult) = Nothing,
+                             Optional ByVal automaticFailed As Action(Of Exception) = Nothing)
         StarTest = 0
+        Dim automaticFailure As Exception = Nothing
+        Dim automaticResult As TestPassResult = Nothing
         If Not AuthorizationService.IsAuthenticated() Then
+            If automaticMode Then
+                automaticFailure = New InvalidOperationException("自动测试要求先完成用户登录。")
+                GoTo exit_sub
+            End If
             AuthorizationService.RequireAuthenticatedUser(Me)
             Return StarTest
         End If
@@ -507,6 +534,10 @@ Public Class frmTest
         End If
 
         If runChannels.Count = 0 Then
+            If automaticMode Then
+                automaticFailure = New InvalidOperationException("自动测试没有可执行的通道。")
+                GoTo exit_sub
+            End If
             MessageBox.Show("请先选择至少一个待测试通道！", "提示", MessageBoxButtons.OK)
             Return StarTest
         End If
@@ -559,7 +590,7 @@ Public Class frmTest
 
         Else
             Dim result2 As DialogResult
-            If strTrayNo = lastTrayNo Then
+            If strTrayNo = lastTrayNo AndAlso Not automaticMode Then
 
                 result2 = MessageBox.Show("托盘号与上次相同，是否继续执行程序？", "提示", MessageBoxButtons.OKCancel, MessageBoxIcon.Question)
 
@@ -595,7 +626,9 @@ Public Class frmTest
         End If
         ' Show a message box to confirm action
         Dim result As DialogResult
-        If isAskOcvNum = False Then
+        If isAskOcvNum = False AndAlso automaticMode Then
+            isAskOcvNum = True
+        ElseIf isAskOcvNum = False Then
             result = MessageBox.Show("你确定本次是测试 OCV" + intOCV.ToString() + "吗？", "请确认", MessageBoxButtons.OKCancel)
             If result = DialogResult.OK Then
                 ' User clicked OK, proceed with the method execution
@@ -613,7 +646,8 @@ Public Class frmTest
         '检测中位机串口通讯
         reFlag = CheckCom_SCM()
         If reFlag <> 1 Then
-            MsgBox("单片机通讯失败！", vbOKOnly)
+            automaticFailure = New InvalidOperationException("单片机通讯失败。")
+            If Not automaticMode Then MsgBox("单片机通讯失败！", vbOKOnly)
             GoTo exit_sub
         End If
         '处理探针的相关数据
@@ -644,7 +678,8 @@ Public Class frmTest
         Catch ex As Exception
             FailTestProgress("创建测试任务失败：" & ex.Message)
             txtAlarm.AppendText($"OCV_DATA 创建测试任务异常: {ex.Message}{Environment.NewLine}")
-            MsgBox("OCV_DATA 创建测试任务失败: " & ex.Message, vbOKOnly, "错误")
+            automaticFailure = ex
+            If Not automaticMode Then MsgBox("OCV_DATA 创建测试任务失败: " & ex.Message, vbOKOnly, "错误")
             GoTo exit_sub
         End Try
         '************** 正式测试：中位机只负责通道计划和 START，仪表缓存完成后统一回填 *********************
@@ -663,7 +698,8 @@ Public Class frmTest
             FailTestProgress("正式测试失败：" & ex.Message)
             CompleteOcvDataTestTaskSafely(ocvTestTaskId, "Failed", ex.Message)
             txtAlarm.AppendText($"正式测试异常: {ex.Message}{Environment.NewLine}")
-            MsgBox("正式测试出现异常: " & ex.Message, vbOKOnly, "错误")
+            automaticFailure = ex
+            If Not automaticMode Then MsgBox("正式测试出现异常: " & ex.Message, vbOKOnly, "错误")
             GoTo exit_sub
         End Try
         ''******************** 测试完成后的刷新、保存、上传和数据库处理 ***********************
@@ -699,50 +735,55 @@ Public Class frmTest
                         RecieveData(channelIndex0).Result = "OK"
                     End If
                 Next
-            Else '如果是NG复测的话，复测数组为1的通道才赋值。
-                For j As Integer = 0 To retestArray.Length - 1
-                    If retestArray(j) = 1 Then
-                        Dim recVol As Single = RecieveData(j).Voltage
-                        Dim recRes As Single = RecieveData(j).Resistance
-                        If IsNG(recVol, recRes) <> 0 Then
-                            RecieveData(j).Result = "NG"
-                        Else
-                            RecieveData(j).Result = "OK"
-                        End If
+            Else 'NG复测必须按本轮实际执行的通道赋值，不能依赖上一轮残留的 retestArray。
+                For Each channel As Integer In GetSelectedPhysicalChannels(testType)
+                    Dim channelIndex0 As Integer = channel - 1
+                    Dim recVol As Single = RecieveData(channelIndex0).Voltage
+                    Dim recRes As Single = RecieveData(channelIndex0).Resistance
+                    If IsNG(recVol, recRes) <> 0 Then
+                        RecieveData(channelIndex0).Result = "NG"
+                    Else
+                        RecieveData(channelIndex0).Result = "OK"
                     End If
                 Next
             End If
             testingChannelNumbers.Clear()
             RefreshChannelOverview()
+            If automaticMode Then automaticResult = BuildAutomaticPassResult(runChannels)
             SaveOcvDataTestResults(ocvTestTaskId, testType)
             CompleteOcvDataTestTaskSafely(ocvTestTaskId, "Completed", Nothing)
             testTaskStatusFinalized = True
-            '把数据保存在本都文件夹中（按天建立文件夹），每个托盘保存一个文件
-            SaveTestDataLocalFile(RecieveData)
-            PublishTestProgress(TestProgressStage.Saving, "数据库和本地结果已保存，正在提交后台上传...", 92)
-            '主程序调用数据上传接口
-            If FrmMesTask.chkResultDataUploadAssembly.Checked Then
-                '数据出站，上传到Mes
-                mesUP.ChannelNumbers = GetSelectedPhysicalChannels(testType)
-                mesUP.StopTimer()
-                mesUP.StartTimer()
+            If Not automaticMode Then
+                '手动流程保持现有的本地文件和 MES 上传行为；自动流程统一延迟到最终复测结束。
+                SaveTestDataLocalFile(RecieveData)
+                PublishTestProgress(TestProgressStage.Saving, "数据库和本地结果已保存，正在提交后台上传...", 92)
+                If FrmMesTask.chkResultDataUploadAssembly.Checked Then
+                    mesUP.ChannelNumbers = GetSelectedPhysicalChannels(testType)
+                    mesUP.StopTimer()
+                    mesUP.StartTimer()
+                End If
+            Else
+                PublishTestProgress(TestProgressStage.Saving, "本轮结果已保存，等待最终复测判定...", 92)
             End If
-            PublishTestProgress(TestProgressStage.Uploading, "测试完成，MES 上传已进入后台队列。", 96)
-            CompleteTestProgress("测试完成")
+            If Not automaticMode Then
+                PublishTestProgress(TestProgressStage.Uploading, "测试完成，MES 上传已进入后台队列。", 96)
+                CompleteTestProgress("测试完成")
+            End If
             '旧库 CW_tblData_Info 并行写入已删除 (R2-15):
             '测试结果已由 SaveOcvDataTestResults 写入 OCV_DATA.TestResult,
             '托盘已由 CreateOcvDataTestTask -> usp_RegisterTray 注册到 OCV_DATA.Tray。
         Catch ex As Exception
             FailTestProgress("结果保存失败：" & ex.Message)
             txtAlarm.AppendText($"OCV/上传/数据库写入异常: {ex.Message}{Environment.NewLine}")
-            MsgBox("OCV 测量或数据上传出现异常: " & ex.Message, vbOKOnly, "错误")
+            automaticFailure = ex
+            If Not automaticMode Then MsgBox("OCV 测量或数据上传出现异常: " & ex.Message, vbOKOnly, "错误")
         End Try
         If ocvTestTaskId.HasValue AndAlso Not testTaskStatusFinalized Then
             CompleteOcvDataTestTaskSafely(ocvTestTaskId, "Failed", "Test result processing failed before task completion.")
             testTaskStatusFinalized = True
         End If
         '如果存在NG点，询问是否重测坏点
-        If haveNgPoint Then
+        If haveNgPoint AndAlso Not automaticMode Then
             Dim result1 As DialogResult = MessageBox.Show("发现NG测试点，是否重新执行测试相应点位？", "NG提示", MessageBoxButtons.OKCancel)
             If result1 = DialogResult.OK Then
                 ' 用户点击了 OK，执行处理程序的代码
@@ -768,6 +809,16 @@ exit_sub:
         SetSelectionControlsEnabled(True)
         Me.Cursor = Cursors.Default
         isRuning = False
+        If automaticMode Then
+            automaticTestPassInProgress = False
+            If automaticFailure IsNot Nothing Then
+                If automaticFailed IsNot Nothing Then automaticFailed(automaticFailure)
+            ElseIf automaticResult Is Nothing Then
+                If automaticFailed IsNot Nothing Then automaticFailed(New InvalidOperationException("自动测试未生成有效测试结果。"))
+            ElseIf automaticCompleted IsNot Nothing Then
+                automaticCompleted(automaticResult)
+            End If
+        End If
         Return 0
 
     End Function
@@ -1976,6 +2027,175 @@ exit_sub:
         Timer1.Enabled = False
     End Sub
 
+    Private Sub StartPlcAutomaticTest()
+        If plcAutomaticCoordinator IsNot Nothing OrElse Initsetting.PLCMode <> 0 Then Return
+        Try
+            '自动 ASCII 流程独占 PLC 串口；若旧控制器曾被调试页打开，先释放它。
+            If plcController IsNot Nothing Then plcController.Disconnect()
+            plcController = Nothing
+            plcConnected = False
+
+            plcAutomationClient = New PlcAutomationClient(Initsetting)
+            Dim sharedScannerPort As System.IO.Ports.SerialPort = Nothing
+            If frmMDI IsNot Nothing AndAlso Not frmMDI.IsDisposed Then sharedScannerPort = frmMDI.Com_scaner
+            trayScannerClient = New TrayScannerClient(Initsetting, sharedScannerPort)
+            plcAutomaticCoordinator = New PlcAutomaticTestCoordinator(plcAutomationClient, trayScannerClient, Me)
+            plcAutomaticModeActive = True
+            plcAutomaticCoordinator.Start()
+        Catch ex As Exception
+            plcAutomaticModeActive = False
+            ReportAutomaticStatus("PLC自动流程启动失败：" & ex.Message)
+            If plcAutomaticCoordinator IsNot Nothing Then
+                Try
+                    plcAutomaticCoordinator.Stop()
+                Catch
+                End Try
+                plcAutomaticCoordinator = Nothing
+            End If
+            If TypeOf plcAutomationClient Is IDisposable Then DirectCast(plcAutomationClient, IDisposable).Dispose()
+            If TypeOf trayScannerClient Is IDisposable Then DirectCast(trayScannerClient, IDisposable).Dispose()
+            plcAutomationClient = Nothing
+            trayScannerClient = Nothing
+        End Try
+    End Sub
+
+    Private Function BuildAutomaticPassResult(ByVal channels As IEnumerable(Of Integer)) As TestPassResult
+        Dim passResult As New TestPassResult With {.Completed = True}
+        If channels Is Nothing Then Return passResult
+
+        For Each channel As Integer In channels.Distinct().Where(Function(item) item >= 1 AndAlso item <= MAX_CHANNEL).OrderBy(Function(item) item)
+            Dim data As Bat_info = RecieveData(channel - 1)
+            passResult.Results.Add(New ChannelTestResult With {
+                .ChannelNumber = channel,
+                .Voltage = data.Voltage,
+                .Resistance = data.Resistance,
+                .IsNg = (IsNG(data.Voltage, data.Resistance) <> 0)
+            })
+        Next
+        Return passResult
+    End Function
+
+    Private Sub ExecuteAutomaticOnUi(ByVal action As Action, Optional ByVal waitForCompletion As Boolean = False)
+        If action Is Nothing OrElse IsDisposed Then Return
+        If InvokeRequired Then
+            If waitForCompletion Then
+                Invoke(action)
+            Else
+                BeginInvoke(action)
+            End If
+        Else
+            action()
+        End If
+    End Sub
+
+    Public Function IsAutomaticModeEnabled() As Boolean Implements IAutomaticTestHost.IsAutomaticModeEnabled
+        Return Not shutdownPrepared AndAlso chkAutoTest IsNot Nothing AndAlso chkAutoTest.Checked AndAlso plcAutomaticModeActive
+    End Function
+
+    Public Function CanStartAutomaticTest() As Boolean Implements IAutomaticTestHost.CanStartAutomaticTest
+        Return IsAutomaticModeEnabled() AndAlso
+               AuthorizationService.IsAuthenticated() AndAlso
+               Not alarmStatus AndAlso
+               Not isRuning AndAlso
+               Not automaticTestPassInProgress
+    End Function
+
+    Public Function ValidateTrayCode(ByVal trayCodeValue As String) As Boolean Implements IAutomaticTestHost.ValidateTrayCode
+        Dim normalized As String = If(trayCodeValue, String.Empty).Trim()
+        If normalized.Length = 0 Then Return False
+        If Initsetting.txtCodeLenth > 0 AndAlso normalized.Length <> Initsetting.txtCodeLenth Then Return False
+        Return True
+    End Function
+
+    Public Function GetNeedNgRetest() As Boolean Implements IAutomaticTestHost.GetNeedNgRetest
+        Return btnNeedNGRetest IsNot Nothing AndAlso btnNeedNGRetest.Checked
+    End Function
+
+    Public Function GetRetestRoundCount() As Integer Implements IAutomaticTestHost.GetRetestRoundCount
+        If Not GetNeedNgRetest() OrElse cmbRetestNum Is Nothing Then Return 0
+        Dim rounds As Integer
+        If Integer.TryParse(Convert.ToString(cmbRetestNum.SelectedItem), rounds) Then Return Math.Max(0, rounds)
+        Return 0
+    End Function
+
+    Public Sub SetTrayCode(ByVal trayCodeValue As String) Implements IAutomaticTestHost.SetTrayCode
+        ExecuteAutomaticOnUi(Sub()
+                                 txtTray.Text = If(trayCodeValue, String.Empty).Trim()
+                                 trayCode = txtTray.Text
+                             End Sub, True)
+    End Sub
+
+    Public Sub RequestManualTrayCode(ByVal accepted As Action(Of String), ByVal cancelled As Action) Implements IAutomaticTestHost.RequestManualTrayCode
+        ExecuteAutomaticOnUi(Sub()
+                                 txtTray.Focus()
+                                 Dim manualCode As String = Microsoft.VisualBasic.Interaction.InputBox("扫码失败，请手工输入托盘码：", "托盘码输入", txtTray.Text)
+                                 If String.IsNullOrWhiteSpace(manualCode) Then
+                                     If cancelled IsNot Nothing Then cancelled()
+                                 ElseIf accepted IsNot Nothing Then
+                                     accepted(manualCode.Trim())
+                                 End If
+                             End Sub)
+    End Sub
+
+    Public Sub StartInitialPass(ByVal completed As Action(Of TestPassResult), ByVal failed As Action(Of Exception)) Implements IAutomaticTestHost.StartInitialPass
+        ExecuteAutomaticOnUi(Sub()
+                                 Try
+                                     SelectedChannelNumbers = Enumerable.Range(1, MAX_CHANNEL).ToList()
+                                     haveNgPoint = False
+                                     automaticTestPassInProgress = True
+                                     StarTest(1, True, completed, failed)
+                                 Catch ex As Exception
+                                     automaticTestPassInProgress = False
+                                     If failed IsNot Nothing Then failed(ex)
+                                 End Try
+                             End Sub)
+    End Sub
+
+    Public Sub StartRetestPass(ByVal channels As IReadOnlyList(Of Integer),
+                               ByVal completed As Action(Of TestPassResult),
+                               ByVal failed As Action(Of Exception)) Implements IAutomaticTestHost.StartRetestPass
+        ExecuteAutomaticOnUi(Sub()
+                                 Try
+                                     Array.Clear(retestArray, 0, retestArray.Length)
+                                     Dim retestChannels As New List(Of Integer)()
+                                     For Each channel As Integer In channels
+                                         If channel >= 1 AndAlso channel <= MAX_CHANNEL Then
+                                             retestArray(channel - 1) = 1
+                                             retestChannels.Add(channel)
+                                         End If
+                                     Next
+                                     SelectedChannelNumbers = retestChannels
+                                     haveNgPoint = False
+                                     automaticTestPassInProgress = True
+                                     StarTest(0, True, completed, failed)
+                                 Catch ex As Exception
+                                     automaticTestPassInProgress = False
+                                     If failed IsNot Nothing Then failed(ex)
+                                 End Try
+                             End Sub)
+    End Sub
+
+    Public Function PublishFinalCycle(ByVal cycle As AutomaticTestCycle) As Boolean Implements IAutomaticTestHost.PublishFinalCycle
+        If cycle Is Nothing OrElse plcAutomationClient Is Nothing Then Return False
+        For Each channel As Integer In cycle.CurrentNgChannels.OrderBy(Function(item) item)
+            plcAutomationClient.WriteChannelGrade(channel, 2)
+        Next
+
+        SaveTestDataLocalFile(RecieveData)
+        If FrmMesTask.chkResultDataUploadAssembly.Checked Then
+            Dim finalMes As New ResultDataUploadAssembly(FrmMesTask.listBoxOutput)
+            finalMes.ChannelNumbers = Enumerable.Range(1, MAX_CHANNEL).ToList()
+            finalMes.StopTimer()
+            finalMes.StartTimer()
+        End If
+        CompleteTestProgress("测试完成")
+        Return True
+    End Function
+
+    Public Sub ReportAutomaticStatus(ByVal message As String) Implements IAutomaticTestHost.ReportAutomaticStatus
+        ExecuteAutomaticOnUi(Sub() SetTestStatus(message))
+    End Sub
+
     Public Sub PrepareForShutdown()
         If shutdownPrepared Then Return
         shutdownPrepared = True
@@ -1985,6 +2205,18 @@ exit_sub:
         If Timer1 IsNot Nothing Then Timer1.Stop()
         If Timer2 IsNot Nothing Then Timer2.Stop()
         If Timer4 IsNot Nothing Then Timer4.Stop()
+        plcAutomaticModeActive = False
+        If plcAutomaticCoordinator IsNot Nothing Then
+            Try
+                plcAutomaticCoordinator.Stop()
+            Catch
+            End Try
+            plcAutomaticCoordinator = Nothing
+        End If
+        If TypeOf plcAutomationClient Is IDisposable Then DirectCast(plcAutomationClient, IDisposable).Dispose()
+        If TypeOf trayScannerClient Is IDisposable Then DirectCast(trayScannerClient, IDisposable).Dispose()
+        plcAutomationClient = Nothing
+        trayScannerClient = Nothing
         If channelGrid IsNot Nothing Then
             channelGrid.Visible = False
             channelGrid.SuspendLayout()
@@ -2000,20 +2232,9 @@ exit_sub:
     End Function
 
     Private Sub Timer4_Tick(sender As Object, e As EventArgs) Handles Timer4.Tick
-        If chkAutoTest Is Nothing OrElse Not chkAutoTest.Checked Then Return
-        If autoStartFlag = True Then
-            If alarmStatus = True Then
-                MessageBox.Show("目前处于报警状态，请先复位报警！", "提示", MessageBoxButtons.OK)
-                Exit Sub
-            End If
-
-            If isRuning = False Then
-                '复位NG标志
-                haveNgPoint = False
-                Call StarTest(1)
-                isRuning = False
-            End If
-        End If
+        '自动测试的正式触发条件由 PlcAutomaticTestCoordinator 统一管理：
+        'R150 -> R160 -> R151，不再使用控制板旧 autoStartFlag 链路。
+        Return
     End Sub
 
     'Private Sub btn_ZeroAdjustment_Click(sender As Object, e As EventArgs) Handles btn_ZeroAdjustment.Click

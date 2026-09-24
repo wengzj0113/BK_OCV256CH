@@ -148,6 +148,11 @@
     <Compile Include="DebugDashboardControl.vb">
       <SubType>UserControl</SubType>
     </Compile>
+    <Compile Include="PlcAutomationProtocol.vb" />
+    <Compile Include="PlcAutomationClient.vb" />
+    <Compile Include="TrayScannerClient.vb" />
+    <Compile Include="PlcAutomaticTestState.vb" />
+    <Compile Include="PlcAutomaticTestCoordinator.vb" />
     <Compile Include="PlcController.vb" />
     <Compile Include="SerialControlBoardClient.vb" />
     <Reference Include="CmdMemberDLL, Version=1.0.0.0, Culture=neutral, processorArchitecture=x86">

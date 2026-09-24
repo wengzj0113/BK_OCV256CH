@@ -847,6 +847,7 @@ Public Class frmDebug
     End Function
 
     Private Sub EnsurePlcConnected()
+        If plcAutomaticModeActive Then Throw New InvalidOperationException("PLC正在由自动测试流程独占，请先停止自动流程。")
         If plcController Is Nothing Then plcController = PlcControllerFactory.Create(Initsetting)
         If Not plcConnected AndAlso Not plcController.Connect() Then Throw New InvalidOperationException("PLC 连接失败")
         plcConnected = True

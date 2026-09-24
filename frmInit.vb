@@ -324,10 +324,11 @@ Public Class frmInit
         End With
         With cmb_PlcRate
             .Items.Clear()
+            .Items.Add("38400")
             .Items.Add("9600")
             .Items.Add("57600")
             .Items.Add("115200")
-            .SelectedIndex = 2
+            .SelectedIndex = 0
         End With
         With cmbIORerate
             .Items.Add("9600")
@@ -545,11 +546,12 @@ Public Class frmInit
         Next
         cmb_ScanerPort.SelectedIndex = Initsetting.ScanerPort
         For intLoop = 0 To cmb_ScanerRate.Items.Count - 1
-            If cmb_ScanerRate.Items.Item(intLoop) = Initsetting.ScanerPort Then
+            If cmb_ScanerRate.Items.Item(intLoop) = Initsetting.ScanerRate Then
                 cmb_ScanerRate.SelectedIndex = intLoop
                 Exit For
             End If
         Next
+        If cmb_ScanerRate.SelectedIndex < 0 Then cmb_ScanerRate.SelectedIndex = 0
         'ReadInitFile()
         Txt_ScmIP.Text = Initsetting.SCMIpAdd
         txt_ScmPort.Text = Initsetting.SCM_port
@@ -575,11 +577,12 @@ Public Class frmInit
         txt_PlcPort.Text = If(Initsetting.PLCTcpPort > 0, Initsetting.PLCTcpPort.ToString(), "502")
         cmb_PlcPort.SelectedIndex = Math.Max(0, Math.Min(cmb_PlcPort.Items.Count - 1, Initsetting.PLCComPort))
         For intLoop = 0 To cmb_PlcRate.Items.Count - 1
-            If CInt(cmb_PlcRate.Items.Item(intLoop)) = If(Initsetting.PLCComRate > 0, Initsetting.PLCComRate, 115200) Then
+            If CInt(cmb_PlcRate.Items.Item(intLoop)) = If(Initsetting.PLCComRate > 0, Initsetting.PLCComRate, 38400) Then
                 cmb_PlcRate.SelectedIndex = intLoop
                 Exit For
             End If
         Next
+        If cmb_PlcRate.SelectedIndex < 0 Then cmb_PlcRate.SelectedIndex = 0
         If Initsetting.PLCMode = 1 Then
             ChbPLCIP.Checked = True
         Else

@@ -107,6 +107,8 @@ Partial Class frmTest
         Me.testModeLayout = New System.Windows.Forms.TableLayoutPanel()
         Me.chkAutoTest = New System.Windows.Forms.CheckBox()
         Me.chkManualTest = New System.Windows.Forms.CheckBox()
+        Me.btnNeedNGRetest = New System.Windows.Forms.CheckBox()
+        Me.cmbRetestNum = New System.Windows.Forms.ComboBox()
         Me.GroupBox8 = New System.Windows.Forms.GroupBox()
         Me.probeUsageLayout = New System.Windows.Forms.TableLayoutPanel()
         Me.Label26 = New System.Windows.Forms.Label()
@@ -1301,7 +1303,7 @@ Partial Class frmTest
         Me.grpTestMode.Margin = New System.Windows.Forms.Padding(0, 0, 0, 5)
         Me.grpTestMode.Name = "grpTestMode"
         Me.grpTestMode.Padding = New System.Windows.Forms.Padding(6, 15, 6, 6)
-        Me.grpTestMode.Size = New System.Drawing.Size(338, 70)
+        Me.grpTestMode.Size = New System.Drawing.Size(338, 103)
         Me.grpTestMode.TabIndex = 1
         Me.grpTestMode.TabStop = False
         Me.grpTestMode.Text = "测试控制"
@@ -1313,13 +1315,16 @@ Partial Class frmTest
         Me.testModeLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50.0!))
         Me.testModeLayout.Controls.Add(Me.chkAutoTest, 0, 0)
         Me.testModeLayout.Controls.Add(Me.chkManualTest, 1, 0)
+        Me.testModeLayout.Controls.Add(Me.btnNeedNGRetest, 0, 1)
+        Me.testModeLayout.Controls.Add(Me.cmbRetestNum, 1, 1)
         Me.testModeLayout.Dock = System.Windows.Forms.DockStyle.Fill
         Me.testModeLayout.Location = New System.Drawing.Point(6, 31)
         Me.testModeLayout.Margin = New System.Windows.Forms.Padding(0)
         Me.testModeLayout.Name = "testModeLayout"
-        Me.testModeLayout.RowCount = 1
-        Me.testModeLayout.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100.0!))
-        Me.testModeLayout.Size = New System.Drawing.Size(326, 33)
+        Me.testModeLayout.RowCount = 2
+        Me.testModeLayout.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50.0!))
+        Me.testModeLayout.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50.0!))
+        Me.testModeLayout.Size = New System.Drawing.Size(326, 66)
         Me.testModeLayout.TabIndex = 0
         '
         'chkAutoTest
@@ -1357,6 +1362,30 @@ Partial Class frmTest
         Me.chkManualTest.Text = "手动"
         Me.chkManualTest.TextAlign = System.Drawing.ContentAlignment.MiddleCenter
         Me.chkManualTest.UseVisualStyleBackColor = False
+        '
+        'btnNeedNGRetest
+        '
+        Me.btnNeedNGRetest.BackColor = System.Drawing.Color.White
+        Me.btnNeedNGRetest.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.btnNeedNGRetest.FlatStyle = System.Windows.Forms.FlatStyle.Flat
+        Me.btnNeedNGRetest.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
+        Me.btnNeedNGRetest.ForeColor = System.Drawing.Color.FromArgb(CType(CType(36, Byte), Integer), CType(CType(49, Byte), Integer), CType(CType(66, Byte), Integer))
+        Me.btnNeedNGRetest.Location = New System.Drawing.Point(3, 36)
+        Me.btnNeedNGRetest.Name = "btnNeedNGRetest"
+        Me.btnNeedNGRetest.Size = New System.Drawing.Size(157, 27)
+        Me.btnNeedNGRetest.TabIndex = 2
+        Me.btnNeedNGRetest.Text = "NG自动复测"
+        Me.btnNeedNGRetest.UseVisualStyleBackColor = False
+        '
+        'cmbRetestNum
+        '
+        Me.cmbRetestNum.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.cmbRetestNum.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList
+        Me.cmbRetestNum.FormattingEnabled = True
+        Me.cmbRetestNum.Location = New System.Drawing.Point(166, 36)
+        Me.cmbRetestNum.Name = "cmbRetestNum"
+        Me.cmbRetestNum.Size = New System.Drawing.Size(157, 20)
+        Me.cmbRetestNum.TabIndex = 3
         '
         'GroupBox8
         '
@@ -1607,6 +1636,8 @@ Partial Class frmTest
     Private grpTestMode As GroupBox
     Friend WithEvents chkAutoTest As CheckBox
     Friend WithEvents chkManualTest As CheckBox
+    Friend WithEvents btnNeedNGRetest As CheckBox
+    Friend WithEvents cmbRetestNum As ComboBox
     Private currentStationButton As RadioButton
     Friend WithEvents Pic_Bat As System.Windows.Forms.PictureBox
     Friend WithEvents SaveFileDialog1 As System.Windows.Forms.SaveFileDialog
