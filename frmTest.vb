@@ -209,14 +209,23 @@ Public Class frmTest
     End Sub
 
     Private Sub InitializeAutomaticTestControls()
-        If cmbRetestNum.Items.Count = 0 Then
+        Dim retestCountControl As ComboBox = FindAutomaticControl(Of ComboBox)("cmbRetestNum")
+        Dim needRetestControl As CheckBox = FindAutomaticControl(Of CheckBox)("btnNeedNGRetest")
+        If retestCountControl Is Nothing OrElse needRetestControl Is Nothing Then Return
+
+        If retestCountControl.Items.Count = 0 Then
             For roundNumber As Integer = 1 To 3
-                cmbRetestNum.Items.Add(roundNumber.ToString())
+                retestCountControl.Items.Add(roundNumber.ToString())
             Next
         End If
-        If cmbRetestNum.SelectedIndex < 0 Then cmbRetestNum.SelectedIndex = 0
-        btnNeedNGRetest.Checked = False
+        If retestCountControl.SelectedIndex < 0 Then retestCountControl.SelectedIndex = 0
+        needRetestControl.Checked = False
     End Sub
+
+    Private Function FindAutomaticControl(Of T As Control)(ByVal controlName As String) As T
+        If String.IsNullOrWhiteSpace(controlName) Then Return Nothing
+        Return TryCast(Controls.Find(controlName, True).FirstOrDefault(), T)
+    End Function
 
     Private Sub InitializeChannelSelectionControls()
         SetSelectionModeButton(btnChannelSelectSingle)
@@ -2140,13 +2149,16 @@ exit_sub:
     End Function
 
     Public Function GetNeedNgRetest() As Boolean Implements IAutomaticTestHost.GetNeedNgRetest
-        Return btnNeedNGRetest IsNot Nothing AndAlso btnNeedNGRetest.Checked
+        Dim needRetestControl As CheckBox = FindAutomaticControl(Of CheckBox)("btnNeedNGRetest")
+        Return needRetestControl IsNot Nothing AndAlso needRetestControl.Checked
     End Function
 
     Public Function GetRetestRoundCount() As Integer Implements IAutomaticTestHost.GetRetestRoundCount
-        If Not GetNeedNgRetest() OrElse cmbRetestNum Is Nothing Then Return 0
+        If Not GetNeedNgRetest() Then Return 0
+        Dim retestCountControl As ComboBox = FindAutomaticControl(Of ComboBox)("cmbRetestNum")
+        If retestCountControl Is Nothing Then Return 0
         Dim rounds As Integer
-        If Integer.TryParse(Convert.ToString(cmbRetestNum.SelectedItem), rounds) Then Return Math.Max(0, rounds)
+        If Integer.TryParse(Convert.ToString(retestCountControl.SelectedItem), rounds) Then Return Math.Max(0, rounds)
         Return 0
     End Function
 
