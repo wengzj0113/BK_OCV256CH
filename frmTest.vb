@@ -2038,7 +2038,11 @@ exit_sub:
     End Sub
 
     Private Sub StartPlcAutomaticTest()
-        If plcAutomaticCoordinator IsNot Nothing OrElse Initsetting.PLCMode <> 0 Then Return
+        If plcAutomaticCoordinator IsNot Nothing Then Return
+        If Initsetting.PLCMode <> 0 Then
+            ReportAutomaticStatus("PLC自动ASCII流程要求使用PLC串口模式。")
+            Return
+        End If
         If chkAutoTest Is Nothing OrElse Not chkAutoTest.Checked Then Return
         Try
             '自动 ASCII 流程独占 PLC 串口；若旧控制器曾被调试页打开，先释放它。
