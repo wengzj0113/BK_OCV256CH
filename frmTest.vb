@@ -590,6 +590,10 @@ Public Class frmTest
 
         Else
             Dim result2 As DialogResult
+            If strTrayNo = lastTrayNo AndAlso automaticMode Then
+                automaticFailure = New InvalidOperationException("自动流程检测到重复托盘码：" & strTrayNo)
+                GoTo exit_sub
+            End If
             If strTrayNo = lastTrayNo AndAlso Not automaticMode Then
 
                 result2 = MessageBox.Show("托盘号与上次相同，是否继续执行程序？", "提示", MessageBoxButtons.OKCancel, MessageBoxIcon.Question)

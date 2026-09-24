@@ -32,6 +32,7 @@ Assert-True ($client.Contains('SyncLock')) 'PLC request serialization is missing
 Assert-True ($scanner.Contains('Parity.None')) 'scanner no-parity configuration is missing'
 Assert-True ($scanner.Contains('DefaultScannerBaudRate')) 'scanner default baud rate is missing'
 Assert-True ($scanner.Contains('ReadTimeout')) 'scanner read timeout is missing'
+Assert-True ($scanner.Contains('不能在本次读取开始时丢弃输入')) 'scanner must preserve data already received before R150'
 Assert-True ($initForm.Contains('.Items.Add("38400")')) 'frmInit PLC rate list is missing 38400'
 Assert-True ($initForm.Contains('If CInt(cmb_PlcRate.Items.Item(intLoop)) = If(Initsetting.PLCComRate > 0, Initsetting.PLCComRate, 38400)')) 'frmInit PLC default rate is not 38400'
 Assert-True ($initForm.Contains('cmb_ScanerRate.Items.Item(intLoop) = Initsetting.ScanerRate')) 'frmInit scanner rate restore uses the wrong setting'

@@ -61,7 +61,6 @@ Friend Class TrayScannerClient
 
         SyncLock syncRoot
             If Not serialPortTPM.IsOpen Then Throw New InvalidOperationException("托盘扫码枪串口未打开。")
-            serialPortTPM.DiscardInBuffer()
             serialPortTPM.DiscardOutBuffer()
 
             Dim builder As New StringBuilder()
@@ -80,7 +79,11 @@ Friend Class TrayScannerClient
                 End If
             Loop While DateTime.UtcNow < deadline
 
-            Return builder.ToString().Trim(ControlChars.Cr, ControlChars.Lf, " "c, Microsoft.VisualBasic.ChrW(0))
+            '扫码枪可能在 R150 置位前已经把条码发到缓冲区，不能在本次读取开始时丢弃输入。
+            '读取完成后再清理残留，兼容成功案例的串口时序。
+            Dim trayCode As String = builder.ToString().Trim(ControlChars.Cr, ControlChars.Lf, " "c, Microsoft.VisualBasic.ChrW(0))
+            serialPortTPM.DiscardInBuffer()
+            Return trayCode
         End SyncLock
     End Function
 
