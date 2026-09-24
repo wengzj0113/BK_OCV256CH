@@ -2049,6 +2049,7 @@ exit_sub:
             plcAutomationClient = New PlcAutomationClient(Initsetting)
             Dim sharedScannerPort As System.IO.Ports.SerialPort = Nothing
             If frmMDI IsNot Nothing AndAlso Not frmMDI.IsDisposed Then sharedScannerPort = frmMDI.Com_scaner
+            If sharedScannerPort IsNot Nothing AndAlso sharedScannerPort.IsOpen Then sharedScannerPort.Close()
             trayScannerClient = New TrayScannerClient(Initsetting, sharedScannerPort)
             plcAutomaticCoordinator = New PlcAutomaticTestCoordinator(plcAutomationClient, trayScannerClient, Me)
             plcAutomaticModeActive = True
