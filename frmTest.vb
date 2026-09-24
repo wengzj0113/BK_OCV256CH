@@ -676,8 +676,12 @@ Public Class frmTest
         Dim ocvTestTaskId As Long? = Nothing
         Dim testTaskStatusFinalized As Boolean = False
         Try
-            PublishTestProgress(TestProgressStage.CreatingTask, "正在创建 OCV_DATA 测试任务...", 10)
-            ocvTestTaskId = CreateOcvDataTestTask(testType)
+            If Not automaticMode Then
+                PublishTestProgress(TestProgressStage.CreatingTask, "正在创建 OCV_DATA 测试任务...", 10)
+                ocvTestTaskId = CreateOcvDataTestTask(testType)
+            Else
+                PublishTestProgress(TestProgressStage.CreatingTask, "自动测试准备完成，最终结果统一写入 OCV_DATA...", 10)
+            End If
             PublishTestProgress(TestProgressStage.Preparing, "正在准备仪表和控制板...", 20)
         Catch ex As Exception
             FailTestProgress("创建测试任务失败：" & ex.Message)
@@ -754,9 +758,11 @@ Public Class frmTest
             testingChannelNumbers.Clear()
             RefreshChannelOverview()
             If automaticMode Then automaticResult = BuildAutomaticPassResult(runChannels)
-            SaveOcvDataTestResults(ocvTestTaskId, testType)
-            CompleteOcvDataTestTaskSafely(ocvTestTaskId, "Completed", Nothing)
-            testTaskStatusFinalized = True
+            If Not automaticMode Then
+                SaveOcvDataTestResults(ocvTestTaskId, testType)
+                CompleteOcvDataTestTaskSafely(ocvTestTaskId, "Completed", Nothing)
+                testTaskStatusFinalized = True
+            End If
             If Not automaticMode Then
                 '手动流程保持现有的本地文件和 MES 上传行为；自动流程统一延迟到最终复测结束。
                 SaveTestDataLocalFile(RecieveData)
@@ -2033,6 +2039,7 @@ exit_sub:
 
     Private Sub StartPlcAutomaticTest()
         If plcAutomaticCoordinator IsNot Nothing OrElse Initsetting.PLCMode <> 0 Then Return
+        If chkAutoTest Is Nothing OrElse Not chkAutoTest.Checked Then Return
         Try
             '自动 ASCII 流程独占 PLC 串口；若旧控制器曾被调试页打开，先释放它。
             If plcController IsNot Nothing Then plcController.Disconnect()
@@ -2061,6 +2068,22 @@ exit_sub:
             plcAutomationClient = Nothing
             trayScannerClient = Nothing
         End Try
+    End Sub
+
+    Private Sub StopPlcAutomaticTest()
+        plcAutomaticModeActive = False
+        If plcAutomaticCoordinator IsNot Nothing Then
+            Try
+                plcAutomaticCoordinator.Stop()
+            Catch ex As Exception
+                System.Diagnostics.Debug.WriteLine("停止 PLC 自动流程失败: " & ex.Message)
+            End Try
+            plcAutomaticCoordinator = Nothing
+        End If
+        If TypeOf plcAutomationClient Is IDisposable Then DirectCast(plcAutomationClient, IDisposable).Dispose()
+        If TypeOf trayScannerClient Is IDisposable Then DirectCast(trayScannerClient, IDisposable).Dispose()
+        plcAutomationClient = Nothing
+        trayScannerClient = Nothing
     End Sub
 
     Private Function BuildAutomaticPassResult(ByVal channels As IEnumerable(Of Integer)) As TestPassResult
@@ -2185,16 +2208,36 @@ exit_sub:
             plcAutomationClient.WriteChannelGrade(channel, 2)
         Next
 
+        Dim allChannels As List(Of Integer) = Enumerable.Range(1, MAX_CHANNEL).ToList()
+        Dim previousTestChannels As List(Of Integer) = currentTestChannels
+        Try
+            '自动流程的初测和复测只产生内存中的最终结果；此处统一创建并完成唯一的最终 OCV_DATA 任务。
+            currentTestChannels = allChannels
+            Dim ocvTestTaskId As Long? = CreateOcvDataTestTask(1)
+            SaveOcvDataTestResults(ocvTestTaskId, 1)
+            CompleteOcvDataTestTaskStrict(ocvTestTaskId.Value, "Completed", Nothing)
+        Finally
+            currentTestChannels = previousTestChannels
+        End Try
+
         SaveTestDataLocalFile(RecieveData)
         If FrmMesTask.chkResultDataUploadAssembly.Checked Then
             Dim finalMes As New ResultDataUploadAssembly(FrmMesTask.listBoxOutput)
-            finalMes.ChannelNumbers = Enumerable.Range(1, MAX_CHANNEL).ToList()
+            finalMes.ChannelNumbers = allChannels
             finalMes.StopTimer()
             finalMes.StartTimer()
         End If
         CompleteTestProgress("测试完成")
         Return True
     End Function
+
+    Private Sub CompleteOcvDataTestTaskStrict(ByVal testTaskId As Long,
+                                              ByVal status As String,
+                                              ByVal errorMessage As String)
+        Using service As New OcvDataService()
+            service.CompleteTestTask(testTaskId, status, errorMessage)
+        End Using
+    End Sub
 
     Public Sub ReportAutomaticStatus(ByVal message As String) Implements IAutomaticTestHost.ReportAutomaticStatus
         ExecuteAutomaticOnUi(Sub() SetTestStatus(message))
@@ -2744,6 +2787,18 @@ exit_sub:
         Finally
             modeChangeInProgress = False
             UpdateTestModeVisuals()
+            If _isLoaded AndAlso Not shutdownPrepared Then
+                If chkAutoTest.Checked Then
+                    StartPlcAutomaticTest()
+                Else
+                    StopPlcAutomaticTest()
+                    Try
+                        CheckPlc()
+                    Catch ex As Exception
+                        SetTestStatus("手动 PLC 连接失败：" & ex.Message)
+                    End Try
+                End If
+            End If
         End Try
     End Sub
 

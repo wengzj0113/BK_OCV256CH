@@ -35,6 +35,9 @@ Assert-True ($form.Contains('btnNeedNGRetest')) 'NG retest checkbox is missing f
 Assert-True ($form.Contains('cmbRetestNum')) 'NG retest count control is missing from frmTest'
 Assert-True ($form.Contains('StartPlcAutomaticTest')) 'automatic PLC startup hook is missing'
 Assert-True ($form.Contains('WriteChannelGrade')) 'automatic NG grade publishing is missing'
+Assert-True ($form.Contains('Not chkAutoTest.Checked Then Return')) 'automatic coordinator must not own ports in manual mode'
+Assert-True ($form.Contains('CreateOcvDataTestTask(1)')) 'final automatic OCV task publication is missing'
+Assert-True ($form.Contains('If Not automaticMode Then') -and $form.Contains('SaveOcvDataTestResults(ocvTestTaskId, testType)')) 'automatic intermediate pass must not finalize OCV data'
 Assert-True (-not $form.Contains("If autoStartFlag = True Then")) 'legacy autoStartFlag is still a formal trigger'
 
 Write-Output 'PASS: PLC v4 state-machine structure'

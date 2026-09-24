@@ -780,7 +780,7 @@ Loop_Begin:
     Public Function CheckPlc() As Short
         plcConnected = False
         Try
-            If Initsetting.PLCMode = 0 Then
+            If Initsetting.PLCMode = 0 AndAlso plcAutomaticModeActive Then
                 '串口 PLC 的正式连接由 PlcAutomaticTestCoordinator 在自动流程启动时建立。
                 '启动检查只验证配置路径，不打开旧的 Modbus 串口，避免与 ASCII 协议争用。
                 If plcController IsNot Nothing Then plcController.Disconnect()
