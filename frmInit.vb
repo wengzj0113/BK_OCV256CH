@@ -282,7 +282,7 @@ Public Class frmInit
         cmbIORerate.Items.Clear()
         cmb_ScanerRate.Items.Clear()
 
-        For I = 0 To 19
+        For I = 0 To 32
             With CmbRecom
                 .Items.Add((I + 1).ToString)
                 .SelectedIndex = 0
@@ -314,6 +314,7 @@ Public Class frmInit
             .Items.Add("9600")
             .Items.Add("19200")
             .Items.Add("57600")
+            .Items.Add("115200")
             .SelectedIndex = 1
         End With
         With cmb_SCMRate
@@ -340,6 +341,7 @@ Public Class frmInit
             .Items.Add("9600")
             .Items.Add("19200")
             .Items.Add("57600")
+            .Items.Add("115200")
             .SelectedIndex = 0
         End With
         With cmbRetestPort

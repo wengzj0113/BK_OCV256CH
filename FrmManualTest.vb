@@ -375,6 +375,10 @@ Public Class FrmManualTest
 
     Private Sub StartManualTest(sender As Object, e As EventArgs)
         If Not AuthorizationService.RequireAuthenticatedUser(Me) Then Return
+        If plcAutomaticModeActive Then
+            MsgBox("PLC 自动测试流程正在运行，不能启动调试测试。", vbOKOnly, "提示")
+            Return
+        End If
         Dim channels As List(Of Integer) = GetSelectedChannels()
         If channels.Count = 0 Then
             MsgBox("请选择至少一个通道。", vbOKOnly, "提示")

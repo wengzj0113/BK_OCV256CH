@@ -21,6 +21,12 @@ Public Class ResultDataUploadAssembly
     Private ReadOnly outputListBox As ListBox
     Private ReadOnly TimerInterval As Integer
     Public Property ChannelNumbers As List(Of Integer)
+    Private resultSnapshot As Bat_info()
+    Private channelSnapshot As List(Of Integer)
+    Private traySnapshot As String
+    Private ocvSnapshot As Integer
+    Private temperatureSnapshot As String
+    Private probeRemainingSnapshot As String
     Private connectionString As String = pubConnectionString
     Private timer As Timer
     Private _isRunning As Integer = 0
@@ -29,7 +35,17 @@ Public Class ResultDataUploadAssembly
         If timer IsNot Nothing Then
             Return
         End If
+        CaptureSnapshot()
         timer = New Timer(Async Sub(state As Object) Await TimerCallback(), Nothing, 0, Timeout.Infinite)
+    End Sub
+
+    Public Sub CaptureSnapshot()
+        resultSnapshot = CType(RecieveData.Clone(), Bat_info())
+        channelSnapshot = If(ChannelNumbers Is Nothing, Nothing, ChannelNumbers.ToList())
+        traySnapshot = trayCodeSet
+        ocvSnapshot = currentOCVNum
+        temperatureSnapshot = frmTest.hjwd
+        probeRemainingSnapshot = (Initsetting.Probelifespan - Initsetting.ProbeUsedCount).ToString()
     End Sub
 
     Public Sub StopTimer()
@@ -69,13 +85,14 @@ Public Class ResultDataUploadAssembly
     End Function
 
     Public Async Function UploadDataAsync() As Task
-        Dim equip_Code As String = "ZJ01-P-COCV-A-C-O-000" & currentOCVNum.ToString().Trim()
+        If resultSnapshot Is Nothing Then CaptureSnapshot()
+        Dim equip_Code As String = "ZJ01-P-COCV-A-C-O-000" & ocvSnapshot.ToString().Trim()
         Dim data As New Dictionary(Of String, Object) From {
             {"EquipPC_ID", If(String.IsNullOrEmpty(Initsetting.EquipPC_ID), "HZWL", Initsetting.EquipPC_ID)},
             {"EquipPC_Password", If(String.IsNullOrEmpty(Initsetting.EquipPC_Password), "123456", Initsetting.EquipPC_Password)},
             {"Equip_Code", equip_Code},
             {"Upload_Time", DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss")},
-            {"Start_Time", RecieveData(0).TestTime.ToString("yyyy/MM/dd HH:mm:ss")},
+            {"Start_Time", resultSnapshot(0).TestTime.ToString("yyyy/MM/dd HH:mm:ss")},
             {"End_Time", DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss")},
             {"Manufacture_Code", processNumSet},
             {"Remark", ""},
@@ -109,27 +126,27 @@ Public Class ResultDataUploadAssembly
         Dim outList As New List(Of Dictionary(Of String, Object))
 
         Dim channels As List(Of Integer)
-        If ChannelNumbers IsNot Nothing AndAlso ChannelNumbers.Count > 0 Then
-            channels = ChannelNumbers.Distinct().OrderBy(Function(channel) channel).ToList()
+        If channelSnapshot IsNot Nothing AndAlso channelSnapshot.Count > 0 Then
+            channels = channelSnapshot.Distinct().OrderBy(Function(channel) channel).ToList()
         Else
             channels = Enumerable.Range(1, Math.Max(0, Math.Min(avalibleCount, MAX_CHANNEL))).ToList()
         End If
 
         For Each channel As Integer In channels
             Dim index0 As Integer = channel - 1
-            If index0 < 0 OrElse index0 >= RecieveData.Length Then
+            If index0 < 0 OrElse index0 >= resultSnapshot.Length Then
                 Continue For
             End If
             Dim outItem As New Dictionary(Of String, Object) From
             {
-                {"Out_Lot_No", RecieveData(index0).BatCode},
-                {"Out_Tray_No", trayCodeSet},
+                {"Out_Lot_No", resultSnapshot(index0).BatCode},
+                {"Out_Tray_No", traySnapshot},
                 {"Batch_Code", ""},
-                {"In_Lot_No", RecieveData(index0).BatCode},
-                {"In_Tray_No", trayCodeSet},
+                {"In_Lot_No", resultSnapshot(index0).BatCode},
+                {"In_Tray_No", traySnapshot},
                 {"Is_NG", 0},
                 {"NG_Code", New List(Of String)()},
-                {"Param_List", GetParamList(RecieveData(index0), channel)}
+                {"Param_List", GetParamList(resultSnapshot(index0), channel)}
             }
             outList.Add(outItem)
         Next
@@ -157,11 +174,11 @@ Public Class ResultDataUploadAssembly
             },
             New Dictionary(Of String, String) From {
                 {"Param_Code", "HJWD"},
-                {"Param_Value", frmTest.hjwd}
+                {"Param_Value", temperatureSnapshot}
             },
             New Dictionary(Of String, String) From {
                 {"Param_Code", "TZSYSM"},
-                {"Param_Value", (Initsetting.Probelifespan - Initsetting.ProbeUsedCount).ToString()}
+                {"Param_Value", probeRemainingSnapshot}
             }
         }
     End Function

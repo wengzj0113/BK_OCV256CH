@@ -386,6 +386,7 @@
     <Compile Include="SerialMiddleMachineClient.vb" />
     <Compile Include="TestEnvironmentResetService.vb" />
     <Compile Include="TestChannelPlanService.vb" />
+    <Compile Include="TrayTestPreparation.vb" />
     <Compile Include="TwoPassResultMapper.vb" />
     <Compile Include="FrmLoginNew.Designer.vb">
       <DependentUpon>FrmLoginNew.vb</DependentUpon>

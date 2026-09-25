@@ -7,6 +7,7 @@ Public NotInheritable Class PlcAutomationProtocol
     Public Const SignalValueIndex As Integer = 6
     Public Const ReadR150Frame As String = "%01#CSR0150**"
     Public Const ReadR151Frame As String = "%01#RCSR0151**"
+    Public Const ReadR170Frame As String = "%01#RCSR0170**"
     Public Const WriteR160Frame As String = "%01#WCSR01601**"
     Public Const WriteR161Frame As String = "%01#WCSR01611**"
 
@@ -23,7 +24,10 @@ Public NotInheritable Class PlcAutomationProtocol
             Throw New ArgumentOutOfRangeException(NameOf(grade), "档位必须在0到99之间。")
         End If
 
-        Dim dtAddress As String = (1000 + channelNumber).ToString(CultureInfo.InvariantCulture)
+        '电芯通道按行编号，PLC DT 地址按列编号。
+        Dim row As Integer = (channelNumber - 1) \ 16
+        Dim column As Integer = (channelNumber - 1) Mod 16
+        Dim dtAddress As String = (1001 + column * 16 + row).ToString(CultureInfo.InvariantCulture)
         Dim gradeText As String = grade.ToString("00", CultureInfo.InvariantCulture)
         Return WithCr("%01#WD" & dtAddress & "0" & dtAddress & gradeText & "00**")
     End Function
@@ -34,6 +38,9 @@ Public NotInheritable Class PlcAutomationProtocol
         End If
 
         Dim normalized As String = response.Trim(ControlChars.Cr, ControlChars.Lf, " "c, Microsoft.VisualBasic.ChrW(0))
+        If Not normalized.StartsWith("%01$", StringComparison.Ordinal) OrElse Not HasValidBcc(normalized) Then
+            Throw New PlcProtocolException("PLC读取响应格式无效：" & response)
+        End If
         If normalized.Length <= SignalValueIndex Then
             Throw New PlcProtocolException("PLC返回长度不足：" & response)
         End If
@@ -45,10 +52,26 @@ Public NotInheritable Class PlcAutomationProtocol
         Return value = "1"c
     End Function
 
-    Public Shared Function IsWriteAcknowledged(ByVal response As String) As Boolean
+    Public Shared Function IsWriteAcknowledged(ByVal response As String, ByVal expectedCommand As String) As Boolean
         If String.IsNullOrWhiteSpace(response) Then Return False
+        If expectedCommand <> "WC" AndAlso expectedCommand <> "WD" Then
+            Throw New ArgumentException("PLC写入命令类型无效。", NameOf(expectedCommand))
+        End If
         Dim normalized As String = response.Trim(ControlChars.Cr, ControlChars.Lf, " "c, Microsoft.VisualBasic.ChrW(0))
-        Return normalized.Length > 0
+        Return normalized.StartsWith("%01$" & expectedCommand, StringComparison.Ordinal) AndAlso
+               HasValidBcc(normalized)
+    End Function
+
+    Private Shared Function HasValidBcc(ByVal frame As String) As Boolean
+        If String.IsNullOrEmpty(frame) OrElse frame.Length < 6 Then Return False
+        If frame.EndsWith("**", StringComparison.Ordinal) Then Return True
+        Dim received As Byte
+        If Not Byte.TryParse(frame.Substring(frame.Length - 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, received) Then Return False
+        Dim expected As Integer = 0
+        For index As Integer = 0 To frame.Length - 3
+            expected = expected Xor AscW(frame(index))
+        Next
+        Return expected = received
     End Function
 End Class
 

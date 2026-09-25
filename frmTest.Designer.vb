@@ -113,11 +113,15 @@ Partial Class frmTest
         Me.txtRemain = New System.Windows.Forms.TextBox()
         Me.Label29 = New System.Windows.Forms.Label()
         Me.resetAlarmLayout = New System.Windows.Forms.TableLayoutPanel()
+        Me.GroupBox4 = New System.Windows.Forms.GroupBox()
+        Me.cmbRetestNum = New System.Windows.Forms.ComboBox()
+        Me.Label5 = New System.Windows.Forms.Label()
         Me.txtTotle = New System.Windows.Forms.TextBox()
-        Me.channelGrid = New Global.software.ChannelGridControl()
-        Me.statisticsControl = New Global.software.StatisticsControl()
         Me.rootLayout = New System.Windows.Forms.TableLayoutPanel()
         Me.rightLayout = New System.Windows.Forms.TableLayoutPanel()
+        Me.channelGrid = New software.ChannelGridControl()
+        Me.statisticsControl = New software.StatisticsControl()
+        Me.btnNeedNGRetest = New System.Windows.Forms.CheckBox()
         CType(Me.Pic_Bat, System.ComponentModel.ISupportInitialize).BeginInit()
         Me.GroupBox3.SuspendLayout()
         Me.rangeSettingsLayout.SuspendLayout()
@@ -143,6 +147,7 @@ Partial Class frmTest
         Me.GroupBox8.SuspendLayout()
         Me.probeUsageLayout.SuspendLayout()
         Me.resetAlarmLayout.SuspendLayout()
+        Me.GroupBox4.SuspendLayout()
         Me.rootLayout.SuspendLayout()
         Me.rightLayout.SuspendLayout()
         Me.SuspendLayout()
@@ -384,7 +389,7 @@ Partial Class frmTest
         Me.Label2.Location = New System.Drawing.Point(2, 2)
         Me.Label2.Margin = New System.Windows.Forms.Padding(2)
         Me.Label2.Name = "Label2"
-        Me.Label2.Size = New System.Drawing.Size(67, 23)
+        Me.Label2.Size = New System.Drawing.Size(64, 23)
         Me.Label2.TabIndex = 47
         Me.Label2.Text = "托盘码"
         Me.Label2.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
@@ -519,7 +524,7 @@ Partial Class frmTest
         'Label3
         '
         Me.Label3.Font = New System.Drawing.Font("宋体", 9.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.Label3.Location = New System.Drawing.Point(152, 868)
+        Me.Label3.Location = New System.Drawing.Point(152, 874)
         Me.Label3.Name = "Label3"
         Me.Label3.Size = New System.Drawing.Size(10, 10)
         Me.Label3.TabIndex = 42
@@ -530,7 +535,7 @@ Partial Class frmTest
         'Label4
         '
         Me.Label4.Font = New System.Drawing.Font("宋体", 9.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.Label4.Location = New System.Drawing.Point(86, 867)
+        Me.Label4.Location = New System.Drawing.Point(86, 873)
         Me.Label4.Name = "Label4"
         Me.Label4.Size = New System.Drawing.Size(10, 10)
         Me.Label4.TabIndex = 43
@@ -544,7 +549,7 @@ Partial Class frmTest
         Me.txtLastNum.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
         Me.txtLastNum.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
         Me.txtLastNum.ForeColor = System.Drawing.Color.FromArgb(CType(CType(36, Byte), Integer), CType(CType(49, Byte), Integer), CType(CType(66, Byte), Integer))
-        Me.txtLastNum.Location = New System.Drawing.Point(132, 867)
+        Me.txtLastNum.Location = New System.Drawing.Point(132, 873)
         Me.txtLastNum.Name = "txtLastNum"
         Me.txtLastNum.ReadOnly = True
         Me.txtLastNum.Size = New System.Drawing.Size(10, 23)
@@ -557,7 +562,7 @@ Partial Class frmTest
         Me.txtFirstNum.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
         Me.txtFirstNum.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
         Me.txtFirstNum.ForeColor = System.Drawing.Color.FromArgb(CType(CType(36, Byte), Integer), CType(CType(49, Byte), Integer), CType(CType(66, Byte), Integer))
-        Me.txtFirstNum.Location = New System.Drawing.Point(198, 868)
+        Me.txtFirstNum.Location = New System.Drawing.Point(198, 874)
         Me.txtFirstNum.Name = "txtFirstNum"
         Me.txtFirstNum.ReadOnly = True
         Me.txtFirstNum.Size = New System.Drawing.Size(10, 23)
@@ -679,7 +684,7 @@ Partial Class frmTest
         Me.GroupBox2.Controls.Add(Me.Rbtn3)
         Me.GroupBox2.Controls.Add(Me.Rbtn2)
         Me.GroupBox2.Enabled = False
-        Me.GroupBox2.Location = New System.Drawing.Point(2, 12)
+        Me.GroupBox2.Location = New System.Drawing.Point(2, 18)
         Me.GroupBox2.Name = "GroupBox2"
         Me.GroupBox2.Size = New System.Drawing.Size(306, 39)
         Me.GroupBox2.TabIndex = 58
@@ -1167,7 +1172,7 @@ Partial Class frmTest
         Me.GroupBox7.FlatStyle = System.Windows.Forms.FlatStyle.Flat
         Me.GroupBox7.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
         Me.GroupBox7.ForeColor = System.Drawing.Color.FromArgb(CType(CType(23, Byte), Integer), CType(CType(105, Byte), Integer), CType(CType(232, Byte), Integer))
-        Me.GroupBox7.Location = New System.Drawing.Point(6, 663)
+        Me.GroupBox7.Location = New System.Drawing.Point(6, 730)
         Me.GroupBox7.Margin = New System.Windows.Forms.Padding(0, 0, 0, 5)
         Me.GroupBox7.MinimumSize = New System.Drawing.Size(0, 82)
         Me.GroupBox7.Name = "GroupBox7"
@@ -1231,7 +1236,7 @@ Partial Class frmTest
         Me.txtUsed.BackColor = System.Drawing.Color.White
         Me.txtUsed.Font = New System.Drawing.Font("宋体", 9.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
         Me.txtUsed.ForeColor = System.Drawing.Color.FromArgb(CType(CType(64, Byte), Integer), CType(CType(0, Byte), Integer), CType(CType(0, Byte), Integer))
-        Me.txtUsed.Location = New System.Drawing.Point(216, 868)
+        Me.txtUsed.Location = New System.Drawing.Point(216, 874)
         Me.txtUsed.Name = "txtUsed"
         Me.txtUsed.ReadOnly = True
         Me.txtUsed.Size = New System.Drawing.Size(10, 21)
@@ -1251,15 +1256,16 @@ Partial Class frmTest
         Me.leftContentPanel.Controls.Add(Me.grpChannelSelection, 0, 3)
         Me.leftContentPanel.Controls.Add(Me.GroupBox3, 0, 4)
         Me.leftContentPanel.Controls.Add(Me.GroupBox5, 0, 5)
-        Me.leftContentPanel.Controls.Add(Me.GroupBox8, 0, 6)
-        Me.leftContentPanel.Controls.Add(Me.GroupBox7, 0, 7)
-        Me.leftContentPanel.Controls.Add(Me.resetAlarmLayout, 0, 8)
+        Me.leftContentPanel.Controls.Add(Me.GroupBox8, 0, 7)
+        Me.leftContentPanel.Controls.Add(Me.GroupBox7, 0, 8)
+        Me.leftContentPanel.Controls.Add(Me.resetAlarmLayout, 0, 9)
+        Me.leftContentPanel.Controls.Add(Me.GroupBox4, 0, 6)
         Me.leftContentPanel.Dock = System.Windows.Forms.DockStyle.Top
         Me.leftContentPanel.Location = New System.Drawing.Point(0, 0)
         Me.leftContentPanel.Margin = New System.Windows.Forms.Padding(0)
         Me.leftContentPanel.Name = "leftContentPanel"
         Me.leftContentPanel.Padding = New System.Windows.Forms.Padding(6)
-        Me.leftContentPanel.RowCount = 9
+        Me.leftContentPanel.RowCount = 10
         Me.leftContentPanel.RowStyles.Add(New System.Windows.Forms.RowStyle())
         Me.leftContentPanel.RowStyles.Add(New System.Windows.Forms.RowStyle())
         Me.leftContentPanel.RowStyles.Add(New System.Windows.Forms.RowStyle())
@@ -1269,7 +1275,8 @@ Partial Class frmTest
         Me.leftContentPanel.RowStyles.Add(New System.Windows.Forms.RowStyle())
         Me.leftContentPanel.RowStyles.Add(New System.Windows.Forms.RowStyle())
         Me.leftContentPanel.RowStyles.Add(New System.Windows.Forms.RowStyle())
-        Me.leftContentPanel.Size = New System.Drawing.Size(350, 841)
+        Me.leftContentPanel.RowStyles.Add(New System.Windows.Forms.RowStyle())
+        Me.leftContentPanel.Size = New System.Drawing.Size(333, 908)
         Me.leftContentPanel.TabIndex = 59
         '
         'currentStationButton
@@ -1368,7 +1375,7 @@ Partial Class frmTest
         Me.GroupBox8.FlatStyle = System.Windows.Forms.FlatStyle.Flat
         Me.GroupBox8.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
         Me.GroupBox8.ForeColor = System.Drawing.Color.FromArgb(CType(CType(23, Byte), Integer), CType(CType(105, Byte), Integer), CType(CType(232, Byte), Integer))
-        Me.GroupBox8.Location = New System.Drawing.Point(6, 594)
+        Me.GroupBox8.Location = New System.Drawing.Point(6, 661)
         Me.GroupBox8.Margin = New System.Windows.Forms.Padding(0, 0, 0, 5)
         Me.GroupBox8.Name = "GroupBox8"
         Me.GroupBox8.Padding = New System.Windows.Forms.Padding(6, 15, 6, 6)
@@ -1446,7 +1453,7 @@ Partial Class frmTest
         Me.resetAlarmLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100.0!))
         Me.resetAlarmLayout.Controls.Add(Me.Button2, 0, 0)
         Me.resetAlarmLayout.Dock = System.Windows.Forms.DockStyle.Top
-        Me.resetAlarmLayout.Location = New System.Drawing.Point(6, 783)
+        Me.resetAlarmLayout.Location = New System.Drawing.Point(6, 850)
         Me.resetAlarmLayout.Margin = New System.Windows.Forms.Padding(0)
         Me.resetAlarmLayout.Name = "resetAlarmLayout"
         Me.resetAlarmLayout.RowCount = 1
@@ -1454,43 +1461,53 @@ Partial Class frmTest
         Me.resetAlarmLayout.Size = New System.Drawing.Size(338, 52)
         Me.resetAlarmLayout.TabIndex = 73
         '
+        'GroupBox4
+        '
+        Me.GroupBox4.Controls.Add(Me.btnNeedNGRetest)
+        Me.GroupBox4.Controls.Add(Me.cmbRetestNum)
+        Me.GroupBox4.Controls.Add(Me.Label5)
+        Me.GroupBox4.Dock = System.Windows.Forms.DockStyle.Top
+        Me.GroupBox4.ForeColor = System.Drawing.SystemColors.ActiveCaptionText
+        Me.GroupBox4.Location = New System.Drawing.Point(9, 597)
+        Me.GroupBox4.Name = "GroupBox4"
+        Me.GroupBox4.Size = New System.Drawing.Size(332, 61)
+        Me.GroupBox4.TabIndex = 74
+        Me.GroupBox4.TabStop = False
+        Me.GroupBox4.Text = "NG自动复测"
+        '
+        'cmbRetestNum
+        '
+        Me.cmbRetestNum.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!)
+        Me.cmbRetestNum.FormattingEnabled = True
+        Me.cmbRetestNum.Items.AddRange(New Object() {"1", "2", "3", "4"})
+        Me.cmbRetestNum.Location = New System.Drawing.Point(218, 23)
+        Me.cmbRetestNum.Name = "cmbRetestNum"
+        Me.cmbRetestNum.Size = New System.Drawing.Size(82, 25)
+        Me.cmbRetestNum.TabIndex = 1
+        Me.cmbRetestNum.Text = "1"
+        '
+        'Label5
+        '
+        Me.Label5.AutoSize = True
+        Me.Label5.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!)
+        Me.Label5.Location = New System.Drawing.Point(181, 27)
+        Me.Label5.Name = "Label5"
+        Me.Label5.Size = New System.Drawing.Size(32, 17)
+        Me.Label5.TabIndex = 1
+        Me.Label5.Text = "次数"
+        '
         'txtTotle
         '
         Me.txtTotle.BackColor = System.Drawing.Color.White
         Me.txtTotle.Font = New System.Drawing.Font("宋体", 9.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
         Me.txtTotle.ForeColor = System.Drawing.Color.FromArgb(CType(CType(64, Byte), Integer), CType(CType(0, Byte), Integer), CType(CType(0, Byte), Integer))
-        Me.txtTotle.Location = New System.Drawing.Point(232, 868)
+        Me.txtTotle.Location = New System.Drawing.Point(232, 874)
         Me.txtTotle.Name = "txtTotle"
         Me.txtTotle.ReadOnly = True
         Me.txtTotle.Size = New System.Drawing.Size(10, 21)
         Me.txtTotle.TabIndex = 53
         Me.txtTotle.Text = "30000"
         Me.txtTotle.Visible = False
-        '
-        'channelGrid
-        '
-        Me.channelGrid.BackColor = System.Drawing.Color.White
-        Me.channelGrid.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
-        Me.channelGrid.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.channelGrid.Location = New System.Drawing.Point(0, 126)
-        Me.channelGrid.Margin = New System.Windows.Forms.Padding(0)
-        Me.channelGrid.Name = "channelGrid"
-        Me.channelGrid.Padding = New System.Windows.Forms.Padding(10, 8, 10, 10)
-        Me.channelGrid.SelectionMode = Global.software.ChannelSelectionMode.SingleChannel
-        Me.channelGrid.Size = New System.Drawing.Size(1114, 776)
-        Me.channelGrid.TabIndex = 71
-        '
-        'statisticsControl
-        '
-        Me.statisticsControl.BackColor = System.Drawing.Color.White
-        Me.statisticsControl.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
-        Me.statisticsControl.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.statisticsControl.Location = New System.Drawing.Point(0, 0)
-        Me.statisticsControl.Margin = New System.Windows.Forms.Padding(0)
-        Me.statisticsControl.Name = "statisticsControl"
-        Me.statisticsControl.Padding = New System.Windows.Forms.Padding(16, 8, 16, 8)
-        Me.statisticsControl.Size = New System.Drawing.Size(1114, 126)
-        Me.statisticsControl.TabIndex = 70
         '
         'rootLayout
         '
@@ -1525,6 +1542,43 @@ Partial Class frmTest
         Me.rightLayout.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 86.0!))
         Me.rightLayout.Size = New System.Drawing.Size(1114, 902)
         Me.rightLayout.TabIndex = 16
+        '
+        'channelGrid
+        '
+        Me.channelGrid.BackColor = System.Drawing.Color.White
+        Me.channelGrid.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
+        Me.channelGrid.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.channelGrid.Location = New System.Drawing.Point(0, 126)
+        Me.channelGrid.Margin = New System.Windows.Forms.Padding(0)
+        Me.channelGrid.Name = "channelGrid"
+        Me.channelGrid.Padding = New System.Windows.Forms.Padding(10, 8, 10, 10)
+        Me.channelGrid.SelectionMode = software.ChannelSelectionMode.SingleChannel
+        Me.channelGrid.Size = New System.Drawing.Size(1114, 776)
+        Me.channelGrid.TabIndex = 71
+        '
+        'statisticsControl
+        '
+        Me.statisticsControl.BackColor = System.Drawing.Color.White
+        Me.statisticsControl.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
+        Me.statisticsControl.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.statisticsControl.Location = New System.Drawing.Point(0, 0)
+        Me.statisticsControl.Margin = New System.Windows.Forms.Padding(0)
+        Me.statisticsControl.Name = "statisticsControl"
+        Me.statisticsControl.Padding = New System.Windows.Forms.Padding(16, 8, 16, 8)
+        Me.statisticsControl.Size = New System.Drawing.Size(1114, 126)
+        Me.statisticsControl.TabIndex = 70
+        '
+        'btnNeedNGRetest
+        '
+        Me.btnNeedNGRetest.AutoSize = True
+        Me.btnNeedNGRetest.Checked = True
+        Me.btnNeedNGRetest.CheckState = System.Windows.Forms.CheckState.Checked
+        Me.btnNeedNGRetest.Location = New System.Drawing.Point(32, 27)
+        Me.btnNeedNGRetest.Name = "btnNeedNGRetest"
+        Me.btnNeedNGRetest.Size = New System.Drawing.Size(48, 16)
+        Me.btnNeedNGRetest.TabIndex = 2
+        Me.btnNeedNGRetest.Text = "需要"
+        Me.btnNeedNGRetest.UseVisualStyleBackColor = True
         '
         'frmTest
         '
@@ -1583,6 +1637,8 @@ Partial Class frmTest
         Me.probeUsageLayout.ResumeLayout(False)
         Me.probeUsageLayout.PerformLayout()
         Me.resetAlarmLayout.ResumeLayout(False)
+        Me.GroupBox4.ResumeLayout(False)
+        Me.GroupBox4.PerformLayout()
         Me.rootLayout.ResumeLayout(False)
         Me.rightLayout.ResumeLayout(False)
         Me.ResumeLayout(False)
@@ -1684,4 +1740,8 @@ Partial Class frmTest
     Friend WithEvents txtUsed As TextBox
     Friend WithEvents txtTotle As TextBox
     Friend WithEvents Label2 As Label
+    Friend WithEvents GroupBox4 As GroupBox
+    Friend WithEvents cmbRetestNum As ComboBox
+    Friend WithEvents Label5 As Label
+    Friend WithEvents btnNeedNGRetest As CheckBox
 End Class

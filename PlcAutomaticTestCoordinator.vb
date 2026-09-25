@@ -8,7 +8,9 @@ Public Interface IAutomaticTestHost
     Function ValidateTrayCode(ByVal trayCode As String) As Boolean
     Function GetNeedNgRetest() As Boolean ' btnNeedNGRetest.Checked
     Function GetRetestRoundCount() As Integer ' cmbRetestNum.Value
+    Function RequiresNgSorting() As Boolean
     Sub SetTrayCode(ByVal trayCode As String) ' UI adapter assigns txtTray.Text
+    Sub PrepareAutomaticTray(ByVal trayCode As String)
     Sub RequestManualTrayCode(ByVal accepted As Action(Of String), ByVal cancelled As Action)
     Sub StartInitialPass(ByVal completed As Action(Of TestPassResult), ByVal failed As Action(Of Exception))
     Sub StartRetestPass(ByVal channels As IReadOnlyList(Of Integer), ByVal completed As Action(Of TestPassResult), ByVal failed As Action(Of Exception))
@@ -28,6 +30,8 @@ Public Class PlcAutomaticTestCoordinator
     Private pollBusy As Integer
     Private stopped As Boolean
     Private currentState As PlcAutomaticTestState = PlcAutomaticTestState.Idle
+    Private ngSlotNeedsBusyEdge As Boolean
+    Private ngSlotSawBusy As Boolean
 
     Public Sub New(ByVal plcClient As IPlcAutomationClient,
                    ByVal scannerClient As ITrayScannerClient,
@@ -79,8 +83,9 @@ Public Class PlcAutomaticTestCoordinator
         If Interlocked.Exchange(pollBusy, 1) = 1 Then Return
         Try
             If stopped OrElse Not host.IsAutomaticModeEnabled() Then Return
+            ObserveNgSlotBusy()
 
-            Select Case State
+            Select Case Me.State
                 Case PlcAutomaticTestState.Idle
                     If plc.ReadR150() Then BeginTrayCodeRead()
                 Case PlcAutomaticTestState.WaitingR150Reset
@@ -91,6 +96,10 @@ Public Class PlcAutomaticTestCoordinator
                     If plc.ReadR151() Then BeginInitialTest()
                 Case PlcAutomaticTestState.WaitingCycleReset
                     If Not plc.ReadR151() Then ResetCycle()
+                Case PlcAutomaticTestState.WaitingNgSlotReady
+                    PublishNgGradesWhenReady()
+                Case PlcAutomaticTestState.WaitingR161Ack
+                    SendCompletionSignal()
             End Select
         Catch ex As Exception
             EnterFault(ex)
@@ -103,8 +112,7 @@ Public Class PlcAutomaticTestCoordinator
         MoveTo(PlcAutomaticTestState.ReadingTrayCode, "收到R150，读取托盘码")
         Dim trayCode As String = scanner.ReadTrayCode(1500)
         If Not host.ValidateTrayCode(trayCode) Then
-            MoveTo(PlcAutomaticTestState.WaitingManualTrayCode, "扫码失败，等待手工输入")
-            host.RequestManualTrayCode(AddressOf AcceptManualTrayCode, AddressOf CancelManualTrayCode)
+            EnterFault(New InvalidOperationException("自动扫码未取得有效托盘码，请检查扫码器或切换手动模式。"))
             Return
         End If
         AcceptTrayCode(trayCode)
@@ -126,6 +134,7 @@ Public Class PlcAutomaticTestCoordinator
 
     Private Sub AcceptTrayCode(ByVal trayCode As String)
         host.SetTrayCode(trayCode)
+        host.PrepareAutomaticTray(trayCode)
         SyncLock stateLock
             cycle.TrayCode = trayCode.Trim()
         End SyncLock
@@ -141,11 +150,13 @@ Public Class PlcAutomaticTestCoordinator
 
         SyncLock stateLock
             cycle.NeedNgRetest = host.GetNeedNgRetest()
+            cycle.RequiresNgSorting = host.RequiresNgSorting()
             cycle.MaxRetestRounds = Math.Max(0, host.GetRetestRoundCount())
             cycle.CurrentRetestRound = 0
             cycle.CurrentNgChannels.Clear()
             cycle.WrittenNgChannels.Clear()
             cycle.FinalResultPublished = False
+            cycle.NgGradesWritten = False
             cycle.R161Written = False
         End SyncLock
 
@@ -217,17 +228,68 @@ Public Class PlcAutomaticTestCoordinator
     Private Sub FinalizeCycle()
         MoveTo(PlcAutomaticTestState.Finalizing, "测试和复测完成，保存最终结果")
         Try
-            If Not host.PublishFinalCycle(cycle) Then Throw New InvalidOperationException("最终结果发布失败。")
-            SyncLock stateLock
-                cycle.FinalResultPublished = True
-            End SyncLock
+            If Not cycle.FinalResultPublished Then
+                If Not host.PublishFinalCycle(cycle) Then Throw New InvalidOperationException("最终结果发布失败。")
+                SyncLock stateLock
+                    cycle.FinalResultPublished = True
+                End SyncLock
+            End If
+            If cycle.RequiresNgSorting Then
+                PublishNgGradesWhenReady()
+            Else
+                SendCompletionSignal()
+            End If
+        Catch ex As Exception
+            EnterFault(ex)
+        End Try
+    End Sub
+
+    Private Sub ObserveNgSlotBusy()
+        If Not ngSlotNeedsBusyEdge OrElse ngSlotSawBusy Then Return
+        Try
+            If Not plc.ReadR170() Then ngSlotSawBusy = True
+        Catch ex As Exception
+            '仅延迟下一次交接；正式写入前仍会重新读取 R170。
+        End Try
+    End Sub
+
+    Private Sub PublishNgGradesWhenReady()
+        Try
+            Dim slotReady As Boolean = plc.ReadR170()
+            If ngSlotNeedsBusyEdge AndAlso Not slotReady Then ngSlotSawBusy = True
+            If Not slotReady OrElse (ngSlotNeedsBusyEdge AndAlso Not ngSlotSawBusy) Then
+                MoveTo(PlcAutomaticTestState.WaitingNgSlotReady, "最终测试结果已保存，等待上一托盘NG挑选完成及R170重新置1")
+                Return
+            End If
+            If Not cycle.NgGradesWritten Then
+                '上一托盘挑选完成后，先清除全部旧标记；任何写入失败都从清零重新尝试。
+                For channel As Integer = 1 To 256
+                    plc.WriteChannelGrade(channel, 0)
+                Next
+                For Each channel As Integer In cycle.CurrentNgChannels.OrderBy(Function(item) item)
+                    plc.WriteChannelGrade(channel, 2)
+                Next
+                SyncLock stateLock
+                    cycle.NgGradesWritten = True
+                End SyncLock
+                ngSlotNeedsBusyEdge = True
+                ngSlotSawBusy = False
+            End If
+            SendCompletionSignal()
+        Catch ex As Exception
+            MoveTo(PlcAutomaticTestState.WaitingNgSlotReady, "等待PLC结果区可写或NG写入确认：" & ex.Message)
+        End Try
+    End Sub
+
+    Private Sub SendCompletionSignal()
+        Try
             plc.WriteR161()
             SyncLock stateLock
                 cycle.R161Written = True
             End SyncLock
-            MoveTo(PlcAutomaticTestState.WaitingCycleReset, "R161已发送，等待R151复位")
+            MoveTo(PlcAutomaticTestState.WaitingCycleReset, "R161已确认，等待R151复位")
         Catch ex As Exception
-            EnterFault(ex)
+            MoveTo(PlcAutomaticTestState.WaitingR161Ack, "R161未确认，将重试：" & ex.Message)
         End Try
     End Sub
 

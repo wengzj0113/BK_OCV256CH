@@ -119,16 +119,26 @@ Partial Class frmInit
         Me.Label15 = New System.Windows.Forms.Label()
         Me.Label8 = New System.Windows.Forms.Label()
         Me.TabPage3 = New System.Windows.Forms.TabPage()
-        Me.txtpwd = New System.Windows.Forms.TextBox()
-        Me.Label19 = New System.Windows.Forms.Label()
+        Me.GB_MesDataBase = New System.Windows.Forms.GroupBox()
+        Me.TxtMesDatabaseName = New System.Windows.Forms.TextBox()
+        Me.TxtMesBaseUser = New System.Windows.Forms.TextBox()
+        Me.TxtMesBasePsw = New System.Windows.Forms.TextBox()
+        Me.Label42 = New System.Windows.Forms.Label()
+        Me.Label43 = New System.Windows.Forms.Label()
+        Me.Label52 = New System.Windows.Forms.Label()
+        Me.txtMesDatabaseServerIP = New System.Windows.Forms.TextBox()
+        Me.Label50 = New System.Windows.Forms.Label()
+        Me.GroupBox7 = New System.Windows.Forms.GroupBox()
         Me.txtUser = New System.Windows.Forms.TextBox()
+        Me.txtpwd = New System.Windows.Forms.TextBox()
+        Me.Label7 = New System.Windows.Forms.Label()
+        Me.Label19 = New System.Windows.Forms.Label()
+        Me.txtDatabase = New System.Windows.Forms.TextBox()
         Me.Label18 = New System.Windows.Forms.Label()
         Me.CheckBox1 = New System.Windows.Forms.CheckBox()
         Me.chkAuto = New System.Windows.Forms.CheckBox()
         Me.txtMesApiAddress = New System.Windows.Forms.TextBox()
         Me.Label35 = New System.Windows.Forms.Label()
-        Me.txtDatabase = New System.Windows.Forms.TextBox()
-        Me.Label7 = New System.Windows.Forms.Label()
         Me.TabPage4 = New System.Windows.Forms.TabPage()
         Me.txtPsdGuest = New System.Windows.Forms.TextBox()
         Me.txtPsdOper = New System.Windows.Forms.TextBox()
@@ -137,35 +147,6 @@ Partial Class frmInit
         Me.Label33 = New System.Windows.Forms.Label()
         Me.Label32 = New System.Windows.Forms.Label()
         Me.TabScmSet = New System.Windows.Forms.TabPage()
-        Me.TabPageChannelColors = New System.Windows.Forms.TabPage()
-        Me.GroupBoxChannelColors = New System.Windows.Forms.GroupBox()
-        Me.lblChannelColorHint = New System.Windows.Forms.Label()
-        Me.lblPassColor = New System.Windows.Forms.Label()
-        Me.pnlPassColor = New System.Windows.Forms.Panel()
-        Me.txtPassColor = New System.Windows.Forms.TextBox()
-        Me.btnPassColor = New System.Windows.Forms.Button()
-        Me.lblTestingColor = New System.Windows.Forms.Label()
-        Me.pnlTestingColor = New System.Windows.Forms.Panel()
-        Me.txtTestingColor = New System.Windows.Forms.TextBox()
-        Me.btnTestingColor = New System.Windows.Forms.Button()
-        Me.lblIdleColor = New System.Windows.Forms.Label()
-        Me.pnlIdleColor = New System.Windows.Forms.Panel()
-        Me.txtIdleColor = New System.Windows.Forms.TextBox()
-        Me.btnIdleColor = New System.Windows.Forms.Button()
-        Me.lblResistanceNgColor = New System.Windows.Forms.Label()
-        Me.pnlResistanceNgColor = New System.Windows.Forms.Panel()
-        Me.txtResistanceNgColor = New System.Windows.Forms.TextBox()
-        Me.btnResistanceNgColor = New System.Windows.Forms.Button()
-        Me.lblVoltageNgColor = New System.Windows.Forms.Label()
-        Me.pnlVoltageNgColor = New System.Windows.Forms.Panel()
-        Me.txtVoltageNgColor = New System.Windows.Forms.TextBox()
-        Me.btnVoltageNgColor = New System.Windows.Forms.Button()
-        Me.lblSelectedColor = New System.Windows.Forms.Label()
-        Me.pnlSelectedColor = New System.Windows.Forms.Panel()
-        Me.txtSelectedColor = New System.Windows.Forms.TextBox()
-        Me.btnSelectedColor = New System.Windows.Forms.Button()
-        Me.btnResetChannelColors = New System.Windows.Forms.Button()
-        Me.colorDialogChannel = New System.Windows.Forms.ColorDialog()
         Me.lblScmStatus = New System.Windows.Forms.Label()
         Me.btnScmApply = New System.Windows.Forms.Button()
         Me.btnScmRead = New System.Windows.Forms.Button()
@@ -184,18 +165,37 @@ Partial Class frmInit
         Me.lblScmRelayUnit = New System.Windows.Forms.Label()
         Me.txtScmRelaySettleMs = New System.Windows.Forms.TextBox()
         Me.lblScmRelaySettleMs = New System.Windows.Forms.Label()
+        Me.TabPageChannelColors = New System.Windows.Forms.TabPage()
+        Me.GroupBoxChannelColors = New System.Windows.Forms.GroupBox()
+        Me.btnResetChannelColors = New System.Windows.Forms.Button()
+        Me.btnVoltageNgColor = New System.Windows.Forms.Button()
+        Me.txtVoltageNgColor = New System.Windows.Forms.TextBox()
+        Me.pnlVoltageNgColor = New System.Windows.Forms.Panel()
+        Me.lblVoltageNgColor = New System.Windows.Forms.Label()
+        Me.btnSelectedColor = New System.Windows.Forms.Button()
+        Me.txtSelectedColor = New System.Windows.Forms.TextBox()
+        Me.pnlSelectedColor = New System.Windows.Forms.Panel()
+        Me.lblSelectedColor = New System.Windows.Forms.Label()
+        Me.btnResistanceNgColor = New System.Windows.Forms.Button()
+        Me.txtResistanceNgColor = New System.Windows.Forms.TextBox()
+        Me.pnlResistanceNgColor = New System.Windows.Forms.Panel()
+        Me.lblResistanceNgColor = New System.Windows.Forms.Label()
+        Me.btnIdleColor = New System.Windows.Forms.Button()
+        Me.txtIdleColor = New System.Windows.Forms.TextBox()
+        Me.pnlIdleColor = New System.Windows.Forms.Panel()
+        Me.lblIdleColor = New System.Windows.Forms.Label()
+        Me.btnTestingColor = New System.Windows.Forms.Button()
+        Me.txtTestingColor = New System.Windows.Forms.TextBox()
+        Me.pnlTestingColor = New System.Windows.Forms.Panel()
+        Me.lblTestingColor = New System.Windows.Forms.Label()
+        Me.btnPassColor = New System.Windows.Forms.Button()
+        Me.txtPassColor = New System.Windows.Forms.TextBox()
+        Me.pnlPassColor = New System.Windows.Forms.Panel()
+        Me.lblPassColor = New System.Windows.Forms.Label()
+        Me.lblChannelColorHint = New System.Windows.Forms.Label()
+        Me.colorDialogChannel = New System.Windows.Forms.ColorDialog()
         Me.CmdOK = New System.Windows.Forms.Button()
         Me.Button1 = New System.Windows.Forms.Button()
-        Me.GroupBox7 = New System.Windows.Forms.GroupBox()
-        Me.GB_MesDataBase = New System.Windows.Forms.GroupBox()
-        Me.TxtMesBaseUser = New System.Windows.Forms.TextBox()
-        Me.TxtMesBasePsw = New System.Windows.Forms.TextBox()
-        Me.Label42 = New System.Windows.Forms.Label()
-        Me.Label43 = New System.Windows.Forms.Label()
-        Me.txtMesDatabaseServerIP = New System.Windows.Forms.TextBox()
-        Me.Label50 = New System.Windows.Forms.Label()
-        Me.Label52 = New System.Windows.Forms.Label()
-        Me.TxtMesDatabaseName = New System.Windows.Forms.TextBox()
         Me.TabControl1.SuspendLayout()
         Me.TabPage1.SuspendLayout()
         Me.GroupBox9.SuspendLayout()
@@ -209,12 +209,12 @@ Partial Class frmInit
         Me.GroupBox8.SuspendLayout()
         Me.GroupBox6.SuspendLayout()
         Me.TabPage3.SuspendLayout()
+        Me.GB_MesDataBase.SuspendLayout()
+        Me.GroupBox7.SuspendLayout()
         Me.TabPage4.SuspendLayout()
         Me.TabScmSet.SuspendLayout()
         Me.TabPageChannelColors.SuspendLayout()
         Me.GroupBoxChannelColors.SuspendLayout()
-        Me.GroupBox7.SuspendLayout()
-        Me.GB_MesDataBase.SuspendLayout()
         Me.SuspendLayout()
         '
         'TabControl1
@@ -231,7 +231,7 @@ Partial Class frmInit
         Me.TabControl1.Multiline = True
         Me.TabControl1.Name = "TabControl1"
         Me.TabControl1.SelectedIndex = 0
-        Me.TabControl1.Size = New System.Drawing.Size(391, 576)
+        Me.TabControl1.Size = New System.Drawing.Size(538, 603)
         Me.TabControl1.TabIndex = 0
         '
         'TabPage1
@@ -247,7 +247,7 @@ Partial Class frmInit
         Me.TabPage1.Location = New System.Drawing.Point(4, 22)
         Me.TabPage1.Name = "TabPage1"
         Me.TabPage1.Padding = New System.Windows.Forms.Padding(3)
-        Me.TabPage1.Size = New System.Drawing.Size(383, 550)
+        Me.TabPage1.Size = New System.Drawing.Size(530, 577)
         Me.TabPage1.TabIndex = 0
         Me.TabPage1.Text = "通讯设置"
         '
@@ -265,9 +265,9 @@ Partial Class frmInit
         Me.GroupBox9.Controls.Add(Me.Label47)
         Me.GroupBox9.Controls.Add(Me.Txt_PlcIP)
         Me.GroupBox9.FlatStyle = System.Windows.Forms.FlatStyle.System
-        Me.GroupBox9.Location = New System.Drawing.Point(11, 121)
+        Me.GroupBox9.Location = New System.Drawing.Point(22, 136)
         Me.GroupBox9.Name = "GroupBox9"
-        Me.GroupBox9.Size = New System.Drawing.Size(361, 107)
+        Me.GroupBox9.Size = New System.Drawing.Size(470, 107)
         Me.GroupBox9.TabIndex = 17
         Me.GroupBox9.TabStop = False
         Me.GroupBox9.Text = "PLC通讯参数"
@@ -277,7 +277,7 @@ Partial Class frmInit
         Me.ChbPlcCom.AutoSize = True
         Me.ChbPlcCom.Checked = True
         Me.ChbPlcCom.CheckState = System.Windows.Forms.CheckState.Checked
-        Me.ChbPlcCom.Location = New System.Drawing.Point(206, 85)
+        Me.ChbPlcCom.Location = New System.Drawing.Point(247, 87)
         Me.ChbPlcCom.Name = "ChbPlcCom"
         Me.ChbPlcCom.Size = New System.Drawing.Size(66, 16)
         Me.ChbPlcCom.TabIndex = 17
@@ -298,7 +298,7 @@ Partial Class frmInit
         '
         Me.cmb_PlcRate.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList
         Me.cmb_PlcRate.FormattingEnabled = True
-        Me.cmb_PlcRate.Location = New System.Drawing.Point(250, 49)
+        Me.cmb_PlcRate.Location = New System.Drawing.Point(291, 51)
         Me.cmb_PlcRate.Name = "cmb_PlcRate"
         Me.cmb_PlcRate.Size = New System.Drawing.Size(90, 20)
         Me.cmb_PlcRate.TabIndex = 16
@@ -306,7 +306,7 @@ Partial Class frmInit
         'Label44
         '
         Me.Label44.AutoSize = True
-        Me.Label44.Location = New System.Drawing.Point(203, 54)
+        Me.Label44.Location = New System.Drawing.Point(244, 56)
         Me.Label44.Name = "Label44"
         Me.Label44.Size = New System.Drawing.Size(41, 12)
         Me.Label44.TabIndex = 15
@@ -332,7 +332,7 @@ Partial Class frmInit
         '
         'txt_PlcPort
         '
-        Me.txt_PlcPort.Location = New System.Drawing.Point(251, 19)
+        Me.txt_PlcPort.Location = New System.Drawing.Point(292, 21)
         Me.txt_PlcPort.Name = "txt_PlcPort"
         Me.txt_PlcPort.Size = New System.Drawing.Size(90, 21)
         Me.txt_PlcPort.TabIndex = 12
@@ -351,7 +351,7 @@ Partial Class frmInit
         'Label47
         '
         Me.Label47.AutoSize = True
-        Me.Label47.Location = New System.Drawing.Point(204, 24)
+        Me.Label47.Location = New System.Drawing.Point(245, 26)
         Me.Label47.Name = "Label47"
         Me.Label47.Size = New System.Drawing.Size(41, 12)
         Me.Label47.TabIndex = 10
@@ -373,7 +373,7 @@ Partial Class frmInit
         Me.GroupBox5.Controls.Add(Me.Label26)
         Me.GroupBox5.Controls.Add(Me.Label27)
         Me.GroupBox5.Controls.Add(Me.cmbIORerate)
-        Me.GroupBox5.Location = New System.Drawing.Point(361, 196)
+        Me.GroupBox5.Location = New System.Drawing.Point(372, 211)
         Me.GroupBox5.Name = "GroupBox5"
         Me.GroupBox5.Size = New System.Drawing.Size(10, 13)
         Me.GroupBox5.TabIndex = 17
@@ -423,9 +423,9 @@ Partial Class frmInit
         Me.GroupBox4.Controls.Add(Me.Label4)
         Me.GroupBox4.Controls.Add(Me.txt34461)
         Me.GroupBox4.FlatStyle = System.Windows.Forms.FlatStyle.System
-        Me.GroupBox4.Location = New System.Drawing.Point(11, 236)
+        Me.GroupBox4.Location = New System.Drawing.Point(22, 251)
         Me.GroupBox4.Name = "GroupBox4"
-        Me.GroupBox4.Size = New System.Drawing.Size(361, 69)
+        Me.GroupBox4.Size = New System.Drawing.Size(470, 69)
         Me.GroupBox4.TabIndex = 16
         Me.GroupBox4.TabStop = False
         Me.GroupBox4.Text = "34461通讯参数"
@@ -444,7 +444,7 @@ Partial Class frmInit
         '
         Me.txt34461.Location = New System.Drawing.Point(80, 27)
         Me.txt34461.Name = "txt34461"
-        Me.txt34461.Size = New System.Drawing.Size(255, 21)
+        Me.txt34461.Size = New System.Drawing.Size(303, 21)
         Me.txt34461.TabIndex = 11
         Me.txt34461.Text = "TCPIP0::192.168.66.81::inst0::INSTR"
         '
@@ -462,9 +462,9 @@ Partial Class frmInit
         Me.GroupBox3.Controls.Add(Me.Label21)
         Me.GroupBox3.Controls.Add(Me.Txt_ScmIP)
         Me.GroupBox3.FlatStyle = System.Windows.Forms.FlatStyle.System
-        Me.GroupBox3.Location = New System.Drawing.Point(11, 6)
+        Me.GroupBox3.Location = New System.Drawing.Point(22, 23)
         Me.GroupBox3.Name = "GroupBox3"
-        Me.GroupBox3.Size = New System.Drawing.Size(361, 107)
+        Me.GroupBox3.Size = New System.Drawing.Size(470, 107)
         Me.GroupBox3.TabIndex = 15
         Me.GroupBox3.TabStop = False
         Me.GroupBox3.Text = "中位机通讯参数"
@@ -474,7 +474,7 @@ Partial Class frmInit
         Me.ChbScmCom.AutoSize = True
         Me.ChbScmCom.Checked = True
         Me.ChbScmCom.CheckState = System.Windows.Forms.CheckState.Checked
-        Me.ChbScmCom.Location = New System.Drawing.Point(206, 85)
+        Me.ChbScmCom.Location = New System.Drawing.Point(251, 85)
         Me.ChbScmCom.Name = "ChbScmCom"
         Me.ChbScmCom.Size = New System.Drawing.Size(66, 16)
         Me.ChbScmCom.TabIndex = 17
@@ -495,7 +495,7 @@ Partial Class frmInit
         '
         Me.cmb_SCMRate.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList
         Me.cmb_SCMRate.FormattingEnabled = True
-        Me.cmb_SCMRate.Location = New System.Drawing.Point(250, 49)
+        Me.cmb_SCMRate.Location = New System.Drawing.Point(292, 49)
         Me.cmb_SCMRate.Name = "cmb_SCMRate"
         Me.cmb_SCMRate.Size = New System.Drawing.Size(90, 20)
         Me.cmb_SCMRate.TabIndex = 16
@@ -503,7 +503,7 @@ Partial Class frmInit
         'lbl_SCMRate
         '
         Me.lbl_SCMRate.AutoSize = True
-        Me.lbl_SCMRate.Location = New System.Drawing.Point(203, 54)
+        Me.lbl_SCMRate.Location = New System.Drawing.Point(245, 54)
         Me.lbl_SCMRate.Name = "lbl_SCMRate"
         Me.lbl_SCMRate.Size = New System.Drawing.Size(41, 12)
         Me.lbl_SCMRate.TabIndex = 15
@@ -529,7 +529,7 @@ Partial Class frmInit
         '
         'txt_ScmPort
         '
-        Me.txt_ScmPort.Location = New System.Drawing.Point(251, 19)
+        Me.txt_ScmPort.Location = New System.Drawing.Point(293, 19)
         Me.txt_ScmPort.Name = "txt_ScmPort"
         Me.txt_ScmPort.Size = New System.Drawing.Size(90, 21)
         Me.txt_ScmPort.TabIndex = 12
@@ -548,7 +548,7 @@ Partial Class frmInit
         'Label21
         '
         Me.Label21.AutoSize = True
-        Me.Label21.Location = New System.Drawing.Point(204, 24)
+        Me.Label21.Location = New System.Drawing.Point(246, 24)
         Me.Label21.Name = "Label21"
         Me.Label21.Size = New System.Drawing.Size(41, 12)
         Me.Label21.TabIndex = 10
@@ -575,16 +575,16 @@ Partial Class frmInit
         Me.GroupBox2.Controls.Add(Me.Label5)
         Me.GroupBox2.Controls.Add(Me.Label6)
         Me.GroupBox2.Controls.Add(Me.cmbRerate)
-        Me.GroupBox2.Location = New System.Drawing.Point(11, 313)
+        Me.GroupBox2.Location = New System.Drawing.Point(22, 328)
         Me.GroupBox2.Name = "GroupBox2"
-        Me.GroupBox2.Size = New System.Drawing.Size(361, 93)
+        Me.GroupBox2.Size = New System.Drawing.Size(470, 93)
         Me.GroupBox2.TabIndex = 14
         Me.GroupBox2.TabStop = False
         Me.GroupBox2.Text = "3562通讯参数"
         '
         'Txt_DelayTime
         '
-        Me.Txt_DelayTime.Location = New System.Drawing.Point(251, 56)
+        Me.Txt_DelayTime.Location = New System.Drawing.Point(291, 56)
         Me.Txt_DelayTime.Name = "Txt_DelayTime"
         Me.Txt_DelayTime.Size = New System.Drawing.Size(78, 21)
         Me.Txt_DelayTime.TabIndex = 19
@@ -593,7 +593,7 @@ Partial Class frmInit
         'Label1
         '
         Me.Label1.AutoSize = True
-        Me.Label1.Location = New System.Drawing.Point(175, 61)
+        Me.Label1.Location = New System.Drawing.Point(215, 61)
         Me.Label1.Name = "Label1"
         Me.Label1.Size = New System.Drawing.Size(53, 12)
         Me.Label1.TabIndex = 18
@@ -602,7 +602,7 @@ Partial Class frmInit
         'Label3
         '
         Me.Label3.AutoSize = True
-        Me.Label3.Location = New System.Drawing.Point(333, 61)
+        Me.Label3.Location = New System.Drawing.Point(373, 61)
         Me.Label3.Name = "Label3"
         Me.Label3.Size = New System.Drawing.Size(17, 12)
         Me.Label3.TabIndex = 17
@@ -647,7 +647,7 @@ Partial Class frmInit
         'Label6
         '
         Me.Label6.AutoSize = True
-        Me.Label6.Location = New System.Drawing.Point(191, 28)
+        Me.Label6.Location = New System.Drawing.Point(231, 28)
         Me.Label6.Name = "Label6"
         Me.Label6.Size = New System.Drawing.Size(41, 12)
         Me.Label6.TabIndex = 7
@@ -657,7 +657,7 @@ Partial Class frmInit
         '
         Me.cmbRerate.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList
         Me.cmbRerate.FormattingEnabled = True
-        Me.cmbRerate.Location = New System.Drawing.Point(251, 24)
+        Me.cmbRerate.Location = New System.Drawing.Point(291, 24)
         Me.cmbRerate.Name = "cmbRerate"
         Me.cmbRerate.Size = New System.Drawing.Size(90, 20)
         Me.cmbRerate.TabIndex = 9
@@ -669,13 +669,12 @@ Partial Class frmInit
         Me.GroupBox1.Controls.Add(Me.Label22)
         Me.GroupBox1.Controls.Add(Me.Label23)
         Me.GroupBox1.Controls.Add(Me.cmb_ScanerRate)
-        Me.GroupBox1.Location = New System.Drawing.Point(11, 482)
+        Me.GroupBox1.Location = New System.Drawing.Point(22, 497)
         Me.GroupBox1.Name = "GroupBox1"
-        Me.GroupBox1.Size = New System.Drawing.Size(361, 64)
+        Me.GroupBox1.Size = New System.Drawing.Size(470, 64)
         Me.GroupBox1.TabIndex = 13
         Me.GroupBox1.TabStop = False
         Me.GroupBox1.Text = "扫描枪通讯参数"
-        Me.GroupBox1.Visible = False
         '
         'cmb_ScanerPort
         '
@@ -721,16 +720,16 @@ Partial Class frmInit
         Me.GroupBox10.Controls.Add(Me.cmbRetestPort)
         Me.GroupBox10.Controls.Add(Me.Label49)
         Me.GroupBox10.Controls.Add(Me.Label48)
-        Me.GroupBox10.Location = New System.Drawing.Point(11, 414)
+        Me.GroupBox10.Location = New System.Drawing.Point(22, 429)
         Me.GroupBox10.Name = "GroupBox10"
-        Me.GroupBox10.Size = New System.Drawing.Size(361, 60)
+        Me.GroupBox10.Size = New System.Drawing.Size(470, 60)
         Me.GroupBox10.TabIndex = 18
         Me.GroupBox10.TabStop = False
         Me.GroupBox10.Text = "NG复测3562通讯参数"
         '
         'btnRetestConnect
         '
-        Me.btnRetestConnect.Location = New System.Drawing.Point(278, 19)
+        Me.btnRetestConnect.Location = New System.Drawing.Point(351, 21)
         Me.btnRetestConnect.Name = "btnRetestConnect"
         Me.btnRetestConnect.Size = New System.Drawing.Size(82, 25)
         Me.btnRetestConnect.TabIndex = 24
@@ -741,7 +740,7 @@ Partial Class frmInit
         '
         Me.cmbRetestRate.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList
         Me.cmbRetestRate.FormattingEnabled = True
-        Me.cmbRetestRate.Location = New System.Drawing.Point(178, 20)
+        Me.cmbRetestRate.Location = New System.Drawing.Point(251, 22)
         Me.cmbRetestRate.Name = "cmbRetestRate"
         Me.cmbRetestRate.Size = New System.Drawing.Size(85, 20)
         Me.cmbRetestRate.TabIndex = 21
@@ -752,13 +751,13 @@ Partial Class frmInit
         Me.cmbRetestPort.FormattingEnabled = True
         Me.cmbRetestPort.Location = New System.Drawing.Point(42, 20)
         Me.cmbRetestPort.Name = "cmbRetestPort"
-        Me.cmbRetestPort.Size = New System.Drawing.Size(72, 20)
+        Me.cmbRetestPort.Size = New System.Drawing.Size(105, 20)
         Me.cmbRetestPort.TabIndex = 20
         '
         'Label49
         '
         Me.Label49.AutoSize = True
-        Me.Label49.Location = New System.Drawing.Point(122, 25)
+        Me.Label49.Location = New System.Drawing.Point(204, 25)
         Me.Label49.Name = "Label49"
         Me.Label49.Size = New System.Drawing.Size(41, 12)
         Me.Label49.TabIndex = 23
@@ -803,7 +802,7 @@ Partial Class frmInit
         Me.TabPage2.Location = New System.Drawing.Point(4, 22)
         Me.TabPage2.Name = "TabPage2"
         Me.TabPage2.Padding = New System.Windows.Forms.Padding(3)
-        Me.TabPage2.Size = New System.Drawing.Size(383, 550)
+        Me.TabPage2.Size = New System.Drawing.Size(530, 577)
         Me.TabPage2.TabIndex = 1
         Me.TabPage2.Text = "参数设置"
         '
@@ -812,7 +811,7 @@ Partial Class frmInit
         Me.GroupBox8.Controls.Add(Me.radioOCV0Set)
         Me.GroupBox8.Controls.Add(Me.radioOCV1Set)
         Me.GroupBox8.Controls.Add(Me.radioOCV2Set)
-        Me.GroupBox8.Location = New System.Drawing.Point(6, 297)
+        Me.GroupBox8.Location = New System.Drawing.Point(71, 367)
         Me.GroupBox8.Name = "GroupBox8"
         Me.GroupBox8.Size = New System.Drawing.Size(374, 44)
         Me.GroupBox8.TabIndex = 28
@@ -866,7 +865,7 @@ Partial Class frmInit
         Me.GroupBox6.Controls.Add(Me.Label13)
         Me.GroupBox6.Controls.Add(Me.Label12)
         Me.GroupBox6.FlatStyle = System.Windows.Forms.FlatStyle.System
-        Me.GroupBox6.Location = New System.Drawing.Point(6, 6)
+        Me.GroupBox6.Location = New System.Drawing.Point(71, 76)
         Me.GroupBox6.Name = "GroupBox6"
         Me.GroupBox6.Size = New System.Drawing.Size(371, 120)
         Me.GroupBox6.TabIndex = 27
@@ -979,7 +978,7 @@ Partial Class frmInit
         '
         'txtProbeUsed
         '
-        Me.txtProbeUsed.Location = New System.Drawing.Point(272, 262)
+        Me.txtProbeUsed.Location = New System.Drawing.Point(337, 332)
         Me.txtProbeUsed.Name = "txtProbeUsed"
         Me.txtProbeUsed.Size = New System.Drawing.Size(75, 21)
         Me.txtProbeUsed.TabIndex = 24
@@ -988,7 +987,7 @@ Partial Class frmInit
         '
         'txtProbelifespan
         '
-        Me.txtProbelifespan.Location = New System.Drawing.Point(108, 262)
+        Me.txtProbelifespan.Location = New System.Drawing.Point(173, 332)
         Me.txtProbelifespan.Name = "txtProbelifespan"
         Me.txtProbelifespan.Size = New System.Drawing.Size(75, 21)
         Me.txtProbelifespan.TabIndex = 25
@@ -998,7 +997,7 @@ Partial Class frmInit
         '
         'txtCailiModelValue
         '
-        Me.txtCailiModelValue.Location = New System.Drawing.Point(108, 179)
+        Me.txtCailiModelValue.Location = New System.Drawing.Point(173, 249)
         Me.txtCailiModelValue.Name = "txtCailiModelValue"
         Me.txtCailiModelValue.Size = New System.Drawing.Size(75, 21)
         Me.txtCailiModelValue.TabIndex = 26
@@ -1007,7 +1006,7 @@ Partial Class frmInit
         '
         'txtCodeLenth
         '
-        Me.txtCodeLenth.Location = New System.Drawing.Point(108, 222)
+        Me.txtCodeLenth.Location = New System.Drawing.Point(173, 292)
         Me.txtCodeLenth.Name = "txtCodeLenth"
         Me.txtCodeLenth.Size = New System.Drawing.Size(75, 21)
         Me.txtCodeLenth.TabIndex = 26
@@ -1017,7 +1016,7 @@ Partial Class frmInit
         'Label31
         '
         Me.Label31.AutoSize = True
-        Me.Label31.Location = New System.Drawing.Point(210, 268)
+        Me.Label31.Location = New System.Drawing.Point(275, 338)
         Me.Label31.Name = "Label31"
         Me.Label31.Size = New System.Drawing.Size(53, 12)
         Me.Label31.TabIndex = 21
@@ -1026,7 +1025,7 @@ Partial Class frmInit
         'Label37
         '
         Me.Label37.AutoSize = True
-        Me.Label37.Location = New System.Drawing.Point(17, 184)
+        Me.Label37.Location = New System.Drawing.Point(82, 254)
         Me.Label37.Name = "Label37"
         Me.Label37.Size = New System.Drawing.Size(77, 12)
         Me.Label37.TabIndex = 23
@@ -1035,7 +1034,7 @@ Partial Class frmInit
         'Label24
         '
         Me.Label24.AutoSize = True
-        Me.Label24.Location = New System.Drawing.Point(41, 268)
+        Me.Label24.Location = New System.Drawing.Point(106, 338)
         Me.Label24.Name = "Label24"
         Me.Label24.Size = New System.Drawing.Size(53, 12)
         Me.Label24.TabIndex = 22
@@ -1044,7 +1043,7 @@ Partial Class frmInit
         'Label25
         '
         Me.Label25.AutoSize = True
-        Me.Label25.Location = New System.Drawing.Point(41, 225)
+        Me.Label25.Location = New System.Drawing.Point(106, 295)
         Me.Label25.Name = "Label25"
         Me.Label25.Size = New System.Drawing.Size(53, 12)
         Me.Label25.TabIndex = 23
@@ -1052,7 +1051,7 @@ Partial Class frmInit
         '
         'txtOverTemperate
         '
-        Me.txtOverTemperate.Location = New System.Drawing.Point(269, 179)
+        Me.txtOverTemperate.Location = New System.Drawing.Point(334, 249)
         Me.txtOverTemperate.Name = "txtOverTemperate"
         Me.txtOverTemperate.Size = New System.Drawing.Size(75, 21)
         Me.txtOverTemperate.TabIndex = 9
@@ -1062,7 +1061,7 @@ Partial Class frmInit
         'Label30
         '
         Me.Label30.AutoSize = True
-        Me.Label30.Location = New System.Drawing.Point(348, 268)
+        Me.Label30.Location = New System.Drawing.Point(413, 338)
         Me.Label30.Name = "Label30"
         Me.Label30.Size = New System.Drawing.Size(17, 12)
         Me.Label30.TabIndex = 18
@@ -1071,7 +1070,7 @@ Partial Class frmInit
         'Label40
         '
         Me.Label40.AutoSize = True
-        Me.Label40.Location = New System.Drawing.Point(346, 184)
+        Me.Label40.Location = New System.Drawing.Point(411, 254)
         Me.Label40.Name = "Label40"
         Me.Label40.Size = New System.Drawing.Size(17, 12)
         Me.Label40.TabIndex = 11
@@ -1079,7 +1078,7 @@ Partial Class frmInit
         '
         'txt_R_B
         '
-        Me.txt_R_B.Location = New System.Drawing.Point(269, 141)
+        Me.txt_R_B.Location = New System.Drawing.Point(334, 211)
         Me.txt_R_B.Name = "txt_R_B"
         Me.txt_R_B.Size = New System.Drawing.Size(75, 21)
         Me.txt_R_B.TabIndex = 17
@@ -1088,7 +1087,7 @@ Partial Class frmInit
         'Label36
         '
         Me.Label36.AutoSize = True
-        Me.Label36.Location = New System.Drawing.Point(182, 188)
+        Me.Label36.Location = New System.Drawing.Point(247, 258)
         Me.Label36.Name = "Label36"
         Me.Label36.Size = New System.Drawing.Size(23, 12)
         Me.Label36.TabIndex = 20
@@ -1097,7 +1096,7 @@ Partial Class frmInit
         'Label16
         '
         Me.Label16.AutoSize = True
-        Me.Label16.Location = New System.Drawing.Point(47, 146)
+        Me.Label16.Location = New System.Drawing.Point(112, 216)
         Me.Label16.Name = "Label16"
         Me.Label16.Size = New System.Drawing.Size(47, 12)
         Me.Label16.TabIndex = 14
@@ -1105,7 +1104,7 @@ Partial Class frmInit
         '
         'txt_V_B
         '
-        Me.txt_V_B.Location = New System.Drawing.Point(108, 141)
+        Me.txt_V_B.Location = New System.Drawing.Point(173, 211)
         Me.txt_V_B.Name = "txt_V_B"
         Me.txt_V_B.Size = New System.Drawing.Size(75, 21)
         Me.txt_V_B.TabIndex = 16
@@ -1114,7 +1113,7 @@ Partial Class frmInit
         'Label29
         '
         Me.Label29.AutoSize = True
-        Me.Label29.Location = New System.Drawing.Point(183, 268)
+        Me.Label29.Location = New System.Drawing.Point(248, 338)
         Me.Label29.Name = "Label29"
         Me.Label29.Size = New System.Drawing.Size(17, 12)
         Me.Label29.TabIndex = 19
@@ -1123,7 +1122,7 @@ Partial Class frmInit
         'Label41
         '
         Me.Label41.AutoSize = True
-        Me.Label41.Location = New System.Drawing.Point(210, 184)
+        Me.Label41.Location = New System.Drawing.Point(275, 254)
         Me.Label41.Name = "Label41"
         Me.Label41.Size = New System.Drawing.Size(53, 12)
         Me.Label41.TabIndex = 15
@@ -1132,7 +1131,7 @@ Partial Class frmInit
         'Label17
         '
         Me.Label17.AutoSize = True
-        Me.Label17.Location = New System.Drawing.Point(216, 146)
+        Me.Label17.Location = New System.Drawing.Point(281, 216)
         Me.Label17.Name = "Label17"
         Me.Label17.Size = New System.Drawing.Size(47, 12)
         Me.Label17.TabIndex = 15
@@ -1141,7 +1140,7 @@ Partial Class frmInit
         'Label28
         '
         Me.Label28.AutoSize = True
-        Me.Label28.Location = New System.Drawing.Point(183, 231)
+        Me.Label28.Location = New System.Drawing.Point(248, 301)
         Me.Label28.Name = "Label28"
         Me.Label28.Size = New System.Drawing.Size(17, 12)
         Me.Label28.TabIndex = 20
@@ -1149,7 +1148,7 @@ Partial Class frmInit
         '
         'txtPath
         '
-        Me.txtPath.Location = New System.Drawing.Point(18, 410)
+        Me.txtPath.Location = New System.Drawing.Point(83, 480)
         Me.txtPath.Name = "txtPath"
         Me.txtPath.Size = New System.Drawing.Size(279, 21)
         Me.txtPath.TabIndex = 13
@@ -1158,7 +1157,7 @@ Partial Class frmInit
         'Label15
         '
         Me.Label15.AutoSize = True
-        Me.Label15.Location = New System.Drawing.Point(15, 392)
+        Me.Label15.Location = New System.Drawing.Point(80, 462)
         Me.Label15.Name = "Label15"
         Me.Label15.Size = New System.Drawing.Size(89, 12)
         Me.Label15.TabIndex = 12
@@ -1168,7 +1167,7 @@ Partial Class frmInit
         'Label8
         '
         Me.Label8.AutoSize = True
-        Me.Label8.Location = New System.Drawing.Point(45, 20)
+        Me.Label8.Location = New System.Drawing.Point(110, 90)
         Me.Label8.Name = "Label8"
         Me.Label8.Size = New System.Drawing.Size(0, 12)
         Me.Label8.TabIndex = 0
@@ -1184,9 +1183,113 @@ Partial Class frmInit
         Me.TabPage3.Controls.Add(Me.Label35)
         Me.TabPage3.Location = New System.Drawing.Point(4, 22)
         Me.TabPage3.Name = "TabPage3"
-        Me.TabPage3.Size = New System.Drawing.Size(383, 550)
+        Me.TabPage3.Size = New System.Drawing.Size(530, 577)
         Me.TabPage3.TabIndex = 2
         Me.TabPage3.Text = "数据库设置"
+        '
+        'GB_MesDataBase
+        '
+        Me.GB_MesDataBase.Controls.Add(Me.TxtMesDatabaseName)
+        Me.GB_MesDataBase.Controls.Add(Me.TxtMesBaseUser)
+        Me.GB_MesDataBase.Controls.Add(Me.TxtMesBasePsw)
+        Me.GB_MesDataBase.Controls.Add(Me.Label42)
+        Me.GB_MesDataBase.Controls.Add(Me.Label43)
+        Me.GB_MesDataBase.Controls.Add(Me.Label52)
+        Me.GB_MesDataBase.Controls.Add(Me.txtMesDatabaseServerIP)
+        Me.GB_MesDataBase.Controls.Add(Me.Label50)
+        Me.GB_MesDataBase.Location = New System.Drawing.Point(90, 258)
+        Me.GB_MesDataBase.Name = "GB_MesDataBase"
+        Me.GB_MesDataBase.Size = New System.Drawing.Size(352, 142)
+        Me.GB_MesDataBase.TabIndex = 8
+        Me.GB_MesDataBase.TabStop = False
+        Me.GB_MesDataBase.Text = "Mes数据库设置"
+        '
+        'TxtMesDatabaseName
+        '
+        Me.TxtMesDatabaseName.Location = New System.Drawing.Point(100, 53)
+        Me.TxtMesDatabaseName.Name = "TxtMesDatabaseName"
+        Me.TxtMesDatabaseName.Size = New System.Drawing.Size(206, 21)
+        Me.TxtMesDatabaseName.TabIndex = 5
+        '
+        'TxtMesBaseUser
+        '
+        Me.TxtMesBaseUser.Location = New System.Drawing.Point(100, 81)
+        Me.TxtMesBaseUser.Name = "TxtMesBaseUser"
+        Me.TxtMesBaseUser.Size = New System.Drawing.Size(206, 21)
+        Me.TxtMesBaseUser.TabIndex = 5
+        '
+        'TxtMesBasePsw
+        '
+        Me.TxtMesBasePsw.Location = New System.Drawing.Point(100, 109)
+        Me.TxtMesBasePsw.Name = "TxtMesBasePsw"
+        Me.TxtMesBasePsw.Size = New System.Drawing.Size(206, 21)
+        Me.TxtMesBasePsw.TabIndex = 7
+        Me.TxtMesBasePsw.UseSystemPasswordChar = True
+        '
+        'Label42
+        '
+        Me.Label42.AutoSize = True
+        Me.Label42.Location = New System.Drawing.Point(43, 29)
+        Me.Label42.Name = "Label42"
+        Me.Label42.Size = New System.Drawing.Size(53, 12)
+        Me.Label42.TabIndex = 1
+        Me.Label42.Text = "服务器IP"
+        '
+        'Label43
+        '
+        Me.Label43.AutoSize = True
+        Me.Label43.Location = New System.Drawing.Point(67, 113)
+        Me.Label43.Name = "Label43"
+        Me.Label43.Size = New System.Drawing.Size(29, 12)
+        Me.Label43.TabIndex = 6
+        Me.Label43.Text = "密码"
+        '
+        'Label52
+        '
+        Me.Label52.AutoSize = True
+        Me.Label52.Location = New System.Drawing.Point(55, 57)
+        Me.Label52.Name = "Label52"
+        Me.Label52.Size = New System.Drawing.Size(41, 12)
+        Me.Label52.TabIndex = 4
+        Me.Label52.Text = "数据库"
+        '
+        'txtMesDatabaseServerIP
+        '
+        Me.txtMesDatabaseServerIP.Location = New System.Drawing.Point(100, 25)
+        Me.txtMesDatabaseServerIP.Name = "txtMesDatabaseServerIP"
+        Me.txtMesDatabaseServerIP.Size = New System.Drawing.Size(206, 21)
+        Me.txtMesDatabaseServerIP.TabIndex = 2
+        '
+        'Label50
+        '
+        Me.Label50.AutoSize = True
+        Me.Label50.Location = New System.Drawing.Point(55, 85)
+        Me.Label50.Name = "Label50"
+        Me.Label50.Size = New System.Drawing.Size(41, 12)
+        Me.Label50.TabIndex = 4
+        Me.Label50.Text = "用户名"
+        '
+        'GroupBox7
+        '
+        Me.GroupBox7.Controls.Add(Me.txtUser)
+        Me.GroupBox7.Controls.Add(Me.txtpwd)
+        Me.GroupBox7.Controls.Add(Me.Label7)
+        Me.GroupBox7.Controls.Add(Me.Label19)
+        Me.GroupBox7.Controls.Add(Me.txtDatabase)
+        Me.GroupBox7.Controls.Add(Me.Label18)
+        Me.GroupBox7.Location = New System.Drawing.Point(90, 111)
+        Me.GroupBox7.Name = "GroupBox7"
+        Me.GroupBox7.Size = New System.Drawing.Size(352, 141)
+        Me.GroupBox7.TabIndex = 8
+        Me.GroupBox7.TabStop = False
+        Me.GroupBox7.Text = "本地数据库设置"
+        '
+        'txtUser
+        '
+        Me.txtUser.Location = New System.Drawing.Point(100, 56)
+        Me.txtUser.Name = "txtUser"
+        Me.txtUser.Size = New System.Drawing.Size(206, 21)
+        Me.txtUser.TabIndex = 5
         '
         'txtpwd
         '
@@ -1195,6 +1298,15 @@ Partial Class frmInit
         Me.txtpwd.Size = New System.Drawing.Size(206, 21)
         Me.txtpwd.TabIndex = 7
         Me.txtpwd.UseSystemPasswordChar = True
+        '
+        'Label7
+        '
+        Me.Label7.AutoSize = True
+        Me.Label7.Location = New System.Drawing.Point(43, 29)
+        Me.Label7.Name = "Label7"
+        Me.Label7.Size = New System.Drawing.Size(53, 12)
+        Me.Label7.TabIndex = 1
+        Me.Label7.Text = "服务器IP"
         '
         'Label19
         '
@@ -1205,12 +1317,12 @@ Partial Class frmInit
         Me.Label19.TabIndex = 6
         Me.Label19.Text = "密码"
         '
-        'txtUser
+        'txtDatabase
         '
-        Me.txtUser.Location = New System.Drawing.Point(100, 56)
-        Me.txtUser.Name = "txtUser"
-        Me.txtUser.Size = New System.Drawing.Size(206, 21)
-        Me.txtUser.TabIndex = 5
+        Me.txtDatabase.Location = New System.Drawing.Point(100, 25)
+        Me.txtDatabase.Name = "txtDatabase"
+        Me.txtDatabase.Size = New System.Drawing.Size(206, 21)
+        Me.txtDatabase.TabIndex = 2
         '
         'Label18
         '
@@ -1226,7 +1338,7 @@ Partial Class frmInit
         Me.CheckBox1.AutoSize = True
         Me.CheckBox1.Checked = True
         Me.CheckBox1.CheckState = System.Windows.Forms.CheckState.Checked
-        Me.CheckBox1.Location = New System.Drawing.Point(12, 365)
+        Me.CheckBox1.Location = New System.Drawing.Point(90, 406)
         Me.CheckBox1.Name = "CheckBox1"
         Me.CheckBox1.Size = New System.Drawing.Size(198, 16)
         Me.CheckBox1.TabIndex = 3
@@ -1238,7 +1350,7 @@ Partial Class frmInit
         Me.chkAuto.AutoSize = True
         Me.chkAuto.Checked = True
         Me.chkAuto.CheckState = System.Windows.Forms.CheckState.Checked
-        Me.chkAuto.Location = New System.Drawing.Point(12, 48)
+        Me.chkAuto.Location = New System.Drawing.Point(90, 89)
         Me.chkAuto.Name = "chkAuto"
         Me.chkAuto.Size = New System.Drawing.Size(216, 16)
         Me.chkAuto.TabIndex = 3
@@ -1247,7 +1359,7 @@ Partial Class frmInit
         '
         'txtMesApiAddress
         '
-        Me.txtMesApiAddress.Location = New System.Drawing.Point(112, 397)
+        Me.txtMesApiAddress.Location = New System.Drawing.Point(190, 438)
         Me.txtMesApiAddress.Name = "txtMesApiAddress"
         Me.txtMesApiAddress.Size = New System.Drawing.Size(228, 21)
         Me.txtMesApiAddress.TabIndex = 2
@@ -1255,27 +1367,11 @@ Partial Class frmInit
         'Label35
         '
         Me.Label35.AutoSize = True
-        Me.Label35.Location = New System.Drawing.Point(31, 400)
+        Me.Label35.Location = New System.Drawing.Point(109, 441)
         Me.Label35.Name = "Label35"
         Me.Label35.Size = New System.Drawing.Size(65, 12)
         Me.Label35.TabIndex = 1
         Me.Label35.Text = "MESAPI地址"
-        '
-        'txtDatabase
-        '
-        Me.txtDatabase.Location = New System.Drawing.Point(100, 25)
-        Me.txtDatabase.Name = "txtDatabase"
-        Me.txtDatabase.Size = New System.Drawing.Size(206, 21)
-        Me.txtDatabase.TabIndex = 2
-        '
-        'Label7
-        '
-        Me.Label7.AutoSize = True
-        Me.Label7.Location = New System.Drawing.Point(43, 29)
-        Me.Label7.Name = "Label7"
-        Me.Label7.Size = New System.Drawing.Size(53, 12)
-        Me.Label7.TabIndex = 1
-        Me.Label7.Text = "服务器IP"
         '
         'TabPage4
         '
@@ -1368,21 +1464,21 @@ Partial Class frmInit
         Me.TabScmSet.Location = New System.Drawing.Point(4, 22)
         Me.TabScmSet.Name = "TabScmSet"
         Me.TabScmSet.Padding = New System.Windows.Forms.Padding(3)
-        Me.TabScmSet.Size = New System.Drawing.Size(383, 550)
+        Me.TabScmSet.Size = New System.Drawing.Size(530, 577)
         Me.TabScmSet.TabIndex = 4
         Me.TabScmSet.Text = "控制板设置"
         '
         'lblScmStatus
         '
         Me.lblScmStatus.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D
-        Me.lblScmStatus.Location = New System.Drawing.Point(20, 290)
+        Me.lblScmStatus.Location = New System.Drawing.Point(118, 357)
         Me.lblScmStatus.Name = "lblScmStatus"
         Me.lblScmStatus.Size = New System.Drawing.Size(310, 90)
         Me.lblScmStatus.TabIndex = 17
         '
         'btnScmApply
         '
-        Me.btnScmApply.Location = New System.Drawing.Point(185, 235)
+        Me.btnScmApply.Location = New System.Drawing.Point(283, 302)
         Me.btnScmApply.Name = "btnScmApply"
         Me.btnScmApply.Size = New System.Drawing.Size(145, 32)
         Me.btnScmApply.TabIndex = 16
@@ -1391,7 +1487,7 @@ Partial Class frmInit
         '
         'btnScmRead
         '
-        Me.btnScmRead.Location = New System.Drawing.Point(20, 235)
+        Me.btnScmRead.Location = New System.Drawing.Point(118, 302)
         Me.btnScmRead.Name = "btnScmRead"
         Me.btnScmRead.Size = New System.Drawing.Size(145, 32)
         Me.btnScmRead.TabIndex = 15
@@ -1401,7 +1497,7 @@ Partial Class frmInit
         'lblScmPhaseGuardUnit
         '
         Me.lblScmPhaseGuardUnit.AutoSize = True
-        Me.lblScmPhaseGuardUnit.Location = New System.Drawing.Point(278, 193)
+        Me.lblScmPhaseGuardUnit.Location = New System.Drawing.Point(376, 260)
         Me.lblScmPhaseGuardUnit.Name = "lblScmPhaseGuardUnit"
         Me.lblScmPhaseGuardUnit.Size = New System.Drawing.Size(17, 12)
         Me.lblScmPhaseGuardUnit.TabIndex = 14
@@ -1409,7 +1505,7 @@ Partial Class frmInit
         '
         'txtScmPhaseGuardMs
         '
-        Me.txtScmPhaseGuardMs.Location = New System.Drawing.Point(165, 185)
+        Me.txtScmPhaseGuardMs.Location = New System.Drawing.Point(263, 252)
         Me.txtScmPhaseGuardMs.Name = "txtScmPhaseGuardMs"
         Me.txtScmPhaseGuardMs.Size = New System.Drawing.Size(100, 21)
         Me.txtScmPhaseGuardMs.TabIndex = 13
@@ -1417,7 +1513,7 @@ Partial Class frmInit
         'lblScmPhaseGuardMs
         '
         Me.lblScmPhaseGuardMs.AutoSize = True
-        Me.lblScmPhaseGuardMs.Location = New System.Drawing.Point(23, 193)
+        Me.lblScmPhaseGuardMs.Location = New System.Drawing.Point(121, 260)
         Me.lblScmPhaseGuardMs.Name = "lblScmPhaseGuardMs"
         Me.lblScmPhaseGuardMs.Size = New System.Drawing.Size(77, 12)
         Me.lblScmPhaseGuardMs.TabIndex = 12
@@ -1426,7 +1522,7 @@ Partial Class frmInit
         'lblScmTriggerUnit
         '
         Me.lblScmTriggerUnit.AutoSize = True
-        Me.lblScmTriggerUnit.Location = New System.Drawing.Point(278, 153)
+        Me.lblScmTriggerUnit.Location = New System.Drawing.Point(376, 220)
         Me.lblScmTriggerUnit.Name = "lblScmTriggerUnit"
         Me.lblScmTriggerUnit.Size = New System.Drawing.Size(17, 12)
         Me.lblScmTriggerUnit.TabIndex = 11
@@ -1434,7 +1530,7 @@ Partial Class frmInit
         '
         'txtScmTriggerPulseMs
         '
-        Me.txtScmTriggerPulseMs.Location = New System.Drawing.Point(165, 145)
+        Me.txtScmTriggerPulseMs.Location = New System.Drawing.Point(263, 212)
         Me.txtScmTriggerPulseMs.Name = "txtScmTriggerPulseMs"
         Me.txtScmTriggerPulseMs.Size = New System.Drawing.Size(100, 21)
         Me.txtScmTriggerPulseMs.TabIndex = 10
@@ -1442,7 +1538,7 @@ Partial Class frmInit
         'lblScmTriggerPulseMs
         '
         Me.lblScmTriggerPulseMs.AutoSize = True
-        Me.lblScmTriggerPulseMs.Location = New System.Drawing.Point(23, 153)
+        Me.lblScmTriggerPulseMs.Location = New System.Drawing.Point(121, 220)
         Me.lblScmTriggerPulseMs.Name = "lblScmTriggerPulseMs"
         Me.lblScmTriggerPulseMs.Size = New System.Drawing.Size(77, 12)
         Me.lblScmTriggerPulseMs.TabIndex = 9
@@ -1451,7 +1547,7 @@ Partial Class frmInit
         'lblScmAutoStepUnit
         '
         Me.lblScmAutoStepUnit.AutoSize = True
-        Me.lblScmAutoStepUnit.Location = New System.Drawing.Point(278, 113)
+        Me.lblScmAutoStepUnit.Location = New System.Drawing.Point(376, 180)
         Me.lblScmAutoStepUnit.Name = "lblScmAutoStepUnit"
         Me.lblScmAutoStepUnit.Size = New System.Drawing.Size(17, 12)
         Me.lblScmAutoStepUnit.TabIndex = 8
@@ -1459,7 +1555,7 @@ Partial Class frmInit
         '
         'txtScmAutoStepMs
         '
-        Me.txtScmAutoStepMs.Location = New System.Drawing.Point(165, 105)
+        Me.txtScmAutoStepMs.Location = New System.Drawing.Point(263, 172)
         Me.txtScmAutoStepMs.Name = "txtScmAutoStepMs"
         Me.txtScmAutoStepMs.Size = New System.Drawing.Size(100, 21)
         Me.txtScmAutoStepMs.TabIndex = 7
@@ -1467,7 +1563,7 @@ Partial Class frmInit
         'lblScmAutoStepMs
         '
         Me.lblScmAutoStepMs.AutoSize = True
-        Me.lblScmAutoStepMs.Location = New System.Drawing.Point(23, 113)
+        Me.lblScmAutoStepMs.Location = New System.Drawing.Point(121, 180)
         Me.lblScmAutoStepMs.Name = "lblScmAutoStepMs"
         Me.lblScmAutoStepMs.Size = New System.Drawing.Size(77, 12)
         Me.lblScmAutoStepMs.TabIndex = 6
@@ -1476,7 +1572,7 @@ Partial Class frmInit
         'lblScmChannelUnit
         '
         Me.lblScmChannelUnit.AutoSize = True
-        Me.lblScmChannelUnit.Location = New System.Drawing.Point(278, 73)
+        Me.lblScmChannelUnit.Location = New System.Drawing.Point(376, 140)
         Me.lblScmChannelUnit.Name = "lblScmChannelUnit"
         Me.lblScmChannelUnit.Size = New System.Drawing.Size(17, 12)
         Me.lblScmChannelUnit.TabIndex = 5
@@ -1484,7 +1580,7 @@ Partial Class frmInit
         '
         'txtScmChannelSettleMs
         '
-        Me.txtScmChannelSettleMs.Location = New System.Drawing.Point(165, 65)
+        Me.txtScmChannelSettleMs.Location = New System.Drawing.Point(263, 132)
         Me.txtScmChannelSettleMs.Name = "txtScmChannelSettleMs"
         Me.txtScmChannelSettleMs.Size = New System.Drawing.Size(100, 21)
         Me.txtScmChannelSettleMs.TabIndex = 4
@@ -1492,7 +1588,7 @@ Partial Class frmInit
         'lblScmChannelSettleMs
         '
         Me.lblScmChannelSettleMs.AutoSize = True
-        Me.lblScmChannelSettleMs.Location = New System.Drawing.Point(23, 73)
+        Me.lblScmChannelSettleMs.Location = New System.Drawing.Point(121, 140)
         Me.lblScmChannelSettleMs.Name = "lblScmChannelSettleMs"
         Me.lblScmChannelSettleMs.Size = New System.Drawing.Size(77, 12)
         Me.lblScmChannelSettleMs.TabIndex = 3
@@ -1501,7 +1597,7 @@ Partial Class frmInit
         'lblScmRelayUnit
         '
         Me.lblScmRelayUnit.AutoSize = True
-        Me.lblScmRelayUnit.Location = New System.Drawing.Point(278, 33)
+        Me.lblScmRelayUnit.Location = New System.Drawing.Point(376, 100)
         Me.lblScmRelayUnit.Name = "lblScmRelayUnit"
         Me.lblScmRelayUnit.Size = New System.Drawing.Size(17, 12)
         Me.lblScmRelayUnit.TabIndex = 2
@@ -1509,7 +1605,7 @@ Partial Class frmInit
         '
         'txtScmRelaySettleMs
         '
-        Me.txtScmRelaySettleMs.Location = New System.Drawing.Point(165, 25)
+        Me.txtScmRelaySettleMs.Location = New System.Drawing.Point(263, 92)
         Me.txtScmRelaySettleMs.Name = "txtScmRelaySettleMs"
         Me.txtScmRelaySettleMs.Size = New System.Drawing.Size(100, 21)
         Me.txtScmRelaySettleMs.TabIndex = 1
@@ -1517,7 +1613,7 @@ Partial Class frmInit
         'lblScmRelaySettleMs
         '
         Me.lblScmRelaySettleMs.AutoSize = True
-        Me.lblScmRelaySettleMs.Location = New System.Drawing.Point(23, 33)
+        Me.lblScmRelaySettleMs.Location = New System.Drawing.Point(121, 100)
         Me.lblScmRelaySettleMs.Name = "lblScmRelaySettleMs"
         Me.lblScmRelaySettleMs.Size = New System.Drawing.Size(89, 12)
         Me.lblScmRelaySettleMs.TabIndex = 0
@@ -1530,7 +1626,7 @@ Partial Class frmInit
         Me.TabPageChannelColors.Location = New System.Drawing.Point(4, 22)
         Me.TabPageChannelColors.Name = "TabPageChannelColors"
         Me.TabPageChannelColors.Padding = New System.Windows.Forms.Padding(3)
-        Me.TabPageChannelColors.Size = New System.Drawing.Size(383, 550)
+        Me.TabPageChannelColors.Size = New System.Drawing.Size(530, 577)
         Me.TabPageChannelColors.TabIndex = 5
         Me.TabPageChannelColors.Text = "通道颜色"
         '
@@ -1564,241 +1660,241 @@ Partial Class frmInit
         Me.GroupBoxChannelColors.Controls.Add(Me.lblChannelColorHint)
         Me.GroupBoxChannelColors.Location = New System.Drawing.Point(8, 8)
         Me.GroupBoxChannelColors.Name = "GroupBoxChannelColors"
-        Me.GroupBoxChannelColors.Size = New System.Drawing.Size(367, 530)
+        Me.GroupBoxChannelColors.Size = New System.Drawing.Size(516, 530)
         Me.GroupBoxChannelColors.TabIndex = 0
         Me.GroupBoxChannelColors.TabStop = False
         Me.GroupBoxChannelColors.Text = "通道状态颜色"
         '
-        'lblChannelColorHint
-        '
-        Me.lblChannelColorHint.AutoSize = False
-        Me.lblChannelColorHint.Location = New System.Drawing.Point(14, 24)
-        Me.lblChannelColorHint.Name = "lblChannelColorHint"
-        Me.lblChannelColorHint.Size = New System.Drawing.Size(338, 36)
-        Me.lblChannelColorHint.TabIndex = 0
-        Me.lblChannelColorHint.Text = "点击选择颜色修改通道格颜色，点击恢复默认恢复约定颜色。保存后应用到主页面和测试过程。"
-        '
-        'lblPassColor
-        '
-        Me.lblPassColor.AutoSize = True
-        Me.lblPassColor.Location = New System.Drawing.Point(16, 82)
-        Me.lblPassColor.Name = "lblPassColor"
-        Me.lblPassColor.Size = New System.Drawing.Size(53, 12)
-        Me.lblPassColor.TabIndex = 1
-        Me.lblPassColor.Text = "PASS（绿色）"
-        '
-        'pnlPassColor
-        '
-        Me.pnlPassColor.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
-        Me.pnlPassColor.Location = New System.Drawing.Point(112, 73)
-        Me.pnlPassColor.Name = "pnlPassColor"
-        Me.pnlPassColor.Size = New System.Drawing.Size(42, 27)
-        Me.pnlPassColor.TabIndex = 2
-        '
-        'txtPassColor
-        '
-        Me.txtPassColor.Location = New System.Drawing.Point(164, 76)
-        Me.txtPassColor.Name = "txtPassColor"
-        Me.txtPassColor.ReadOnly = True
-        Me.txtPassColor.Size = New System.Drawing.Size(100, 21)
-        Me.txtPassColor.TabIndex = 3
-        Me.txtPassColor.TextAlign = System.Windows.Forms.HorizontalAlignment.Center
-        '
-        'btnPassColor
-        '
-        Me.btnPassColor.Location = New System.Drawing.Point(278, 73)
-        Me.btnPassColor.Name = "btnPassColor"
-        Me.btnPassColor.Size = New System.Drawing.Size(75, 27)
-        Me.btnPassColor.TabIndex = 4
-        Me.btnPassColor.Text = "选择颜色"
-        Me.btnPassColor.UseVisualStyleBackColor = True
-        '
-        'lblTestingColor
-        '
-        Me.lblTestingColor.AutoSize = True
-        Me.lblTestingColor.Location = New System.Drawing.Point(16, 137)
-        Me.lblTestingColor.Name = "lblTestingColor"
-        Me.lblTestingColor.Size = New System.Drawing.Size(65, 12)
-        Me.lblTestingColor.TabIndex = 5
-        Me.lblTestingColor.Text = "测试中（蓝色）"
-        '
-        'pnlTestingColor
-        '
-        Me.pnlTestingColor.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
-        Me.pnlTestingColor.Location = New System.Drawing.Point(112, 128)
-        Me.pnlTestingColor.Name = "pnlTestingColor"
-        Me.pnlTestingColor.Size = New System.Drawing.Size(42, 27)
-        Me.pnlTestingColor.TabIndex = 6
-        '
-        'txtTestingColor
-        '
-        Me.txtTestingColor.Location = New System.Drawing.Point(164, 131)
-        Me.txtTestingColor.Name = "txtTestingColor"
-        Me.txtTestingColor.ReadOnly = True
-        Me.txtTestingColor.Size = New System.Drawing.Size(100, 21)
-        Me.txtTestingColor.TabIndex = 7
-        Me.txtTestingColor.TextAlign = System.Windows.Forms.HorizontalAlignment.Center
-        '
-        'btnTestingColor
-        '
-        Me.btnTestingColor.Location = New System.Drawing.Point(278, 128)
-        Me.btnTestingColor.Name = "btnTestingColor"
-        Me.btnTestingColor.Size = New System.Drawing.Size(75, 27)
-        Me.btnTestingColor.TabIndex = 8
-        Me.btnTestingColor.Text = "选择颜色"
-        Me.btnTestingColor.UseVisualStyleBackColor = True
-        '
-        'lblIdleColor
-        '
-        Me.lblIdleColor.AutoSize = True
-        Me.lblIdleColor.Location = New System.Drawing.Point(16, 192)
-        Me.lblIdleColor.Name = "lblIdleColor"
-        Me.lblIdleColor.Size = New System.Drawing.Size(77, 12)
-        Me.lblIdleColor.TabIndex = 9
-        Me.lblIdleColor.Text = "空闲（灰色）"
-        '
-        'pnlIdleColor
-        '
-        Me.pnlIdleColor.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
-        Me.pnlIdleColor.Location = New System.Drawing.Point(112, 183)
-        Me.pnlIdleColor.Name = "pnlIdleColor"
-        Me.pnlIdleColor.Size = New System.Drawing.Size(42, 27)
-        Me.pnlIdleColor.TabIndex = 10
-        '
-        'txtIdleColor
-        '
-        Me.txtIdleColor.Location = New System.Drawing.Point(164, 186)
-        Me.txtIdleColor.Name = "txtIdleColor"
-        Me.txtIdleColor.ReadOnly = True
-        Me.txtIdleColor.Size = New System.Drawing.Size(100, 21)
-        Me.txtIdleColor.TabIndex = 11
-        Me.txtIdleColor.TextAlign = System.Windows.Forms.HorizontalAlignment.Center
-        '
-        'btnIdleColor
-        '
-        Me.btnIdleColor.Location = New System.Drawing.Point(278, 183)
-        Me.btnIdleColor.Name = "btnIdleColor"
-        Me.btnIdleColor.Size = New System.Drawing.Size(75, 27)
-        Me.btnIdleColor.TabIndex = 12
-        Me.btnIdleColor.Text = "选择颜色"
-        Me.btnIdleColor.UseVisualStyleBackColor = True
-        '
-        'lblResistanceNgColor
-        '
-        Me.lblResistanceNgColor.AutoSize = True
-        Me.lblResistanceNgColor.Location = New System.Drawing.Point(16, 247)
-        Me.lblResistanceNgColor.Name = "lblResistanceNgColor"
-        Me.lblResistanceNgColor.Size = New System.Drawing.Size(89, 12)
-        Me.lblResistanceNgColor.TabIndex = 13
-        Me.lblResistanceNgColor.Text = "内阻 NG（红色）"
-        '
-        'pnlResistanceNgColor
-        '
-        Me.pnlResistanceNgColor.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
-        Me.pnlResistanceNgColor.Location = New System.Drawing.Point(112, 238)
-        Me.pnlResistanceNgColor.Name = "pnlResistanceNgColor"
-        Me.pnlResistanceNgColor.Size = New System.Drawing.Size(42, 27)
-        Me.pnlResistanceNgColor.TabIndex = 14
-        '
-        'txtResistanceNgColor
-        '
-        Me.txtResistanceNgColor.Location = New System.Drawing.Point(164, 241)
-        Me.txtResistanceNgColor.Name = "txtResistanceNgColor"
-        Me.txtResistanceNgColor.ReadOnly = True
-        Me.txtResistanceNgColor.Size = New System.Drawing.Size(100, 21)
-        Me.txtResistanceNgColor.TabIndex = 15
-        Me.txtResistanceNgColor.TextAlign = System.Windows.Forms.HorizontalAlignment.Center
-        '
-        'btnResistanceNgColor
-        '
-        Me.btnResistanceNgColor.Location = New System.Drawing.Point(278, 238)
-        Me.btnResistanceNgColor.Name = "btnResistanceNgColor"
-        Me.btnResistanceNgColor.Size = New System.Drawing.Size(75, 27)
-        Me.btnResistanceNgColor.TabIndex = 16
-        Me.btnResistanceNgColor.Text = "选择颜色"
-        Me.btnResistanceNgColor.UseVisualStyleBackColor = True
-        '
-        'lblVoltageNgColor
-        '
-        Me.lblVoltageNgColor.AutoSize = True
-        Me.lblVoltageNgColor.Location = New System.Drawing.Point(16, 302)
-        Me.lblVoltageNgColor.Name = "lblVoltageNgColor"
-        Me.lblVoltageNgColor.Size = New System.Drawing.Size(89, 12)
-        Me.lblVoltageNgColor.TabIndex = 17
-        Me.lblVoltageNgColor.Text = "电压 NG（橘红色）"
-        '
-        'pnlVoltageNgColor
-        '
-        Me.pnlVoltageNgColor.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
-        Me.pnlVoltageNgColor.Location = New System.Drawing.Point(112, 293)
-        Me.pnlVoltageNgColor.Name = "pnlVoltageNgColor"
-        Me.pnlVoltageNgColor.Size = New System.Drawing.Size(42, 27)
-        Me.pnlVoltageNgColor.TabIndex = 18
-        '
-        'txtVoltageNgColor
-        '
-        Me.txtVoltageNgColor.Location = New System.Drawing.Point(164, 296)
-        Me.txtVoltageNgColor.Name = "txtVoltageNgColor"
-        Me.txtVoltageNgColor.ReadOnly = True
-        Me.txtVoltageNgColor.Size = New System.Drawing.Size(100, 21)
-        Me.txtVoltageNgColor.TabIndex = 19
-        Me.txtVoltageNgColor.TextAlign = System.Windows.Forms.HorizontalAlignment.Center
-        '
-        'btnVoltageNgColor
-        '
-        Me.btnVoltageNgColor.Location = New System.Drawing.Point(278, 293)
-        Me.btnVoltageNgColor.Name = "btnVoltageNgColor"
-        Me.btnVoltageNgColor.Size = New System.Drawing.Size(75, 27)
-        Me.btnVoltageNgColor.TabIndex = 20
-        Me.btnVoltageNgColor.Text = "选择颜色"
-        Me.btnVoltageNgColor.UseVisualStyleBackColor = True
-        '
-        'lblSelectedColor
-        '
-        Me.lblSelectedColor.AutoSize = True
-        Me.lblSelectedColor.Location = New System.Drawing.Point(16, 357)
-        Me.lblSelectedColor.Name = "lblSelectedColor"
-        Me.lblSelectedColor.Size = New System.Drawing.Size(89, 12)
-        Me.lblSelectedColor.TabIndex = 21
-        Me.lblSelectedColor.Text = "选定（铁灰色）"
-        '
-        'pnlSelectedColor
-        '
-        Me.pnlSelectedColor.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
-        Me.pnlSelectedColor.Location = New System.Drawing.Point(112, 348)
-        Me.pnlSelectedColor.Name = "pnlSelectedColor"
-        Me.pnlSelectedColor.Size = New System.Drawing.Size(42, 27)
-        Me.pnlSelectedColor.TabIndex = 22
-        '
-        'txtSelectedColor
-        '
-        Me.txtSelectedColor.Location = New System.Drawing.Point(164, 351)
-        Me.txtSelectedColor.Name = "txtSelectedColor"
-        Me.txtSelectedColor.ReadOnly = True
-        Me.txtSelectedColor.Size = New System.Drawing.Size(100, 21)
-        Me.txtSelectedColor.TabIndex = 23
-        Me.txtSelectedColor.TextAlign = System.Windows.Forms.HorizontalAlignment.Center
-        '
-        'btnSelectedColor
-        '
-        Me.btnSelectedColor.Location = New System.Drawing.Point(278, 348)
-        Me.btnSelectedColor.Name = "btnSelectedColor"
-        Me.btnSelectedColor.Size = New System.Drawing.Size(75, 27)
-        Me.btnSelectedColor.TabIndex = 24
-        Me.btnSelectedColor.Text = "选择颜色"
-        Me.btnSelectedColor.UseVisualStyleBackColor = True
-        '
         'btnResetChannelColors
         '
-        Me.btnResetChannelColors.Location = New System.Drawing.Point(248, 405)
+        Me.btnResetChannelColors.Location = New System.Drawing.Point(314, 438)
         Me.btnResetChannelColors.Name = "btnResetChannelColors"
         Me.btnResetChannelColors.Size = New System.Drawing.Size(105, 30)
         Me.btnResetChannelColors.TabIndex = 25
         Me.btnResetChannelColors.Text = "恢复默认"
         Me.btnResetChannelColors.UseVisualStyleBackColor = True
         '
+        'btnVoltageNgColor
+        '
+        Me.btnVoltageNgColor.Location = New System.Drawing.Point(344, 326)
+        Me.btnVoltageNgColor.Name = "btnVoltageNgColor"
+        Me.btnVoltageNgColor.Size = New System.Drawing.Size(75, 27)
+        Me.btnVoltageNgColor.TabIndex = 20
+        Me.btnVoltageNgColor.Text = "选择颜色"
+        Me.btnVoltageNgColor.UseVisualStyleBackColor = True
+        '
+        'txtVoltageNgColor
+        '
+        Me.txtVoltageNgColor.Location = New System.Drawing.Point(230, 329)
+        Me.txtVoltageNgColor.Name = "txtVoltageNgColor"
+        Me.txtVoltageNgColor.ReadOnly = True
+        Me.txtVoltageNgColor.Size = New System.Drawing.Size(100, 21)
+        Me.txtVoltageNgColor.TabIndex = 19
+        Me.txtVoltageNgColor.TextAlign = System.Windows.Forms.HorizontalAlignment.Center
+        '
+        'pnlVoltageNgColor
+        '
+        Me.pnlVoltageNgColor.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
+        Me.pnlVoltageNgColor.Location = New System.Drawing.Point(178, 326)
+        Me.pnlVoltageNgColor.Name = "pnlVoltageNgColor"
+        Me.pnlVoltageNgColor.Size = New System.Drawing.Size(42, 27)
+        Me.pnlVoltageNgColor.TabIndex = 18
+        '
+        'lblVoltageNgColor
+        '
+        Me.lblVoltageNgColor.AutoSize = True
+        Me.lblVoltageNgColor.Location = New System.Drawing.Point(82, 335)
+        Me.lblVoltageNgColor.Name = "lblVoltageNgColor"
+        Me.lblVoltageNgColor.Size = New System.Drawing.Size(107, 12)
+        Me.lblVoltageNgColor.TabIndex = 17
+        Me.lblVoltageNgColor.Text = "电压 NG（橘红色）"
+        '
+        'btnSelectedColor
+        '
+        Me.btnSelectedColor.Location = New System.Drawing.Point(344, 381)
+        Me.btnSelectedColor.Name = "btnSelectedColor"
+        Me.btnSelectedColor.Size = New System.Drawing.Size(75, 27)
+        Me.btnSelectedColor.TabIndex = 24
+        Me.btnSelectedColor.Text = "选择颜色"
+        Me.btnSelectedColor.UseVisualStyleBackColor = True
+        '
+        'txtSelectedColor
+        '
+        Me.txtSelectedColor.Location = New System.Drawing.Point(230, 384)
+        Me.txtSelectedColor.Name = "txtSelectedColor"
+        Me.txtSelectedColor.ReadOnly = True
+        Me.txtSelectedColor.Size = New System.Drawing.Size(100, 21)
+        Me.txtSelectedColor.TabIndex = 23
+        Me.txtSelectedColor.TextAlign = System.Windows.Forms.HorizontalAlignment.Center
+        '
+        'pnlSelectedColor
+        '
+        Me.pnlSelectedColor.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
+        Me.pnlSelectedColor.Location = New System.Drawing.Point(178, 381)
+        Me.pnlSelectedColor.Name = "pnlSelectedColor"
+        Me.pnlSelectedColor.Size = New System.Drawing.Size(42, 27)
+        Me.pnlSelectedColor.TabIndex = 22
+        '
+        'lblSelectedColor
+        '
+        Me.lblSelectedColor.AutoSize = True
+        Me.lblSelectedColor.Location = New System.Drawing.Point(82, 390)
+        Me.lblSelectedColor.Name = "lblSelectedColor"
+        Me.lblSelectedColor.Size = New System.Drawing.Size(89, 12)
+        Me.lblSelectedColor.TabIndex = 21
+        Me.lblSelectedColor.Text = "选定（铁灰色）"
+        '
+        'btnResistanceNgColor
+        '
+        Me.btnResistanceNgColor.Location = New System.Drawing.Point(344, 271)
+        Me.btnResistanceNgColor.Name = "btnResistanceNgColor"
+        Me.btnResistanceNgColor.Size = New System.Drawing.Size(75, 27)
+        Me.btnResistanceNgColor.TabIndex = 16
+        Me.btnResistanceNgColor.Text = "选择颜色"
+        Me.btnResistanceNgColor.UseVisualStyleBackColor = True
+        '
+        'txtResistanceNgColor
+        '
+        Me.txtResistanceNgColor.Location = New System.Drawing.Point(230, 274)
+        Me.txtResistanceNgColor.Name = "txtResistanceNgColor"
+        Me.txtResistanceNgColor.ReadOnly = True
+        Me.txtResistanceNgColor.Size = New System.Drawing.Size(100, 21)
+        Me.txtResistanceNgColor.TabIndex = 15
+        Me.txtResistanceNgColor.TextAlign = System.Windows.Forms.HorizontalAlignment.Center
+        '
+        'pnlResistanceNgColor
+        '
+        Me.pnlResistanceNgColor.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
+        Me.pnlResistanceNgColor.Location = New System.Drawing.Point(178, 271)
+        Me.pnlResistanceNgColor.Name = "pnlResistanceNgColor"
+        Me.pnlResistanceNgColor.Size = New System.Drawing.Size(42, 27)
+        Me.pnlResistanceNgColor.TabIndex = 14
+        '
+        'lblResistanceNgColor
+        '
+        Me.lblResistanceNgColor.AutoSize = True
+        Me.lblResistanceNgColor.Location = New System.Drawing.Point(82, 280)
+        Me.lblResistanceNgColor.Name = "lblResistanceNgColor"
+        Me.lblResistanceNgColor.Size = New System.Drawing.Size(95, 12)
+        Me.lblResistanceNgColor.TabIndex = 13
+        Me.lblResistanceNgColor.Text = "内阻 NG（红色）"
+        '
+        'btnIdleColor
+        '
+        Me.btnIdleColor.Location = New System.Drawing.Point(344, 216)
+        Me.btnIdleColor.Name = "btnIdleColor"
+        Me.btnIdleColor.Size = New System.Drawing.Size(75, 27)
+        Me.btnIdleColor.TabIndex = 12
+        Me.btnIdleColor.Text = "选择颜色"
+        Me.btnIdleColor.UseVisualStyleBackColor = True
+        '
+        'txtIdleColor
+        '
+        Me.txtIdleColor.Location = New System.Drawing.Point(230, 219)
+        Me.txtIdleColor.Name = "txtIdleColor"
+        Me.txtIdleColor.ReadOnly = True
+        Me.txtIdleColor.Size = New System.Drawing.Size(100, 21)
+        Me.txtIdleColor.TabIndex = 11
+        Me.txtIdleColor.TextAlign = System.Windows.Forms.HorizontalAlignment.Center
+        '
+        'pnlIdleColor
+        '
+        Me.pnlIdleColor.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
+        Me.pnlIdleColor.Location = New System.Drawing.Point(178, 216)
+        Me.pnlIdleColor.Name = "pnlIdleColor"
+        Me.pnlIdleColor.Size = New System.Drawing.Size(42, 27)
+        Me.pnlIdleColor.TabIndex = 10
+        '
+        'lblIdleColor
+        '
+        Me.lblIdleColor.AutoSize = True
+        Me.lblIdleColor.Location = New System.Drawing.Point(82, 225)
+        Me.lblIdleColor.Name = "lblIdleColor"
+        Me.lblIdleColor.Size = New System.Drawing.Size(77, 12)
+        Me.lblIdleColor.TabIndex = 9
+        Me.lblIdleColor.Text = "空闲（灰色）"
+        '
+        'btnTestingColor
+        '
+        Me.btnTestingColor.Location = New System.Drawing.Point(344, 161)
+        Me.btnTestingColor.Name = "btnTestingColor"
+        Me.btnTestingColor.Size = New System.Drawing.Size(75, 27)
+        Me.btnTestingColor.TabIndex = 8
+        Me.btnTestingColor.Text = "选择颜色"
+        Me.btnTestingColor.UseVisualStyleBackColor = True
+        '
+        'txtTestingColor
+        '
+        Me.txtTestingColor.Location = New System.Drawing.Point(230, 164)
+        Me.txtTestingColor.Name = "txtTestingColor"
+        Me.txtTestingColor.ReadOnly = True
+        Me.txtTestingColor.Size = New System.Drawing.Size(100, 21)
+        Me.txtTestingColor.TabIndex = 7
+        Me.txtTestingColor.TextAlign = System.Windows.Forms.HorizontalAlignment.Center
+        '
+        'pnlTestingColor
+        '
+        Me.pnlTestingColor.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
+        Me.pnlTestingColor.Location = New System.Drawing.Point(178, 161)
+        Me.pnlTestingColor.Name = "pnlTestingColor"
+        Me.pnlTestingColor.Size = New System.Drawing.Size(42, 27)
+        Me.pnlTestingColor.TabIndex = 6
+        '
+        'lblTestingColor
+        '
+        Me.lblTestingColor.AutoSize = True
+        Me.lblTestingColor.Location = New System.Drawing.Point(82, 170)
+        Me.lblTestingColor.Name = "lblTestingColor"
+        Me.lblTestingColor.Size = New System.Drawing.Size(89, 12)
+        Me.lblTestingColor.TabIndex = 5
+        Me.lblTestingColor.Text = "测试中（蓝色）"
+        '
+        'btnPassColor
+        '
+        Me.btnPassColor.Location = New System.Drawing.Point(344, 106)
+        Me.btnPassColor.Name = "btnPassColor"
+        Me.btnPassColor.Size = New System.Drawing.Size(75, 27)
+        Me.btnPassColor.TabIndex = 4
+        Me.btnPassColor.Text = "选择颜色"
+        Me.btnPassColor.UseVisualStyleBackColor = True
+        '
+        'txtPassColor
+        '
+        Me.txtPassColor.Location = New System.Drawing.Point(230, 109)
+        Me.txtPassColor.Name = "txtPassColor"
+        Me.txtPassColor.ReadOnly = True
+        Me.txtPassColor.Size = New System.Drawing.Size(100, 21)
+        Me.txtPassColor.TabIndex = 3
+        Me.txtPassColor.TextAlign = System.Windows.Forms.HorizontalAlignment.Center
+        '
+        'pnlPassColor
+        '
+        Me.pnlPassColor.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
+        Me.pnlPassColor.Location = New System.Drawing.Point(178, 106)
+        Me.pnlPassColor.Name = "pnlPassColor"
+        Me.pnlPassColor.Size = New System.Drawing.Size(42, 27)
+        Me.pnlPassColor.TabIndex = 2
+        '
+        'lblPassColor
+        '
+        Me.lblPassColor.AutoSize = True
+        Me.lblPassColor.Location = New System.Drawing.Point(82, 115)
+        Me.lblPassColor.Name = "lblPassColor"
+        Me.lblPassColor.Size = New System.Drawing.Size(77, 12)
+        Me.lblPassColor.TabIndex = 1
+        Me.lblPassColor.Text = "PASS（绿色）"
+        '
+        'lblChannelColorHint
+        '
+        Me.lblChannelColorHint.Location = New System.Drawing.Point(80, 57)
+        Me.lblChannelColorHint.Name = "lblChannelColorHint"
+        Me.lblChannelColorHint.Size = New System.Drawing.Size(338, 36)
+        Me.lblChannelColorHint.TabIndex = 0
+        Me.lblChannelColorHint.Text = "点击选择颜色修改通道格颜色，点击恢复默认恢复约定颜色。保存后应用到主页面和测试过程。"
+        '
         'CmdOK
-        Me.CmdOK.Location = New System.Drawing.Point(106, 621)
+        '
+        Me.CmdOK.Location = New System.Drawing.Point(171, 633)
         Me.CmdOK.Name = "CmdOK"
         Me.CmdOK.Size = New System.Drawing.Size(79, 34)
         Me.CmdOK.TabIndex = 1
@@ -1808,109 +1904,12 @@ Partial Class frmInit
         'Button1
         '
         Me.Button1.DialogResult = System.Windows.Forms.DialogResult.Cancel
-        Me.Button1.Location = New System.Drawing.Point(235, 621)
+        Me.Button1.Location = New System.Drawing.Point(300, 633)
         Me.Button1.Name = "Button1"
         Me.Button1.Size = New System.Drawing.Size(75, 34)
         Me.Button1.TabIndex = 2
         Me.Button1.Text = "取消"
         Me.Button1.UseVisualStyleBackColor = True
-        '
-        'GroupBox7
-        '
-        Me.GroupBox7.Controls.Add(Me.txtUser)
-        Me.GroupBox7.Controls.Add(Me.txtpwd)
-        Me.GroupBox7.Controls.Add(Me.Label7)
-        Me.GroupBox7.Controls.Add(Me.Label19)
-        Me.GroupBox7.Controls.Add(Me.txtDatabase)
-        Me.GroupBox7.Controls.Add(Me.Label18)
-        Me.GroupBox7.Location = New System.Drawing.Point(12, 70)
-        Me.GroupBox7.Name = "GroupBox7"
-        Me.GroupBox7.Size = New System.Drawing.Size(352, 141)
-        Me.GroupBox7.TabIndex = 8
-        Me.GroupBox7.TabStop = False
-        Me.GroupBox7.Text = "本地数据库设置"
-        '
-        'GB_MesDataBase
-        '
-        Me.GB_MesDataBase.Controls.Add(Me.TxtMesDatabaseName)
-        Me.GB_MesDataBase.Controls.Add(Me.TxtMesBaseUser)
-        Me.GB_MesDataBase.Controls.Add(Me.TxtMesBasePsw)
-        Me.GB_MesDataBase.Controls.Add(Me.Label42)
-        Me.GB_MesDataBase.Controls.Add(Me.Label43)
-        Me.GB_MesDataBase.Controls.Add(Me.Label52)
-        Me.GB_MesDataBase.Controls.Add(Me.txtMesDatabaseServerIP)
-        Me.GB_MesDataBase.Controls.Add(Me.Label50)
-        Me.GB_MesDataBase.Location = New System.Drawing.Point(12, 217)
-        Me.GB_MesDataBase.Name = "GB_MesDataBase"
-        Me.GB_MesDataBase.Size = New System.Drawing.Size(352, 142)
-        Me.GB_MesDataBase.TabIndex = 8
-        Me.GB_MesDataBase.TabStop = False
-        Me.GB_MesDataBase.Text = "Mes数据库设置"
-        '
-        'TxtMesBaseUser
-        '
-        Me.TxtMesBaseUser.Location = New System.Drawing.Point(100, 81)
-        Me.TxtMesBaseUser.Name = "TxtMesBaseUser"
-        Me.TxtMesBaseUser.Size = New System.Drawing.Size(206, 21)
-        Me.TxtMesBaseUser.TabIndex = 5
-        '
-        'TxtMesBasePsw
-        '
-        Me.TxtMesBasePsw.Location = New System.Drawing.Point(100, 109)
-        Me.TxtMesBasePsw.Name = "TxtMesBasePsw"
-        Me.TxtMesBasePsw.Size = New System.Drawing.Size(206, 21)
-        Me.TxtMesBasePsw.TabIndex = 7
-        Me.TxtMesBasePsw.UseSystemPasswordChar = True
-        '
-        'Label42
-        '
-        Me.Label42.AutoSize = True
-        Me.Label42.Location = New System.Drawing.Point(43, 29)
-        Me.Label42.Name = "Label42"
-        Me.Label42.Size = New System.Drawing.Size(53, 12)
-        Me.Label42.TabIndex = 1
-        Me.Label42.Text = "服务器IP"
-        '
-        'Label43
-        '
-        Me.Label43.AutoSize = True
-        Me.Label43.Location = New System.Drawing.Point(67, 113)
-        Me.Label43.Name = "Label43"
-        Me.Label43.Size = New System.Drawing.Size(29, 12)
-        Me.Label43.TabIndex = 6
-        Me.Label43.Text = "密码"
-        '
-        'txtMesDatabaseServerIP
-        '
-        Me.txtMesDatabaseServerIP.Location = New System.Drawing.Point(100, 25)
-        Me.txtMesDatabaseServerIP.Name = "txtMesDatabaseServerIP"
-        Me.txtMesDatabaseServerIP.Size = New System.Drawing.Size(206, 21)
-        Me.txtMesDatabaseServerIP.TabIndex = 2
-        '
-        'Label50
-        '
-        Me.Label50.AutoSize = True
-        Me.Label50.Location = New System.Drawing.Point(55, 85)
-        Me.Label50.Name = "Label50"
-        Me.Label50.Size = New System.Drawing.Size(41, 12)
-        Me.Label50.TabIndex = 4
-        Me.Label50.Text = "用户名"
-        '
-        'Label52
-        '
-        Me.Label52.AutoSize = True
-        Me.Label52.Location = New System.Drawing.Point(55, 57)
-        Me.Label52.Name = "Label52"
-        Me.Label52.Size = New System.Drawing.Size(41, 12)
-        Me.Label52.TabIndex = 4
-        Me.Label52.Text = "数据库"
-        '
-        'TxtMesDatabaseName
-        '
-        Me.TxtMesDatabaseName.Location = New System.Drawing.Point(100, 53)
-        Me.TxtMesDatabaseName.Name = "TxtMesDatabaseName"
-        Me.TxtMesDatabaseName.Size = New System.Drawing.Size(206, 21)
-        Me.TxtMesDatabaseName.TabIndex = 5
         '
         'frmInit
         '
@@ -1918,7 +1917,7 @@ Partial Class frmInit
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.None
         Me.BackColor = System.Drawing.Color.FromArgb(CType(CType(224, Byte), Integer), CType(CType(224, Byte), Integer), CType(CType(224, Byte), Integer))
         Me.CancelButton = Me.Button1
-        Me.ClientSize = New System.Drawing.Size(413, 693)
+        Me.ClientSize = New System.Drawing.Size(552, 693)
         Me.Controls.Add(Me.Button1)
         Me.Controls.Add(Me.CmdOK)
         Me.Controls.Add(Me.TabControl1)
@@ -1953,16 +1952,17 @@ Partial Class frmInit
         Me.GroupBox6.PerformLayout()
         Me.TabPage3.ResumeLayout(False)
         Me.TabPage3.PerformLayout()
+        Me.GB_MesDataBase.ResumeLayout(False)
+        Me.GB_MesDataBase.PerformLayout()
+        Me.GroupBox7.ResumeLayout(False)
+        Me.GroupBox7.PerformLayout()
         Me.TabPage4.ResumeLayout(False)
         Me.TabPage4.PerformLayout()
         Me.TabScmSet.ResumeLayout(False)
         Me.TabScmSet.PerformLayout()
-        Me.GroupBoxChannelColors.ResumeLayout(False)
         Me.TabPageChannelColors.ResumeLayout(False)
-        Me.GroupBox7.ResumeLayout(False)
-        Me.GroupBox7.PerformLayout()
-        Me.GB_MesDataBase.ResumeLayout(False)
-        Me.GB_MesDataBase.PerformLayout()
+        Me.GroupBoxChannelColors.ResumeLayout(False)
+        Me.GroupBoxChannelColors.PerformLayout()
         Me.ResumeLayout(False)
 
     End Sub

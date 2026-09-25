@@ -8,6 +8,7 @@ Public Interface IPlcAutomationClient
     Sub Close()
     Function ReadR150() As Boolean
     Function ReadR151() As Boolean
+    Function ReadR170() As Boolean
     Sub WriteR160()
     Sub WriteR161()
     Sub WriteChannelGrade(ByVal channelNumber As Integer, ByVal grade As Integer)
@@ -61,21 +62,25 @@ Friend Class PlcAutomationClient
         Return PlcAutomationProtocol.ParseSignal(SendAndReceive(PlcAutomationProtocol.WithCr(PlcAutomationProtocol.ReadR151Frame)))
     End Function
 
+    Public Function ReadR170() As Boolean Implements IPlcAutomationClient.ReadR170
+        Return PlcAutomationProtocol.ParseSignal(SendAndReceive(PlcAutomationProtocol.WithCr(PlcAutomationProtocol.ReadR170Frame)))
+    End Function
+
     Public Sub WriteR160() Implements IPlcAutomationClient.WriteR160
-        WriteAndRequireAck(PlcAutomationProtocol.WithCr(PlcAutomationProtocol.WriteR160Frame))
+        WriteAndRequireAck(PlcAutomationProtocol.WithCr(PlcAutomationProtocol.WriteR160Frame), "WC")
     End Sub
 
     Public Sub WriteR161() Implements IPlcAutomationClient.WriteR161
-        WriteAndRequireAck(PlcAutomationProtocol.WithCr(PlcAutomationProtocol.WriteR161Frame))
+        WriteAndRequireAck(PlcAutomationProtocol.WithCr(PlcAutomationProtocol.WriteR161Frame), "WC")
     End Sub
 
     Public Sub WriteChannelGrade(ByVal channelNumber As Integer, ByVal grade As Integer) Implements IPlcAutomationClient.WriteChannelGrade
-        WriteAndRequireAck(PlcAutomationProtocol.BuildDtGradeFrame(channelNumber, grade))
+        WriteAndRequireAck(PlcAutomationProtocol.BuildDtGradeFrame(channelNumber, grade), "WD")
     End Sub
 
-    Private Sub WriteAndRequireAck(ByVal frame As String)
+    Private Sub WriteAndRequireAck(ByVal frame As String, ByVal expectedCommand As String)
         Dim response As String = SendAndReceive(frame)
-        If Not PlcAutomationProtocol.IsWriteAcknowledged(response) Then
+        If Not PlcAutomationProtocol.IsWriteAcknowledged(response, expectedCommand) Then
             Throw New PlcProtocolException("PLC写入未收到有效响应。")
         End If
     End Sub

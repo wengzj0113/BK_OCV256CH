@@ -11,7 +11,7 @@ if ($frmTest -notmatch 'Private ReadOnly testingChannelNumbers As New HashSet\(O
 if ($frmTest -notmatch 'MarkSelectedChannelsTesting\(\)') {
     throw 'The normal test path does not mark selected channels as TESTING before SCM starts.'
 }
-if ($frmTest -notmatch 'End If\s*\r?\n\s*testingChannelNumbers\.Clear\(\)\s*\r?\n\s*RefreshChannelOverview\(\)\s*\r?\n\s*SaveOcvDataTestResults') {
+if ($frmTest -notmatch 'End If\s*\r?\n\s*testingChannelNumbers\.Clear\(\)\s*\r?\n\s*RefreshChannelOverview\(\)[\s\S]*?SaveOcvDataTestResults') {
     throw 'The test completion path does not refresh the final channel result after result assignment.'
 }
 $completionBlock = [regex]::Match($frmTest, "''刷新界面(?<body>[\s\S]*?)If testType = 1").Groups['body'].Value
@@ -35,8 +35,15 @@ if ($emptyTrayBlock -notmatch 'MsgBox\(') {
 if ($frmTest -notmatch 'strTrayNo = lastTrayNo[\s\S]*?MessageBox\.Show[\s\S]*?MessageBoxButtons\.OKCancel') {
     throw 'The repeated tray number confirmation must remain.'
 }
-if ($frmTest -notmatch 'intOCV[\s\S]*?MessageBox\.Show[\s\S]*?MessageBoxButtons\.OKCancel') {
-    throw 'The OCV confirmation must remain.'
+if ($frmTest -match '你确定本次是测试 OCV' -or $frmTest -match 'isAskOcvNum') {
+    throw 'Fixed OCV station must not ask the operator to confirm the test stage.'
+}
+if ($frmTest -notmatch 'If currentOCVNum < 1 OrElse currentOCVNum > 3 Then' -or $frmTest -notmatch 'ocvStationReady = True') {
+    throw 'Fixed OCV station readiness or invalid-stage check is missing.'
+}
+$statusUpload = Get-Content -LiteralPath (Join-Path $PSScriptRoot '..\StateAndStopReasonUpload.vb') -Raw
+if ($statusUpload -notmatch 'ElseIf ocvStationReady Then') {
+    throw 'Idle status no longer follows fixed station readiness.'
 }
 
 Write-Output 'PASS: test-time channel state and final-result refresh wiring are present.'

@@ -11,6 +11,8 @@ Public Enum PlcAutomaticTestState
     InitialTesting
     AutoRetesting
     Finalizing
+    WaitingNgSlotReady
+    WaitingR161Ack
     WaitingCycleReset
     Fault
 End Enum
@@ -18,21 +20,25 @@ End Enum
 Public Class AutomaticTestCycle
     Public Property TrayCode As String
     Public Property NeedNgRetest As Boolean
+    Public Property RequiresNgSorting As Boolean
     Public Property MaxRetestRounds As Integer
     Public Property CurrentRetestRound As Integer
     Public Property CurrentNgChannels As New HashSet(Of Integer)()
     Public Property WrittenNgChannels As New HashSet(Of Integer)()
     Public Property FinalResultPublished As Boolean
+    Public Property NgGradesWritten As Boolean
     Public Property R161Written As Boolean
 
     Public Sub Reset()
         TrayCode = String.Empty
         NeedNgRetest = False
+        RequiresNgSorting = False
         MaxRetestRounds = 0
         CurrentRetestRound = 0
         CurrentNgChannels.Clear()
         WrittenNgChannels.Clear()
         FinalResultPublished = False
+        NgGradesWritten = False
         R161Written = False
     End Sub
 End Class

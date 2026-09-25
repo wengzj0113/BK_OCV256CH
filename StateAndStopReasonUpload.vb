@@ -85,14 +85,14 @@ Public Class StateAndStopReasonUpload
     Private Function GetCurrentDeviceStatus() As Integer
         ' 真实设备状态码:
         ' 1 = 运行(测试中,isRuning=True)
-        ' 2 = 待机(空闲,isAskOcvNum=True 已扫码待开始)
+        ' 2 = 待机(固定OCV工位已配置且当前未测试)
         ' 3 = 停机(异常/超温/未连接)
         Try
             If alarmStatus Then
                 Return 3 '停机 - 有报警
             ElseIf isRuning Then
                 Return 1 '运行
-            ElseIf isAskOcvNum Then
+            ElseIf ocvStationReady Then
                 Return 2 '待机
             Else
                 Return 3 '停机

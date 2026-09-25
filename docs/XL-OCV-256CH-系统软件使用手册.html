@@ -160,12 +160,13 @@
         <table>
           <thead><tr><th>项目</th><th>自动模式</th><th>手动模式</th></tr></thead>
           <tbody>
+            <tr><td>OCV 阶段</td><td colspan="2">设备运行前固定设置 OCV0、OCV1 或 OCV2；测试启动时不再弹窗确认阶段，配置无效时禁止启动。</td></tr>
             <tr><td>启动方式</td><td>PLC 检测托盘到位并稳定后自动启动流程。</td><td>操作员点击“启动测试”。</td></tr>
             <tr><td>托盘码来源</td><td>扫码成功后写入 <code>txtTray</code>，再从控件读取。</td><td>操作员直接输入或粘贴到 <code>txtTray</code>。</td></tr>
-            <tr><td>电芯码加载</td><td>查询成功后保存到当前自动测试周期上下文。</td><td>查询成功并校验后写入测试执行缓存。</td></tr>
-            <tr><td>压合检查</td><td>未压合时进入等待；托盘离位则取消本轮。</td><td>未压合或 PLC 读取失败时弹框并停止。</td></tr>
+            <tr><td>电芯码加载</td><td>扫码后按托盘码重新查询。256 通道全测；空位只保留测量，不写正式电芯结果。</td><td>点击“启动测试”后按托盘码重新查询；所选通道必须都有电芯码。</td></tr>
+            <tr><td>压合检查</td><td>等待 R151 从低到高。</td><td>未压合或 PLC 读取失败时弹框并停止。</td></tr>
             <tr><td>正式测试</td><td>条件满足后自动调用一次 <code>StarTest(1)</code>。</td><td>前置检查全部成功后调用 <code>StarTest(1)</code>。</td></tr>
-            <tr><td>PLC 完成通知</td><td>本地保存成功后通知 PLC，等待 ACK。</td><td>手动测试不发送自动流程完成通知。</td></tr>
+            <tr><td>PLC 完成通知</td><td>OCV0 等待 R170，清零 DT 并写入最终 NG；OCV1、OCV2 跳过分选写入。三个阶段均在结果保存后发送 R161 并等待 ACK。</td><td>手动测试不发送自动流程完成通知。</td></tr>
             <tr><td>MES 上传</td><td colspan="2">均使用测试结果快照后台上传，不阻塞主测试流程。</td></tr>
           </tbody>
         </table>
@@ -216,12 +217,12 @@
           <li>在 <code>txtTray</code> 输入托盘码。</li>
           <li>点击“启动测试”。</li>
           <li>系统检查托盘码是否为空；为空时提示并结束。</li>
-          <li>系统按托盘码查询 1～256 节电芯条码，并完成完整性校验。</li>
+          <li>系统按托盘码重新查询电芯条码，校验所选通道均有有效电芯码。</li>
           <li>系统读取 PLC 托盘压合状态。</li>
           <li>确认压合后，将本次数据装载到测试执行缓存并调用 <code>StarTest(1)</code>。</li>
           <li>测试完成后保存结果，MES 上传在后台执行。</li>
         </ol>
-        <div class="callout danger"><strong>禁止事项：</strong>不能在未查询到电芯条码、条码不完整、PLC 无法读取或托盘未压合时继续测试，也不能使用上一托盘残留条码代替当前托盘数据。</div>
+        <div class="callout danger"><strong>禁止事项：</strong>所选通道缺少电芯码、PLC 无法读取或托盘未压合时不能继续测试；每次启动都会清除上一托盘的条码缓存。</div>
       </section>
 
       <section id="query">
@@ -258,12 +259,14 @@ StarTest(1)</pre>
         <div class="flow">
           <div class="step"><strong>测量完成</strong>生成 OK/NG 结果</div><span class="arrow">→</span>
           <div class="step"><strong>本地保存</strong>OCV_DATA / 本地文件</div><span class="arrow">→</span>
-          <div class="step"><strong>PLC 完成通知</strong>自动模式专用</div><span class="arrow">→</span>
+          <div class="step"><strong>仅 OCV0</strong>等 R170，清零 DT，再写最终 NG</div><span class="arrow">→</span>
+          <div class="step"><strong>PLC 完成通知</strong>发送 R161</div><span class="arrow">→</span>
           <div class="step"><strong>PLC ACK</strong>等待确认</div>
         </div>
         <p>MES 上传是旁路任务：</p>
         <pre>本地保存成功
-    ├── 自动模式：通知 PLC 测试完成，并等待 ACK
+    ├── 自动 OCV0：等待 R170=1，清零 DT，写入最终 NG，再发送 R161
+    ├── 自动 OCV1/OCV2：不访问分选 DT，直接发送 R161
     └── 后台：将不可变结果快照加入 MES 上传队列
 
 MES 上传失败 → 记录失败 → 使用同一任务快照和幂等键重试</pre>
@@ -272,10 +275,14 @@ MES 上传失败 → 记录失败 → 使用同一任务快照和幂等键重试
           <tbody>
             <tr><td>测量失败</td><td>不认定为完成，不通知 PLC 完成。</td></tr>
             <tr><td>本地保存失败</td><td>不通知 PLC 完成；保留任务信息，允许人工处理。</td></tr>
+            <tr><td>OCV0 且 R170=0</td><td>上一托盘仍在挑选；保存本轮结果并等待，不覆盖 DT，也不发送 R161。OCV1、OCV2 无需等待 R170。</td></tr>
             <tr><td>MES 上传失败</td><td>不阻塞已完成的本地流程和 PLC 放行，进入后台重试。</td></tr>
             <tr><td>PLC ACK 超时</td><td>不重新测量；按同一任务号/幂等键重发完成通知。</td></tr>
           </tbody>
         </table>
+        <p>实际托盘通道号从左到右逐行递增，PLC DT 地址从上到下逐列递增。通道号为 <code>ch</code> 时，行号为 <code>(ch - 1) \ 16</code>、列号为 <code>(ch - 1) Mod 16</code>，地址为 <code>DT(1001 + 列号 × 16 + 行号)</code>。例如 CH1→DT1001、CH16→DT1241、CH17→DT1002、CH241→DT1016、CH256→DT1256。</p>
+        <p>只有 OCV0 使用分选结果区。R170=1 表示上一托盘挑选完成且 DT 可写；程序先将 DT1001～DT1256 全部写为 0，再按映射写入本托盘最终 NG=2。全部写入确认后发送 R161，PLC 随后将 R170 变为 0。下一次交接必须观察到 R170 的 0→1 变化。OCV1、OCV2 不等待 R170，也不清零或写入分选 DT。</p>
+        <p>OCV0 等待 R170 期间，最终结果已保存到数据库和本地文件，自动周期不会启动第三个托盘。若此时程序意外退出，应由维护人员核对已保存的托盘结果和 PLC DT 内容后恢复生产；当前版本不会在重启后自动恢复未完成的 NG 交接。</p>
       </section>
 
       <section id="retest">

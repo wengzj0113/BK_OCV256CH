@@ -25,8 +25,9 @@ if ($designer -notmatch 'Me\.btnGetBarcode\.Text\s*=\s*"获取条码"') {
 if ($code -notmatch 'Handles\s+btnGetBarcode\.Click') {
     throw 'btnGetBarcode 未绑定点击事件。'
 }
-if ($code -notmatch 'GetTrayCellsByTrayCode\(trayCode\)') {
-    throw '获取条码按钮未调用 GetTrayCellsByTrayCode。'
+if ($code -notmatch 'PrepareTrayForTest\(trayCode, chkAutoTest.Checked\)' -or
+    $code -notmatch 'GetTrayCellsByTrayCode\(normalizedCode\)') {
+    throw '获取条码按钮未执行共用的托盘电芯码查询。'
 }
 if ($code -notmatch 'RecieveData\(item\.Key\s*-\s*1\)\.BatCode\s*=') {
     throw 'MES 查询结果未按物理通道写入 RecieveData。'

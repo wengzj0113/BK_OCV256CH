@@ -56,7 +56,7 @@ Module Module1
     Public send111 As String
     Public rec111 As String
     Public isRuning As Boolean
-    Public isAskOcvNum As Boolean
+    Public ocvStationReady As Boolean
     Public alarmStatus As Boolean = False
     Public retestArray As Int16() = New Int16(255) {}  '复测点位数组
     Public testArray As Int16() = New Int16(255) {}    '测试点位数组
