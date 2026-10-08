@@ -148,8 +148,16 @@ Partial Public Class FrmChannelCalibration
 #End If
 
     Private Sub FrmChannelCalibration_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+        If Not AuthorizationService.RequirePermission(AppPermission.CalibrateChannels, Me) Then
+            Close()
+            Return
+        End If
         LoadGrid()
     End Sub
+
+    Private Function EnsureCalibrationPermission() As Boolean
+        Return AuthorizationService.RequirePermission(AppPermission.CalibrateChannels, Me)
+    End Function
 
     Private Function CreateTextColumn(name As String, headerText As String, readOnlyColumn As Boolean) As DataGridViewTextBoxColumn
         Return New DataGridViewTextBoxColumn With {
@@ -264,20 +272,26 @@ Partial Public Class FrmChannelCalibration
     End Sub
 
     Private Sub btnReload_Click(sender As Object, e As EventArgs) Handles btnReload.Click
+        If Not EnsureCalibrationPermission() Then Return
         LoadGrid()
     End Sub
 
     Private Sub btnSave_Click(sender As Object, e As EventArgs) Handles btnSave.Click
+        If Not EnsureCalibrationPermission() Then Return
         Try
             Dim standardResistance As Double = GetStandardResistance()
             SaveCalibrationState(standardResistance)
+            Dim allChannels As List(Of Integer) = Enumerable.Range(0, CalibrationService.ChannelCount).ToList()
+            BusinessLogService.Write("校准", "成功", "保存校准值", "全部256通道", "已保存当前通道校准补偿值。", BuildCalibrationGridDetails(allChannels, standardResistance), "通道校准")
             lblStatus.Text = T("{0}{1}", W(&H6821, &H51C6, &H503C, &H548C), W(&H6807, &H51C6, &H963B, &H503C, &H5DF2, &H4FDD, &H5B58))
         Catch ex As Exception
+            BusinessLogService.Write("校准", "失败", "保存校准值", "全部256通道", "校准值保存失败。", ex.Message, "通道校准")
             MessageBox.Show(ex.Message, W(&H4FDD, &H5B58, &H5931, &H8D25), MessageBoxButtons.OK, MessageBoxIcon.Error)
         End Try
     End Sub
 
     Private Sub btnClear_Click(sender As Object, e As EventArgs) Handles btnClear.Click
+        If Not EnsureCalibrationPermission() Then Return
         If MessageBox.Show(T("{0}256{1}?", W(&H786E, &H5B9A, &H6E05, &H96F6), W(&H4E2A, &H901A, &H9053, &H7684, &H6821, &H51C6, &H8865, &H507F, &H503C)),
                            W(&H786E, &H8BA4, &H6E05, &H96F6),
                            MessageBoxButtons.YesNo,
@@ -293,10 +307,12 @@ Partial Public Class FrmChannelCalibration
             grid.Rows(i).Cells("CalibratedAt").Value = ""
             grid.Rows(i).Cells("Status").Value = W(&H5DF2, &H6E05, &H96F6)
         Next
+        BusinessLogService.Write("校准", "成功", "清零校准值", "全部256通道", "已将界面中的校准补偿值清零，待保存后生效。", "清零操作尚未保存至 OCV_DATA。", "通道校准")
         lblStatus.Text = T("{0}{1}", W(&H5DF2, &H6E05, &H96F6), W(&HFF0C, &H70B9, &H51FB, &H4FDD, &H5B58, &H540E, &H751F, &H6548))
     End Sub
 
     Private Sub btnSelectRange_Click(sender As Object, e As EventArgs) Handles btnSelectRange.Click
+        If Not EnsureCalibrationPermission() Then Return
         Try
             Dim startChannel As Integer = GetChannelNumber(txtStartChannel, W(&H8D77, &H59CB, &H901A, &H9053))
             Dim endChannel As Integer = GetChannelNumber(txtEndChannel, W(&H7ED3, &H675F, &H901A, &H9053))
@@ -314,6 +330,7 @@ Partial Public Class FrmChannelCalibration
     End Sub
 
     Private Sub btnSelectAll_Click(sender As Object, e As EventArgs) Handles btnSelectAll.Click
+        If Not EnsureCalibrationPermission() Then Return
         For i As Integer = 0 To CalibrationService.ChannelCount - 1
             SetChannelChecked(i, True)
         Next
@@ -321,6 +338,7 @@ Partial Public Class FrmChannelCalibration
     End Sub
 
     Private Sub btnClearSelection_Click(sender As Object, e As EventArgs) Handles btnClearSelection.Click
+        If Not EnsureCalibrationPermission() Then Return
         For i As Integer = 0 To CalibrationService.ChannelCount - 1
             SetChannelChecked(i, False)
         Next
@@ -328,9 +346,12 @@ Partial Public Class FrmChannelCalibration
     End Sub
 
     Private Sub btnCalibrateSelected_Click(sender As Object, e As EventArgs) Handles btnCalibrateSelected.Click
+        If Not EnsureCalibrationPermission() Then Return
+        Dim channelIndexes As List(Of Integer) = Nothing
+        Dim standardResistance As Double = 0
         Try
-            Dim standardResistance As Double = GetStandardResistance()
-            Dim channelIndexes As List(Of Integer) = GetCheckedChannelIndexes()
+            standardResistance = GetStandardResistance()
+            channelIndexes = GetCheckedChannelIndexes()
             If channelIndexes.Count = 0 Then
                 If grid.CurrentRow Is Nothing Then
                     Throw New InvalidOperationException(W(&H8BF7, &H9009, &H62E9, &H901A, &H9053))
@@ -342,11 +363,18 @@ Partial Public Class FrmChannelCalibration
             If channelIndexes.Count = 1 Then
                 CalibrateOneRow(channelIndexes(0), standardResistance, False)
                 SaveCalibrationState(standardResistance)
+                BusinessLogService.Write("校准", "成功", "校准并保存单通道", "通道 " & (channelIndexes(0) + 1).ToString(CultureInfo.InvariantCulture), "单通道校准完成并已保存。", BuildCalibrationGridDetails(channelIndexes, standardResistance), "通道校准")
                 lblStatus.Text = T("{0}{1}", W(&H5355, &H901A, &H9053, &H6821, &H51C6, &H5B8C, &H6210), W(&HFF0C, &H5DF2, &H81EA, &H52A8, &H4FDD, &H5B58))
             Else
                 RunBatchCalibration(channelIndexes, standardResistance)
             End If
         Catch ex As Exception
+            Dim failedTarget As String = If(channelIndexes Is Nothing OrElse channelIndexes.Count = 0, "所选通道", String.Join(", ", channelIndexes.Select(Function(index) (index + 1).ToString(CultureInfo.InvariantCulture))))
+            Dim failureDetails As String = ex.Message & If(standardResistance > 0, "；标准电阻=" & standardResistance.ToString("0.000", CultureInfo.InvariantCulture) & " mΩ", "")
+            If channelIndexes IsNot Nothing AndAlso channelIndexes.All(Function(index) index >= 0 AndAlso index < grid.Rows.Count) Then
+                failureDetails &= Environment.NewLine & BuildCalibrationGridDetails(channelIndexes, standardResistance)
+            End If
+            BusinessLogService.Write("校准", "失败", "执行校准", failedTarget, "校准操作失败。", failureDetails, "通道校准")
             MessageBox.Show(ex.Message, W(&H6821, &H51C6, &H5931, &H8D25), MessageBoxButtons.OK, MessageBoxIcon.Error)
         End Try
     End Sub
@@ -379,6 +407,7 @@ Partial Public Class FrmChannelCalibration
         SetCalibrationButtonsEnabled(False)
         progress.Maximum = channelIndexes.Count
         progress.Value = 0
+        Dim results As List(Of ChannelCalibrationResult) = Nothing
 
         Try
             For Each channelIndex0 As Integer In channelIndexes
@@ -386,7 +415,7 @@ Partial Public Class FrmChannelCalibration
             Next
             Application.DoEvents()
 
-            Dim results As List(Of ChannelCalibrationResult) = runner.CalibrateChannels(channelIndexes, standardResistance)
+            results = runner.CalibrateChannels(channelIndexes, standardResistance)
             For i As Integer = 0 To results.Count - 1
                 If stopRequested Then
                     Exit For
@@ -402,9 +431,13 @@ Partial Public Class FrmChannelCalibration
         End Try
 
         If stopRequested Then
+            BusinessLogService.Write("校准", "失败", "停止批量校准", BuildCalibrationTarget(channelIndexes), "批量校准已停止。", BuildCalibrationResultDetails(results, standardResistance), "通道校准")
             lblStatus.Text = W(&H6279, &H91CF, &H6821, &H51C6, &H5DF2, &H505C, &H6B62)
         Else
             SaveCalibrationState(standardResistance)
+            Dim succeeded As Integer = results.Where(Function(result) result.Success).Count()
+            Dim failed As Integer = results.Count - succeeded
+            BusinessLogService.Write("校准", If(failed = 0, "成功", "失败"), "批量校准并保存", BuildCalibrationTarget(channelIndexes), String.Format(CultureInfo.InvariantCulture, "批量校准完成：成功 {0} 通道，失败 {1} 通道。", succeeded, failed), BuildCalibrationResultDetails(results, standardResistance), "通道校准")
             lblStatus.Text = T("{0}{1}", W(&H6279, &H91CF, &H6821, &H51C6, &H5B8C, &H6210), W(&HFF0C, &H5DF2, &H81EA, &H52A8, &H4FDD, &H5B58))
         End If
         progress.Maximum = CalibrationService.ChannelCount
@@ -454,6 +487,46 @@ Partial Public Class FrmChannelCalibration
             grid.Rows(channelIndex0).Cells("CurrentValue").Value = result.Compensation.ToString(CultureInfo.InvariantCulture)
         End If
     End Sub
+
+    Private Function BuildCalibrationTarget(channelIndexes As IEnumerable(Of Integer)) As String
+        Dim channels As List(Of Integer) = channelIndexes.Select(Function(index) index + 1).OrderBy(Function(channel) channel).ToList()
+        If channels.Count = 0 Then Return "无通道"
+        If channels.Count = CalibrationService.ChannelCount Then Return "全部256通道"
+        Return String.Format(CultureInfo.InvariantCulture, "通道 {0}-{1}（共{2}个）", channels(0), channels(channels.Count - 1), channels.Count)
+    End Function
+
+    Private Function BuildCalibrationGridDetails(channelIndexes As IEnumerable(Of Integer), standardResistance As Double) As String
+        Dim lines As New StringBuilder()
+        lines.AppendLine("标准电阻：" & standardResistance.ToString("0.000", CultureInfo.InvariantCulture) & " mΩ")
+        For Each channelIndex0 As Integer In channelIndexes.OrderBy(Function(index) index)
+            Dim row As DataGridViewRow = grid.Rows(channelIndex0)
+            lines.AppendLine(String.Format(CultureInfo.InvariantCulture,
+                                           "通道 {0}: 测量={1}; 标准={2}; 补偿={3}; 状态={4}",
+                                           channelIndex0 + 1,
+                                           Convert.ToString(row.Cells("Measured").Value, CultureInfo.InvariantCulture),
+                                           Convert.ToString(row.Cells("Standard").Value, CultureInfo.InvariantCulture),
+                                           Convert.ToString(row.Cells("Compensation").Value, CultureInfo.InvariantCulture),
+                                           Convert.ToString(row.Cells("Status").Value, CultureInfo.CurrentCulture)))
+        Next
+        Return lines.ToString()
+    End Function
+
+    Private Function BuildCalibrationResultDetails(results As IEnumerable(Of ChannelCalibrationResult), standardResistance As Double) As String
+        Dim lines As New StringBuilder()
+        lines.AppendLine("标准电阻：" & standardResistance.ToString("0.000", CultureInfo.InvariantCulture) & " mΩ")
+        If results Is Nothing Then Return lines.ToString()
+        For Each result As ChannelCalibrationResult In results.OrderBy(Function(item) item.ChannelIndex0)
+            lines.AppendLine(String.Format(CultureInfo.InvariantCulture,
+                                           "通道 {0}: 测量={1:0.000} mΩ; 标准={2:0.000} mΩ; 补偿={3:0.000} mΩ; 结果={4}{5}",
+                                           result.ChannelIndex0 + 1,
+                                           result.MeasuredResistance,
+                                           result.StandardResistance,
+                                           result.Compensation,
+                                           If(result.Success, "成功", "失败"),
+                                           If(String.IsNullOrWhiteSpace(result.Message), "", "；" & result.Message)))
+        Next
+        Return lines.ToString()
+    End Function
 
     Private Function BuildPlanSummary(channelIndexes As IList(Of Integer)) As String
         Dim g1 As New List(Of Integer)()

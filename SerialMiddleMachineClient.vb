@@ -184,7 +184,7 @@ Public Class SerialMiddleMachineClient
             serialPort.PortName = "COM" & (Initsetting.SCMComPort + 1).ToString()
         End If
 
-        serialPort.BaudRate = If(Initsetting.SCMComRate > 0, Initsetting.SCMComRate, 115200)
+        serialPort.BaudRate = DefaultScmBaudRate
         serialPort.Parity = Parity.None
         serialPort.DataBits = 8
         serialPort.StopBits = StopBits.One
@@ -269,13 +269,18 @@ Public Class SerialMiddleMachineClient
         WriteRegister(RegStartStop, &H1)
     End Sub
 
-    Public Function RunPlan(plan As MiddleMachineChannelPlan, Optional timeoutMs As Integer = DefaultTestTimeoutMs) As UShort
+    Public Function RunPlan(plan As MiddleMachineChannelPlan,
+                             Optional timeoutMs As Integer = DefaultTestTimeoutMs,
+                             Optional speedValue As UShort = 3,
+                             Optional cancellationRequested As Func(Of Boolean) = Nothing) As UShort
         TraceMessage("RunPlan: " & DescribePlan(plan))
+        ThrowIfCancellationRequested(cancellationRequested)
         EnsureOpen()
         serialPort.DiscardInBuffer()
-        ConfigurePlan(plan, CUShort(3))
+        ConfigurePlan(plan, speedValue)
+        ThrowIfCancellationRequested(cancellationRequested)
         StartTest()
-        Return WaitForCompletion(timeoutMs)
+        Return WaitForCompletion(timeoutMs, cancellationRequested)
     End Function
 
     Public Sub ConfigurePlan(plan As MiddleMachineChannelPlan, speedValue As UShort)
@@ -296,10 +301,9 @@ Public Class SerialMiddleMachineClient
         ResetToDefaults()
         WriteRegister(RegSpeed, speedValue)
 
-        '两组都参与测试时才需要两遍交叉：第一遍 G1 测内阻/G2 测电压，
-        '第二遍交换仪表。单组测试（包括 NG 复测）若继续使用两遍，
-        '同一批通道会被触发两次，导致仪表缓存记录数翻倍。
-        Dim twoPassValue As UShort = If(hasG1 AndAlso hasG2, CUShort(0), CUShort(1))
+        '正式测试始终需要两遍：分别采集内阻和电压。
+        '单组时两遍由同一组执行，3562 会缓存两遍记录；读取层按实际内阻遍次回填。
+        Dim twoPassValue As UShort = CUShort(0)
         WriteRegister(RegTwoPass, twoPassValue)
 
         Dim synchronizedPlan As Boolean = IsSynchronizedPlan(plan)
@@ -615,9 +619,11 @@ Public Class SerialMiddleMachineClient
         Return values
     End Function
 
-    Public Function WaitForCompletion(timeoutMs As Integer) As UShort
+    Public Function WaitForCompletion(timeoutMs As Integer,
+                                      Optional cancellationRequested As Func(Of Boolean) = Nothing) As UShort
         Dim deadline As DateTime = DateTime.Now.AddMilliseconds(timeoutMs)
         Do
+            ThrowIfCancellationRequested(cancellationRequested)
             Dim remaining As Integer = CInt(Math.Max(1, (deadline - DateTime.Now).TotalMilliseconds))
             Dim frame As Byte() = ReadSpecificResponse(CommandEvent, 8, Math.Min(remaining, 1000))
             If frame IsNot Nothing Then
@@ -626,6 +632,8 @@ Public Class SerialMiddleMachineClient
                 Dim status As UShort = CUShort((CUShort(frame(4)) << 8) Or frame(5))
                 If registerAddress = StatusEventRegister Then
                     If status = StatusCompleted Then
+                        Application.DoEvents()
+                        ThrowIfCancellationRequested(cancellationRequested)
                         ReadBasicStatusRegisters()
                         TraceMessage("EVENT STATUS COMPLETED 0x0006")
                         Return status
@@ -641,6 +649,7 @@ Public Class SerialMiddleMachineClient
                 End If
             End If
             Application.DoEvents()
+            ThrowIfCancellationRequested(cancellationRequested)
         Loop While DateTime.Now < deadline
 
         Try
@@ -650,6 +659,17 @@ Public Class SerialMiddleMachineClient
         TraceMessage("RX EVENT TIMEOUT")
         Throw New TimeoutException("Timed out waiting for middle machine test completion.")
     End Function
+
+    Private Sub ThrowIfCancellationRequested(cancellationRequested As Func(Of Boolean))
+        If cancellationRequested Is Nothing OrElse Not cancellationRequested() Then Return
+        Try
+            StopAndClearLists()
+        Catch ex As Exception
+            TraceMessage("Operator stop cleanup warning: " & ex.Message)
+        End Try
+        TraceMessage("Test cancelled by operator")
+        Throw New OperationCanceledException("测试已由操作员停止。")
+    End Sub
 
     Public Shared Function DescribePlan(plan As MiddleMachineChannelPlan) As String
         If plan Is Nothing Then
@@ -769,16 +789,15 @@ Public Class SerialMiddleMachineClient
 
         ExpectRegister(advanced, RegG1PlanMode, RegSyncMode, If(IsSynchronizedPlan(plan), CUShort(0), CUShort(1)))
         ExpectRegister(basic, RegG1Start, RegSpeed, speedValue)
-        Dim expectedTwoPass As UShort = If(hasG1 AndAlso hasG2, CUShort(0), CUShort(1))
+        Dim expectedTwoPass As UShort = CUShort(0)
         ExpectRegister(basic, RegG1Start, RegTwoPass, expectedTwoPass)
         ExpectRegister(advanced, RegG1PlanMode, RegGroupEnable, GetGroupEnableValue(hasG1, hasG2))
 
         If hasG1 Then
             VerifyGroup(plan.G1PhysicalChannels, False, basic, advanced)
         End If
+        ' 同步模式下 G2 跟随 G1，其独立范围寄存器不会单独配置。
         If hasG2 AndAlso Not IsSynchronizedPlan(plan) Then
-            VerifyGroup(ToG2LocalChannels(plan.G2PhysicalChannels), True, basic, advanced)
-        ElseIf hasG2 Then
             VerifyGroup(ToG2LocalChannels(plan.G2PhysicalChannels), True, basic, advanced)
         End If
     End Sub

@@ -4,11 +4,18 @@
 
 应用运行时已经不再访问 `CWSQL`，统一通过 `OcvDataService` 使用 `OCV_DATA`。旧库迁移脚本已移至 `docs/archive/legacy-cwsql`，仅作为历史记录保留，不属于正常启动或测试流程。
 
+## SQL Server 2008 R2 新电脑部署
+
+- 在目标实例尚无 `OCV_DATA` 数据库时，使用仓库根目录的 `OCV_DATA_SQLServer2008R2.sql`，在 SSMS 中连接目标实例后打开并执行整份脚本。脚本包含兼容的表和存储过程、已存在 `xlsuper`/`cwsuper` 登录的数据库映射、OCV 阶段与等级字段种子数据，以及最后的健康检查。
+- 使用具有建库和建对象权限的账号执行。脚本末尾的健康检查应全部返回 `IsOk = 1`。
+- 该安装脚本不复制旧库里的托盘、测试结果等业务历史记录；这些记录需要另行迁移。
+- 已经有 `OCV_DATA` 数据库但缺少基线种子的实例，使用 `011_seed_ocv_data_sqlserver2008r2_baseline.sql`；不要重跑会创建数据库和表的完整安装脚本。
+
 ## 业务部署运行顺序(必须按顺序执行)
 
 1. `000_init_database.sql` — 创建 OCV_DATA 数据库,设置兼容级别(150 = SQL Server 2019)、恢复模式(SIMPLE)、启用 Query Store。需要 sysadmin 权限。幂等,已存在则跳过 CREATE DATABASE。
 2. `001_create_ocv_data_schema.sql` — 创建所有表、索引、约束、视图、用户定义表类型(17 张表 + 1 视图 + 2 UDDT)、种子数据(OcvStage / GradeSelectableField)。幂等,缺失对象才创建。
-3. `002_create_core_procedures.sql` — 创建所有存储过程(`usp_RegisterTray` / `usp_CreateTestTask` / `usp_SaveTestResults` / `usp_CompleteTestTask` / `usp_GetActiveCalibrationValues` / `usp_SaveChannelCalibration` / `usp_EnqueueUpload` / `usp_GetPendingUploads` / `usp_MarkUploadSent` / `usp_MarkUploadFailed` / `usp_SaveMesUploadLog` / `usp_GetTrayListByDate` / `usp_GetTrayLatestStageResults` / `usp_CheckDatabaseHealth` / `usp_GetSchemaVersion` 等)。幂等,使用 `CREATE OR ALTER`。
+3. `002_create_core_procedures.sql` — 创建所有存储过程(`usp_RegisterTray` / `usp_CreateTestTask` / `usp_SaveTestResults` / `usp_CompleteTestTask` / `usp_GetActiveCalibrationValues` / `usp_SaveChannelCalibration` / `usp_EnqueueUpload` / `usp_GetPendingUploads` / `usp_MarkUploadSent` / `usp_MarkUploadFailed` / `usp_SaveMesUploadLog` / `usp_GetTrayListByDate` / `usp_GetTrayLatestStageResults` / `usp_GetNgRetestSourceByBatteryCode` / `usp_CheckDatabaseHealth` / `usp_GetSchemaVersion` 等)。幂等,使用 `CREATE OR ALTER`。
 
 ## 业务数据迁移(R2-15,旧 CWSQL → 新 OCV_DATA)
 
@@ -20,6 +27,17 @@
 ## 迁移后验证
 
 6. `008_post_migration_health_check.sql` — 8 项检查:SchemaVersion 完整性、必备存储过程、关键表行数、OcvStage 种子数据、迁移标识、索引、视图、`usp_CheckDatabaseHealth` 综合检查。**所有检查通过后才能切换应用连接**。
+
+## SQL Server 2008 R2 完整导出脚本
+
+- `011_seed_ocv_data_sqlserver2008r2_baseline.sql` — 在 `OCV_DATA_SQLServer2008R2.sql` 成功创建表和存储过程后运行。该兼容脚本补齐导出文件不包含的 OCV0/OCV1/OCV2 阶段、等级字段及 001/002 版本记录，并在末尾执行数据库健康检查。可重复运行。
+- `012_debug_mode_result_queries_sqlserver2008r2.sql` — 在已部署的 SQL Server 2008 R2 `OCV_DATA` 上安装调试/生产结果隔离查询和 NG 来源过滤。该脚本只重建两个存储过程，不改表和业务数据；将调试模式应用版本部署到已有 2008 R2 数据库前必须运行。全新部署仍使用根目录完整安装脚本，该脚本也包含相同过程定义。
+
+## 调试模式查询部署
+
+- SQL Server 2016 SP1 或更高版本的 `OCV_DATA`：重新运行 `002_create_core_procedures.sql`，然后运行 `008_post_migration_health_check.sql`。
+- SQL Server 2008 R2 的既有 `OCV_DATA`：运行 `012_debug_mode_result_queries_sqlserver2008r2.sql`。根目录完整安装脚本已同步更新，后续新建数据库无需另外运行 012。
+- 不需要增加字段或改写历史任务/结果行。生产最新结果查询和 NG 复测来源查询会排除 `TestType='Debug'`；调试结果查询显式选择调试任务。
 
 ## 诊断与辅助脚本(独立运行,无顺序)
 

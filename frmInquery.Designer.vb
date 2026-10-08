@@ -25,6 +25,7 @@ Partial Class frmInquery
         Dim resources As System.ComponentModel.ComponentResourceManager = New System.ComponentModel.ComponentResourceManager(GetType(frmInquery))
         Me.GroupBox1 = New System.Windows.Forms.GroupBox()
         Me.DateTimePicker1 = New System.Windows.Forms.DateTimePicker()
+        Me.chkDebugResults = New System.Windows.Forms.CheckBox()
         Me.btnInquery = New System.Windows.Forms.Button()
         Me.lstTray = New System.Windows.Forms.ListBox()
         Me.txtTray = New System.Windows.Forms.TextBox()
@@ -78,6 +79,7 @@ Partial Class frmInquery
         '
         Me.GroupBox1.BackColor = System.Drawing.Color.FromArgb(CType(CType(192, Byte), Integer), CType(CType(255, Byte), Integer), CType(CType(192, Byte), Integer))
         Me.GroupBox1.Controls.Add(Me.DateTimePicker1)
+        Me.GroupBox1.Controls.Add(Me.chkDebugResults)
         Me.GroupBox1.Controls.Add(Me.btnInquery)
         Me.GroupBox1.Controls.Add(Me.lstTray)
         Me.GroupBox1.Controls.Add(Me.txtTray)
@@ -94,8 +96,18 @@ Partial Class frmInquery
         '
         Me.DateTimePicker1.Location = New System.Drawing.Point(57, 50)
         Me.DateTimePicker1.Name = "DateTimePicker1"
-        Me.DateTimePicker1.Size = New System.Drawing.Size(200, 21)
+        Me.DateTimePicker1.Size = New System.Drawing.Size(136, 21)
         Me.DateTimePicker1.TabIndex = 5
+        '
+        'chkDebugResults
+        '
+        Me.chkDebugResults.AutoSize = True
+        Me.chkDebugResults.Location = New System.Drawing.Point(198, 53)
+        Me.chkDebugResults.Name = "chkDebugResults"
+        Me.chkDebugResults.Size = New System.Drawing.Size(72, 16)
+        Me.chkDebugResults.TabIndex = 6
+        Me.chkDebugResults.Text = "调试结果"
+        Me.chkDebugResults.UseVisualStyleBackColor = True
         '
         'btnInquery
         '
@@ -529,5 +541,6 @@ Partial Class frmInquery
     Friend WithEvents Column9 As DataGridViewTextBoxColumn
     Friend WithEvents Column13 As DataGridViewTextBoxColumn
     Friend WithEvents DateTimePicker1 As DateTimePicker
+    Friend WithEvents chkDebugResults As CheckBox
     Friend WithEvents Label4 As Label
 End Class

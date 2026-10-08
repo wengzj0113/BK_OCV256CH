@@ -80,7 +80,7 @@ Partial Class MDIForm
         '
         'FileMenu
         '
-        Me.FileMenu.DropDownItems.AddRange(New System.Windows.Forms.ToolStripItem() {Me.init, Me.btnDebug, Me.userMenage, Me.ExitTool})
+        Me.FileMenu.DropDownItems.AddRange(New System.Windows.Forms.ToolStripItem() {Me.init, Me.btnDebug, Me.userMenage, Me.TlStripMenuLog, Me.ExitTool})
         Me.FileMenu.ImageTransparentColor = System.Drawing.SystemColors.ActiveBorder
         Me.FileMenu.Name = "FileMenu"
         Me.FileMenu.ShortcutKeys = CType((System.Windows.Forms.Keys.Control Or System.Windows.Forms.Keys.I), System.Windows.Forms.Keys)
@@ -157,7 +157,7 @@ Partial Class MDIForm
         '
         'TStripMenuInQuery
         '
-        Me.TStripMenuInQuery.DropDownItems.AddRange(New System.Windows.Forms.ToolStripItem() {Me.TlStripMenuG, Me.TlStripMenuLog})
+        Me.TStripMenuInQuery.DropDownItems.AddRange(New System.Windows.Forms.ToolStripItem() {Me.TlStripMenuG})
         Me.TStripMenuInQuery.Name = "TStripMenuInQuery"
         Me.TStripMenuInQuery.Size = New System.Drawing.Size(54, 25)
         Me.TStripMenuInQuery.Text = "查询"
@@ -174,7 +174,7 @@ Partial Class MDIForm
         '
         Me.TlStripMenuLog.Name = "TlStripMenuLog"
         Me.TlStripMenuLog.Size = New System.Drawing.Size(231, 26)
-        Me.TlStripMenuLog.Text = "日志查询"
+        Me.TlStripMenuLog.Text = "日志管理"
         '
         'EMS上传ToolStripMenuItem
         '

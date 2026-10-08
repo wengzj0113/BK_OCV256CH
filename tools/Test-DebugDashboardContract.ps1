@@ -20,13 +20,30 @@ $dashboard = Get-Content -LiteralPath (Join-Path $root 'DebugDashboardControl.vb
 $hostSource = Get-Content -LiteralPath (Join-Path $root 'frmDebug.vb') -Raw
 $project = Get-Content -LiteralPath (Join-Path $root 'MP-60A-RV-64Mem.vbproj') -Raw
 
+if ($models -notmatch 'Retest3562') { throw 'Missing separate NG retest 3562 device model.' }
+if ($probe -notmatch 'scannerPort\.Write\("start"\)' -or $probe -notmatch 'scannerPort\.ReadExisting\(\)') {
+    throw 'Scanner probe must trigger a scan and read the returned tray code.'
+}
+if ($probe -notmatch 'Retest3562Service' -or $probe -notmatch '\.Measure\(\)') {
+    throw 'NG retest 3562 probe must perform a measurement.'
+}
+if ($probe -notmatch 'MEAS:VOLT:DC\?' -or $probe -notmatch 'TRIG:SOUR IMM' -or $probe -notmatch ':FETC\?') {
+    throw '34461A and main 3562 probes must perform single measurements.'
+}
+if ($dashboard -notmatch 'DebugDeviceId\.Retest3562') {
+    throw 'Dashboard must expose a separate NG retest 3562 card.'
+}
+if ($hostSource -notmatch 'DebugDeviceId\.Retest3562') {
+    throw 'One-click device check must include the NG retest 3562.'
+}
+
 @(
     @{ Text = $models; Pattern = 'Public Enum DebugDeviceId'; Name = 'device model enum' },
     @{ Text = $models; Pattern = 'Public Class DebugDeviceResult'; Name = 'device result model' },
     @{ Text = $probe; Pattern = 'Class DebugProbeService'; Name = 'probe service' },
     @{ Text = $probe; Pattern = 'Function ProbeAll'; Name = 'probe all entry point' },
-    @{ Text = $probe; Pattern = 'ConnectFor3561'; Name = '3562 probe adapter' },
-    @{ Text = $probe; Pattern = 'CheckCom_34461'; Name = '34461 probe adapter' },
+    @{ Text = $probe; Pattern = 'CheckCom_3561'; Name = 'main 3562 probe adapter' },
+    @{ Text = $probe; Pattern = 'MEAS:VOLT:DC?'; Name = '34461 single-measurement probe' },
     @{ Text = $probe; Pattern = 'plcController'; Name = 'PLC probe adapter' },
     @{ Text = $dashboard; Pattern = 'Class DebugDashboardControl'; Name = 'dashboard control' },
     @{ Text = $dashboard; Pattern = 'TabDeviceOverview'; Name = 'device overview tab' },

@@ -1,4 +1,4 @@
-﻿Imports System.Net
+Imports System.Net
 Imports System.Net.Sockets
 Imports MpFByteArrDLL
 Imports CmdMemberDLL
@@ -106,6 +106,7 @@ Public Class frmDebug
         Next
     End Sub
     Private Sub btnDTest_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles btnDTest.Click
+        If Not EnsureDeviceDiagnosticsPermission() Then Return
         Dim temp As Byte()
 
         Try
@@ -168,6 +169,7 @@ Public Class frmDebug
 
     End Sub
     Private Sub btnSend_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles btnSend.Click
+        If Not EnsureDeviceDiagnosticsPermission() Then Return
         Dim ch = cmbChannel.SelectedIndex + 1
         Dim temp As Byte()
 
@@ -233,7 +235,7 @@ Public Class frmDebug
     End Sub
 
     Private Sub frmDebug_Load(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles MyBase.Load
-        If Not (Me.DesignMode OrElse System.ComponentModel.LicenseManager.UsageMode = System.ComponentModel.LicenseUsageMode.Designtime) AndAlso Not AuthorizationService.RequireAdministrator(Me) Then
+        If Not (Me.DesignMode OrElse System.ComponentModel.LicenseManager.UsageMode = System.ComponentModel.LicenseUsageMode.Designtime) AndAlso Not EnsureDeviceDiagnosticsPermission() Then
             Close()
             Return
         End If
@@ -249,7 +251,12 @@ Public Class frmDebug
         cmbChannel.SelectedIndex = 0
     End Sub
 
+    Private Function EnsureDeviceDiagnosticsPermission() As Boolean
+        Return AuthorizationService.RequirePermission(AppPermission.DeviceDiagnostics, Me)
+    End Function
+
     Private Sub btnRead_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles btnRead.Click
+        If Not EnsureDeviceDiagnosticsPermission() Then Return
         Dim ReFlag_R As Short
         Dim voltage As Single
         Dim resistance As Single
@@ -269,6 +276,7 @@ Public Class frmDebug
         End Try
     End Sub
     Private Sub btnTestR_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles btnTestR.Click
+        If Not EnsureDeviceDiagnosticsPermission() Then Return
         Dim ReFlag_R As Short
         Me.Cursor = Cursors.WaitCursor
         ReFlag_R = ConnectFor3561()
@@ -338,6 +346,7 @@ Public Class frmDebug
     End Sub
 
     Private Sub btnTrayState_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles btnTrayState.Click
+        If Not EnsureDeviceDiagnosticsPermission() Then Return
         Dim Buffer(5) As Byte
         Dim ReturnValue As Int16
         Me.Cursor = Cursors.WaitCursor
@@ -353,6 +362,7 @@ Public Class frmDebug
     End Sub
 
     Private Sub btnOpen_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles btnOpen.Click
+        If Not EnsureDeviceDiagnosticsPermission() Then Return
 
         Dim temp As Byte()
 
@@ -410,6 +420,7 @@ Public Class frmDebug
     End Sub
 
     Private Sub btnClose_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles btnClose.Click
+        If Not EnsureDeviceDiagnosticsPermission() Then Return
         Dim temp As Byte()
 
         Try
@@ -466,6 +477,7 @@ Public Class frmDebug
     End Sub
 
     Private Sub Button1_Click(sender As Object, e As EventArgs) Handles Button1.Click
+        If Not EnsureDeviceDiagnosticsPermission() Then Return
         Dim temp As Byte()
         Try
             If mSock IsNot Nothing Then
@@ -547,6 +559,7 @@ Public Class frmDebug
     End Sub
 
     Private Sub Button2_Click(sender As Object, e As EventArgs) Handles btnSockTest.Click
+        If Not EnsureDeviceDiagnosticsPermission() Then Return
         Dim temp As Byte()
         Try
             If mSock IsNot Nothing Then
@@ -663,10 +676,12 @@ Public Class frmDebug
     End Sub
 
     Private Sub Button2_Click_1(sender As Object, e As EventArgs) Handles Button2.Click
+        If Not EnsureDeviceDiagnosticsPermission() Then Return
         FrmSocketTest.Show()
     End Sub
 
     Private Sub Button3_Click(sender As Object, e As EventArgs) Handles Button3.Click
+        If Not EnsureDeviceDiagnosticsPermission() Then Return
         Frm34461Ctrl.Show()
 
     End Sub
@@ -731,6 +746,7 @@ Public Class frmDebug
             DebugDeviceId.PlcTray,
             DebugDeviceId.IoCard,
             DebugDeviceId.Scanner,
+            DebugDeviceId.Retest3562,
             DebugDeviceId.Database,
             DebugDeviceId.Mes
         }

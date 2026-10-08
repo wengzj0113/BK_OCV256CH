@@ -23,7 +23,8 @@ Public NotInheritable Class InstrumentCacheParser
         End Sub
 
         Public Shared Function Parse3562MemoryData(text As String,
-                                                    expectedCount As Integer) As InstrumentCacheParseResult
+                                                    expectedCount As Integer,
+                                                    Optional resistanceOnly As Boolean = False) As InstrumentCacheParseResult
             Dim result As New InstrumentCacheParseResult()
             If expectedCount <= 0 OrElse String.IsNullOrWhiteSpace(text) Then
                 Return result
@@ -36,17 +37,21 @@ Public NotInheritable Class InstrumentCacheParser
                 If record.Equals("END", StringComparison.OrdinalIgnoreCase) Then Exit For
 
                 Dim fields As String() = record.Split(","c)
-                If fields.Length < 3 Then
+                If fields.Length < If(resistanceOnly, 2, 3) Then
                     result.InvalidRecordCount += 1
                     Continue For
                 End If
 
                 Dim recordNumber As Integer
                 Dim resistanceOhm As Double
-                Dim voltageValue As Double
                 If Not Integer.TryParse(fields(0).Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, recordNumber) OrElse
-                   Not TryParse3562Number(fields(1), resistanceOhm) OrElse
-                   Not TryParse3562Number(fields(2), voltageValue) Then
+                   Not TryParse3562Number(fields(1), resistanceOhm) Then
+                    result.InvalidRecordCount += 1
+                    Continue For
+                End If
+
+                Dim voltageValue As Double = 0.0R
+                If Not resistanceOnly AndAlso Not TryParse3562Number(fields(2), voltageValue) Then
                     result.InvalidRecordCount += 1
                     Continue For
                 End If

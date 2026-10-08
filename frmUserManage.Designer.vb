@@ -109,7 +109,7 @@ Partial Class frmUserManage
         Me.ComboBoxRole.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList
         Me.ComboBoxRole.Font = New System.Drawing.Font("微软雅黑", 12.0!)
         Me.ComboBoxRole.FormattingEnabled = True
-        Me.ComboBoxRole.Items.AddRange(New Object() {"操作员", "系统管理员"})
+        Me.ComboBoxRole.Items.AddRange(New Object() {"操作员", "工程师", "系统管理员"})
         Me.ComboBoxRole.Location = New System.Drawing.Point(109, 150)
         Me.ComboBoxRole.Name = "ComboBoxRole"
         Me.ComboBoxRole.Size = New System.Drawing.Size(197, 29)

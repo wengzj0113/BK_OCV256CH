@@ -238,6 +238,7 @@ Public Class DebugDashboardControl
             DebugDeviceId.PlcTray,
             DebugDeviceId.IoCard,
             DebugDeviceId.Scanner,
+            DebugDeviceId.Retest3562,
             DebugDeviceId.Database,
             DebugDeviceId.Mes
         }

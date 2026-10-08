@@ -199,13 +199,13 @@ Public Class ChannelGridControl
         If point.X < 0 OrElse point.Y < 0 OrElse point.X >= gridSurface.ClientSize.Width OrElse point.Y >= gridSurface.ClientSize.Height Then Return 0
         Dim column As Integer = Math.Min(GridSize - 1, point.X * GridSize \ Math.Max(1, gridSurface.ClientSize.Width))
         Dim row As Integer = Math.Min(GridSize - 1, point.Y * GridSize \ Math.Max(1, gridSurface.ClientSize.Height))
-        Return column * GridSize + row + 1
+        Return row * GridSize + column + 1
     End Function
 
     Private Function GetCellBounds(ByVal channelNo As Integer) As Rectangle
         Dim index As Integer = channelNo - 1
-        Dim column As Integer = index \ GridSize
-        Dim row As Integer = index Mod GridSize
+        Dim row As Integer = index \ GridSize
+        Dim column As Integer = index Mod GridSize
         Dim width As Integer = Math.Max(1, gridSurface.ClientSize.Width \ GridSize)
         Dim height As Integer = Math.Max(1, gridSurface.ClientSize.Height \ GridSize)
         Return New Rectangle(column * width, row * height, If(column = GridSize - 1, gridSurface.ClientSize.Width - column * width, width), If(row = GridSize - 1, gridSurface.ClientSize.Height - row * height, height))

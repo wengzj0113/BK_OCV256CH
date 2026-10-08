@@ -6,6 +6,7 @@ Public Interface ITrayScannerClient
     ReadOnly Property IsOpen As Boolean
     Sub Open()
     Sub Close()
+    Sub TriggerScan()
     Function ReadTrayCode(ByVal timeoutMs As Integer) As String
 End Interface
 
@@ -27,7 +28,7 @@ Friend Class TrayScannerClient
         End If
 
         serialPortTPM.PortName = "COM" & (settings.ScanerPort + 1).ToString()
-        serialPortTPM.BaudRate = If(settings.ScanerRate > 0, settings.ScanerRate, DefaultScannerBaudRate)
+        serialPortTPM.BaudRate = DefaultScannerBaudRate
         serialPortTPM.Parity = Parity.None
         serialPortTPM.DataBits = 8
         serialPortTPM.StopBits = StopBits.One
@@ -55,13 +56,24 @@ Friend Class TrayScannerClient
         End SyncLock
     End Sub
 
+    Public Sub TriggerScan() Implements ITrayScannerClient.TriggerScan
+        ThrowIfDisposed()
+        SyncLock syncRoot
+            If Not serialPortTPM.IsOpen Then Throw New InvalidOperationException("托盘扫码枪串口未打开。")
+
+            '丢弃上一轮残留的串口数据，再发送本次扫码触发命令。
+            serialPortTPM.DiscardInBuffer()
+            serialPortTPM.DiscardOutBuffer()
+            serialPortTPM.Write("start")
+        End SyncLock
+    End Sub
+
     Public Function ReadTrayCode(ByVal timeoutMs As Integer) As String Implements ITrayScannerClient.ReadTrayCode
         ThrowIfDisposed()
         If timeoutMs <= 0 Then Throw New ArgumentOutOfRangeException(NameOf(timeoutMs))
 
         SyncLock syncRoot
             If Not serialPortTPM.IsOpen Then Throw New InvalidOperationException("托盘扫码枪串口未打开。")
-            serialPortTPM.DiscardOutBuffer()
 
             Dim builder As New StringBuilder()
             Dim deadline As DateTime = DateTime.UtcNow.AddMilliseconds(timeoutMs)

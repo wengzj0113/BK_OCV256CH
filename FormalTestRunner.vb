@@ -38,9 +38,11 @@ Friend Class FormalTestRunner
     End Function
 
     Public Function RunSparseMeasurement(channelNumbers As IEnumerable(Of Integer),
-                                         Optional timeoutMs As Integer = 300000) As TestChannelSelection
+                                         Optional timeoutMs As Integer = 300000,
+                                         Optional operationName As String = "正式测试",
+                                         Optional cancellationRequested As Func(Of Boolean) = Nothing) As TestChannelSelection
         Dim selection As TestChannelSelection = channelPlanService.BuildSparseSelection(channelNumbers)
-        RunTwoPassMeasurement(selection, timeoutMs)
+        RunTwoPassMeasurement(selection, timeoutMs, operationName, cancellationRequested)
         Return selection
     End Function
 
@@ -52,7 +54,9 @@ Friend Class FormalTestRunner
     End Function
 
     Public Sub RunTwoPassMeasurement(selection As TestChannelSelection,
-                                     Optional timeoutMs As Integer = 300000)
+                                     Optional timeoutMs As Integer = 300000,
+                                     Optional operationName As String = "正式测试",
+                                     Optional cancellationRequested As Func(Of Boolean) = Nothing)
         If selection Is Nothing Then
             Throw New ArgumentNullException("selection")
         End If
@@ -60,9 +64,21 @@ Friend Class FormalTestRunner
         Dim hiokiVoltages As List(Of Single) = Nothing
         Dim hiokiResistances As List(Of Single) = Nothing
         Dim dmmVoltages As List(Of Single) = Nothing
+        Dim hasG1 As Boolean = selection.G1PhysicalChannels IsNot Nothing AndAlso selection.G1PhysicalChannels.Count > 0
+        Dim hasG2 As Boolean = selection.G2PhysicalChannels IsNot Nothing AndAlso selection.G2PhysicalChannels.Count > 0
+        Dim singleGroupTwoPass As Boolean = hasG1 Xor hasG2
+        Dim hiokiReadCount As Integer = selection.ExpectedHiokiCount * If(singleGroupTwoPass, 2, 1)
+        Dim testPlanDescription As String = String.Empty
 
         Try
-            SerialMiddleMachineClient.LogMessage("Formal test start: " & SerialMiddleMachineClient.DescribePlan(selection.ToMiddleMachinePlan()))
+            testPlanDescription = SerialMiddleMachineClient.DescribePlan(selection.ToMiddleMachinePlan())
+            BusinessLogService.Write("操作", "成功", operationName & "开始", operationName, "已开始" & operationName & "。", testPlanDescription, "测试控制")
+            Dim rateProfile As InstrumentRateProfile = InstrumentRateProfile.FromSettingName(Initsetting.ComRateMode)
+            SerialMiddleMachineClient.LogMessage("Formal test start: " & testPlanDescription)
+            SerialMiddleMachineClient.LogMessage("Acquisition rate profile=" & rateProfile.SettingName &
+                                                 ", controllerSpeed=" & rateProfile.ControllerSpeedValue.ToString() &
+                                                 ", main 3562=" & If(String.IsNullOrWhiteSpace(Initsetting.Main3562SampleRate), "EXF", Initsetting.Main3562SampleRate) &
+                                                 ", 34461A=" & If(String.IsNullOrWhiteSpace(Initsetting.Dmm34461Nplc), "0.2", Initsetting.Dmm34461Nplc) & " PLC")
             SerialMiddleMachineClient.LogMessage("Reset instruments before new test")
             ResetCachedData_3562()
             If Reset34461ForNewTest() <> 0 Then
@@ -77,10 +93,17 @@ Friend Class FormalTestRunner
                 Throw New InvalidOperationException("34461 failed to enter external trigger waiting state.")
             End If
 
-            middleMachine.RunPlan(selection.ToMiddleMachinePlan(), timeoutMs)
+            middleMachine.RunPlan(selection.ToMiddleMachinePlan(), timeoutMs, rateProfile.ControllerSpeedValue, cancellationRequested)
 
-            If Trans_ReadCachedData_3562(selection.ExpectedHiokiCount, hiokiVoltages, hiokiResistances) <> 0 Then
+            If Trans_ReadCachedData_3562(hiokiReadCount, hiokiVoltages, hiokiResistances) <> 0 Then
                 Throw New InvalidOperationException("3562 cached data read failed.")
+            End If
+            If singleGroupTwoPass Then
+                '单组双遍时，3562 两遍都会产生缓存记录；第一遍是无电阻通路的占位记录，
+                '第二遍才是实际内阻。只将第二遍映射到所选通道。
+                hiokiResistances = hiokiResistances.GetRange(selection.ExpectedHiokiCount, selection.ExpectedHiokiCount)
+                SerialMiddleMachineClient.LogMessage("3562 single-group two-pass cache: read=" & hiokiReadCount.ToString() &
+                                                     ", mapped second pass=" & hiokiResistances.Count.ToString())
             End If
             If Trans_ReadCachedData_34461(selection.ExpectedDmmCount, dmmVoltages) <> 0 Then
                 Throw New InvalidOperationException("34461 cached data read failed.")
@@ -88,7 +111,13 @@ Friend Class FormalTestRunner
 
             resultMapper.Apply(selection, hiokiResistances, dmmVoltages, calibrateValueArray, RecieveData)
             SerialMiddleMachineClient.LogMessage("Formal test completed: " & SerialMiddleMachineClient.DescribePlan(selection.ToMiddleMachinePlan()))
-        Catch
+            BusinessLogService.Write("操作", "成功", operationName & "测量完成", operationName, operationName & "测量阶段已完成。", testPlanDescription, "测试控制")
+        Catch ex As Exception
+            If TypeOf ex Is OperationCanceledException Then
+                BusinessLogService.Write("操作", "已取消", operationName & "已停止", operationName, "操作员停止了当前测试。", testPlanDescription, "测试控制")
+            Else
+                BusinessLogService.Write("操作", "失败", operationName & "失败", operationName, operationName & "执行失败。", testPlanDescription & Environment.NewLine & ex.Message, "测试控制")
+            End If
             Throw
         Finally
             ResetTestEnvironment()

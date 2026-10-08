@@ -16,6 +16,10 @@ Public Class MDIForm
     Private mdiLayoutOrderApplied As Boolean
     Private mdiChildCreationInProgress As Boolean
     Private ReadOnly resizeDebounceTimer As New System.Windows.Forms.Timer()
+    Private ReadOnly pendingSettingsApplyTimer As New System.Windows.Forms.Timer()
+    Private pendingInitialSettings As Initset?
+    Private pendingInitialSettingsPrevious As Initset
+    Private pendingInitialSettingsChanges As InitSettingsChangeKind
     Private databaseHealthCheckStarted As Integer
     Private startupDeviceFailurePromptShown As Integer
     'Dim adoCnn As SqlConnection
@@ -74,15 +78,18 @@ Public Class MDIForm
     End Sub
     Private m_ChildFormNumber As Integer
     Private Sub init_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles init.Click
-        If Not AuthorizationService.RequireAdministrator(Me) Then Return
+        If Not AuthorizationService.RequirePermission(AppPermission.ManageProcessParameters, Me) Then Return
+        BusinessLogService.Write("操作", "成功", "打开初始设置", "系统设置", "用户打开初始设置窗口。", "", "系统设置")
+        Dim exitAfterSettings As Boolean = False
         Me.Cursor = Cursors.WaitCursor
         Try
             Using initForm As New frmInit()
-                initForm.ShowDialog(Me)
+                exitAfterSettings = (initForm.ShowDialog(Me) = DialogResult.Yes)
             End Using
         Finally
             Me.Cursor = Cursors.Default
         End Try
+        If exitAfterSettings Then Application.Exit()
     End Sub
     Private Sub OnLineTest_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles OnLineTest.Click
         Me.Cursor = Cursors.WaitCursor
@@ -159,23 +166,56 @@ Public Class MDIForm
         UpdateBottomStatus()
     End Sub
 
+    Public Function EnsureAuthenticatedUser() As Boolean
+        If AuthorizationService.IsAuthenticated() Then Return True
+
+        Using login As New FrmLoginNew()
+            If login.ShowDialog(Me) <> DialogResult.OK Then Return False
+        End Using
+
+        ApplyOperatorPermissions()
+        UpdateBottomStatus()
+        Return AuthorizationService.IsAuthenticated()
+    End Function
+
     Private Sub logoutMenu_Click(sender As Object, e As EventArgs) Handles logoutMenu.Click
+        Dim loggingOutUser As String = AuthorizationService.CurrentUserName
         AuthorizationService.ResetSession()
+        BusinessLogService.Write("操作", "成功", "退出登录", loggingOutUser, "用户已退出登录。", "", "用户认证", loggingOutUser)
         ApplyOperatorPermissions()
         UpdateBottomStatus()
     End Sub
 
     Private Sub ApplyOperatorPermissions()
         Dim businessFunctionsEnabled As Boolean = AuthorizationService.CanAccess(AppPermission.UseBusinessFunctions)
-        btnInit.Enabled = AuthorizationService.CanAccess(AppPermission.InitialSettings)
-        ToolDebug.Enabled = AuthorizationService.CanAccess(AppPermission.Debug)
-        init.Enabled = AuthorizationService.CanAccess(AppPermission.InitialSettings)
-        btnDebug.Enabled = AuthorizationService.CanAccess(AppPermission.Debug)
+        Dim engineerFunctionsEnabled As Boolean = AuthorizationService.CanAccess(AppPermission.DeviceDiagnostics)
+        Dim processSettingsEnabled As Boolean = AuthorizationService.CanAccess(AppPermission.ManageProcessParameters)
+        btnInit.Enabled = processSettingsEnabled
+        ToolDebug.Enabled = engineerFunctionsEnabled
+        init.Enabled = processSettingsEnabled
+        btnDebug.Enabled = engineerFunctionsEnabled
+        calibrationMenu.Enabled = AuthorizationService.CanAccess(AppPermission.CalibrateChannels)
         userMenage.Enabled = AuthorizationService.CanAccess(AppPermission.UserManagement)
         SetTestEntryEnabled(businessFunctionsEnabled)
         logoutMenu.Enabled = AuthorizationService.IsAuthenticated()
         loginMenu.Text = If(AuthorizationService.IsAuthenticated(), "切换用户", "登录")
         operTypeNum = CInt(AuthorizationService.CurrentRole)
+        CloseRestrictedEngineeringWindows(engineerFunctionsEnabled)
+    End Sub
+
+    Private Sub CloseRestrictedEngineeringWindows(engineerFunctionsEnabled As Boolean)
+        Dim restrictedForms As New List(Of Form)()
+        If Not engineerFunctionsEnabled Then
+            For Each openForm As Form In Application.OpenForms
+                If TypeOf openForm Is frmDebug OrElse TypeOf openForm Is FrmChannelCalibration Then
+                    restrictedForms.Add(openForm)
+                End If
+            Next
+        End If
+
+        For Each restrictedForm As Form In restrictedForms
+            restrictedForm.Close()
+        Next
     End Sub
 
     Private Sub btnExit_Click(ByVal sender As System.Object, ByVal e As System.EventArgs)
@@ -193,6 +233,7 @@ Public Class MDIForm
             If testForm IsNot Nothing Then testForm.PrepareForShutdown()
         Next
         resizeDebounceTimer.Stop()
+        pendingSettingsApplyTimer.Stop()
 
         Try
             Dim middleMachine As SerialMiddleMachineClient = Nothing
@@ -209,6 +250,8 @@ Public Class MDIForm
         On Error Resume Next
         resizeDebounceTimer.Stop()
         resizeDebounceTimer.Dispose()
+        pendingSettingsApplyTimer.Stop()
+        pendingSettingsApplyTimer.Dispose()
         If ngRetestForm IsNot Nothing AndAlso Not ngRetestForm.IsDisposed Then
             ngRetestForm.Close()
         End If
@@ -230,6 +273,8 @@ Public Class MDIForm
         StartupTiming.Mark("mdi-load")
         resizeDebounceTimer.Interval = ResizeDebounceMs
         AddHandler resizeDebounceTimer.Tick, AddressOf ResizeDebounceTimer_Tick
+        pendingSettingsApplyTimer.Interval = 300
+        AddHandler pendingSettingsApplyTimer.Tick, AddressOf PendingSettingsApplyTimer_Tick
         ApplyReferenceChrome()
         EnsureBottomStatusControl()
         ApplyMdiClientLayout()
@@ -314,7 +359,7 @@ Public Class MDIForm
     Private Sub UpdateBottomStatus()
         If bottomStatusControl Is Nothing Then Return
         bottomStatusControl.UpdateStatus(
-            "OCV1",
+            GetConfiguredStationName(),
             If(controlBoardConnected, "已连接", "未连接"),
             If(plcConnected, "已连接", "未连接"),
             If(dmm34461Connected, "已连接", "未连接"),
@@ -325,54 +370,359 @@ Public Class MDIForm
             DateTime.Now)
     End Sub
 
+    Private Shared Function GetConfiguredStationName() As String
+        Select Case Initsetting.stationSelect
+            Case 0
+                Return "OCV0"
+            Case 1
+                Return "OCV1"
+            Case 2
+                Return "OCV2"
+            Case Else
+                Return "未配置"
+        End Select
+    End Function
+
     Private dmm34461Connected As Boolean
     Private resistance3561Connected As Boolean
     Private mesConnected As Boolean
     Private startupExternalChecksStarted As Integer
 
     '供启动期后台设备检查完成后刷新底部状态控件。
-    Public Sub UpdateDeviceCheckStatus(ByVal dmmStatus As Short,
-                                       ByVal resistanceStatus As Short,
-                                       ByVal mesStatus As Short)
+    Public Sub UpdateDeviceCheckStatus(ByVal dmmStatus As Short?,
+                                       ByVal resistanceStatus As Short?,
+                                       ByVal mesStatus As Short?)
         '现有设备检查函数的成功码不同：34461=0，3561=1，MES=1。
-        dmm34461Connected = (dmmStatus = 0)
-        resistance3561Connected = (resistanceStatus = 1)
-        mesConnected = (mesStatus = 1)
+        If dmmStatus.HasValue Then dmm34461Connected = (dmmStatus.Value = 0)
+        If resistanceStatus.HasValue Then resistance3561Connected = (resistanceStatus.Value = 1)
+        If mesStatus.HasValue Then mesConnected = (mesStatus.Value = 1)
         UpdateBottomStatus()
+    End Sub
+
+    Friend Function CanApplyInitialSettings(ByVal changes As InitSettingsChangeKind,
+                                            ByRef reason As String) As Boolean
+        Dim testRunning As Boolean = isRuning
+        Dim automaticCycleBusy As Boolean = False
+        Dim engineeringWindowOpen As Boolean = False
+        Dim deviceCheckRunning As Boolean = StartupDeviceService.IsRunning
+
+        For Each child As Form In MdiChildren
+            Dim testForm As frmTest = TryCast(child, frmTest)
+            If testForm IsNot Nothing AndAlso Not testForm.IsDisposed AndAlso Not testForm.CanApplyInitialSettings Then
+                automaticCycleBusy = True
+            End If
+        Next
+
+        If InitSettingsApplyPolicy.RequiresDeviceRecheck(changes) OrElse
+           (changes And InitSettingsChangeKind.ExternalServices) <> InitSettingsChangeKind.None Then
+            For Each openForm As Form In Application.OpenForms
+                If TypeOf openForm Is frmDebug OrElse
+                   TypeOf openForm Is FrmChannelCalibration OrElse
+                   TypeOf openForm Is FrmNgRetest OrElse
+                   TypeOf openForm Is FrmManualTest Then
+                    If openForm.Visible Then engineeringWindowOpen = True
+                End If
+            Next
+        End If
+
+        If Not InitSettingsApplyPolicy.CanApplyNow(testRunning,
+                                                  automaticCycleBusy,
+                                                  deviceCheckRunning,
+                                                  engineeringWindowOpen) Then
+            If engineeringWindowOpen Then
+                reason = "调试、校准或复测窗口正在使用设备，请关闭相关窗口后再应用设置。"
+            ElseIf automaticCycleBusy OrElse testRunning Then
+                reason = "测试或PLC自动流程正在运行，请等待本轮结束并停在待机状态后再保存设置。"
+            Else
+                reason = "设备启动检查正在进行，请稍后再保存设置。"
+            End If
+            Return False
+        End If
+
+        reason = String.Empty
+        Return True
+    End Function
+
+    Friend Function SaveAndApplyInitialSettings(ByVal currentSettings As Initset,
+                                                ByRef resultMessage As String) As Boolean
+        If pendingInitialSettings.HasValue Then
+            resultMessage = "已有一组设置正在等待安全时机应用，请稍后再修改。"
+            Return False
+        End If
+
+        Dim previousSettings As Initset = Initsetting
+        Dim changes As InitSettingsChangeKind = InitSettingsApplyPolicy.Classify(previousSettings, currentSettings)
+        Try
+            SaveInitFile(currentSettings)
+        Catch ex As Exception
+            resultMessage = "保存初始设置失败：" & ex.Message
+            BusinessLogService.Write("操作", "失败", "保存初始设置", "系统参数", "初始设置保存失败。", ex.ToString(), "初始设置")
+            Return False
+        End Try
+
+        If changes = InitSettingsChangeKind.None Then
+            resultMessage = "设置没有变化，已确认保存。"
+            Return True
+        End If
+
+        Dim applyBlockReason As String = String.Empty
+        If InitSettingsApplyPolicy.RequiresSafeBoundary(changes) AndAlso
+           Not CanApplyInitialSettings(changes, applyBlockReason) Then
+            pendingInitialSettingsPrevious = previousSettings
+            pendingInitialSettings = currentSettings
+            pendingInitialSettingsChanges = changes
+
+            If (changes And InitSettingsChangeKind.Display) <> InitSettingsChangeKind.None Then
+                For Each child As Form In MdiChildren
+                    Dim testForm As frmTest = TryCast(child, frmTest)
+                    If testForm IsNot Nothing AndAlso Not testForm.IsDisposed Then
+                        testForm.ApplyConfiguredChannelColors(currentSettings)
+                    End If
+                Next
+            End If
+
+            For Each child As Form In MdiChildren
+                Dim testForm As frmTest = TryCast(child, frmTest)
+                If testForm Is Nothing OrElse testForm.IsDisposed Then Continue For
+                Try
+                    testForm.RequestSettingsApplyAtCycleBoundary(
+                        Sub()
+                            Try
+                                If Not IsDisposed Then BeginInvoke(New MethodInvoker(AddressOf TryApplyPendingInitialSettings))
+                            Catch ex As Exception
+                                System.Diagnostics.Debug.WriteLine("设置应用边界回调失败: " & ex.Message)
+                            End Try
+                        End Sub)
+                Catch ex As Exception
+                    System.Diagnostics.Debug.WriteLine("请求PLC周期边界暂停失败: " & ex.Message)
+                End Try
+            Next
+
+            pendingSettingsApplyTimer.Start()
+            resultMessage = "设置已保存；当前测试或设备操作结束后，程序会自动应用新配置。" &
+                            If(String.IsNullOrWhiteSpace(applyBlockReason), String.Empty, Environment.NewLine & applyBlockReason)
+            SetInitialSettingsApplyStatus("新设置已保存，等待测试/设备流程到达安全边界后自动应用。")
+            BusinessLogService.Write("操作", "成功", "保存初始设置", "系统参数", "初始设置已保存并排队等待安全应用。", changes.ToString(), "初始设置")
+            Return True
+        End If
+
+        Initsetting = currentSettings
+        Try
+            ApplyInitialSettings(previousSettings, currentSettings, changes)
+        Catch ex As Exception
+            resultMessage = "配置已保存，但当前程序未能完整应用：" & ex.Message & "。请检查设备连接；若问题仍在，请退出并重新启动程序。"
+            BusinessLogService.Write("操作", "失败", "应用初始设置", "系统参数", "配置已保存，但运行时应用未能启动。", ex.ToString(), "初始设置")
+            Return True
+        End Try
+
+        resultMessage = "初始设置已保存并提交运行时应用。"
+        BusinessLogService.Write("操作", "成功", "保存初始设置", "系统参数", "初始设置已保存并提交运行时应用。", changes.ToString(), "初始设置")
+        Return True
+    End Function
+
+    Private Sub PendingSettingsApplyTimer_Tick(sender As Object, e As EventArgs)
+        TryApplyPendingInitialSettings()
+    End Sub
+
+    Private Sub TryApplyPendingInitialSettings()
+        If Not pendingInitialSettings.HasValue OrElse IsDisposed OrElse ApplicationShuttingDown Then Return
+        Dim reason As String = String.Empty
+        If Not CanApplyInitialSettings(pendingInitialSettingsChanges, reason) Then Return
+
+        Dim nextSettings As Initset = pendingInitialSettings.Value
+        Dim previousSettings As Initset = pendingInitialSettingsPrevious
+        Dim changes As InitSettingsChangeKind = pendingInitialSettingsChanges
+        pendingInitialSettings = Nothing
+        pendingInitialSettingsChanges = InitSettingsChangeKind.None
+        pendingSettingsApplyTimer.Stop()
+
+        Initsetting = nextSettings
+        Try
+            ApplyInitialSettings(previousSettings, nextSettings, changes)
+            BusinessLogService.Write("操作", "成功", "应用待处理初始设置", "系统参数", "待应用设置已在安全边界生效。", changes.ToString(), "初始设置")
+        Catch ex As Exception
+            SetInitialSettingsApplyStatus("设置已保存，但运行时应用失败：" & ex.Message & "；请检查设备或重新启动程序。")
+            BusinessLogService.Write("操作", "失败", "应用待处理初始设置", "系统参数", "安全边界应用失败。", ex.ToString(), "初始设置")
+            MessageBox.Show(Me,
+                            "设置已保存，但当前程序未能完整应用：" & ex.Message & Environment.NewLine &
+                            "请检查设备连接；若问题仍在，请退出并重新启动程序。",
+                            "设置已保存，应用未完成",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning)
+        End Try
+    End Sub
+
+    Friend Sub ApplyInitialSettings(ByVal previousSettings As Initset,
+                                    ByVal currentSettings As Initset,
+                                    ByVal changes As InitSettingsChangeKind)
+        If changes = InitSettingsChangeKind.None Then Return
+
+        Dim testForm As frmTest = Nothing
+        For Each child As Form In MdiChildren
+            testForm = TryCast(child, frmTest)
+            If testForm IsNot Nothing AndAlso Not testForm.IsDisposed Then Exit For
+            testForm = Nothing
+        Next
+
+        Dim plcNeedsRestart As Boolean = InitSettingsApplyPolicy.RequiresPlcClientRestart(previousSettings, currentSettings)
+        Dim options As New StartupDeviceCheckOptions With {
+            .CheckScm = InitSettingsApplyPolicy.RequiresScmRecheck(previousSettings, currentSettings),
+            .CheckDmm34461 = InitSettingsApplyPolicy.RequiresDmmRecheck(previousSettings, currentSettings),
+            .CheckResistance3561 = InitSettingsApplyPolicy.RequiresMain3562Recheck(previousSettings, currentSettings),
+            .CheckRetest3562 = InitSettingsApplyPolicy.RequiresRetest3562Recheck(previousSettings, currentSettings),
+            .ReportRetest3562Failures = InitSettingsApplyPolicy.RequiresRetest3562Recheck(previousSettings, currentSettings),
+            .CheckPlc = testForm Is Nothing AndAlso plcNeedsRestart,
+            .CheckMes = InitSettingsApplyPolicy.RequiresMesRecheck(previousSettings, currentSettings)
+        }
+
+        Dim hasHardwareChecks As Boolean = options.CheckScm OrElse options.CheckDmm34461 OrElse
+                                           options.CheckResistance3561 OrElse options.CheckRetest3562 OrElse options.CheckPlc
+        If testForm IsNot Nothing AndAlso hasHardwareChecks Then testForm.SetInitializationApplyInProgress(True)
+
+        Dim testFormApplyError As String = String.Empty
+        If testForm IsNot Nothing Then
+            Try
+                Dim plcWasConnected As Boolean = testForm.ApplyConfiguredInitialSettings(previousSettings, currentSettings, changes)
+                If plcNeedsRestart Then plcConnected = plcWasConnected
+            Catch ex As Exception
+                testFormApplyError = ex.Message
+                testForm.SetInitializationApplyInProgress(False)
+                testForm.ResumeAutomaticFlowAfterSettingsApply()
+                BusinessLogService.Write("操作", "失败", "应用初始设置", "系统参数", "配置已保存，但测试页面运行时对象重建失败。", ex.ToString(), "初始设置")
+                SetInitialSettingsApplyStatus("配置已保存，但页面/PLC配置未能完整应用：" & ex.Message)
+            End Try
+        End If
+
+        If options.CheckScm OrElse options.CheckDmm34461 OrElse options.CheckResistance3561 OrElse
+           options.CheckRetest3562 OrElse options.CheckPlc OrElse options.CheckMes Then
+            If Not StartupDeviceService.StartAsync(Me,
+                                                   Sub(result As StartupDeviceCheckResult)
+                                                       ApplyStartupDeviceCheckResult(result, True)
+                                                       If testForm IsNot Nothing Then
+                                                           testForm.SetInitializationApplyInProgress(False)
+                                                           testForm.ResumeAutomaticFlowAfterSettingsApply()
+                                                       End If
+                                                   End Sub,
+                                                   options) Then
+                If testForm IsNot Nothing Then
+                    testForm.SetInitializationApplyInProgress(False)
+                    testForm.ResumeAutomaticFlowAfterSettingsApply()
+                End If
+                SetInitialSettingsApplyStatus("配置已保存，但设备检查未启动；请稍后重新检查设备。")
+            Else
+                SetInitialSettingsApplyStatus("配置已保存，正在重新应用受影响的设备设置…")
+            End If
+        ElseIf testForm IsNot Nothing AndAlso hasHardwareChecks Then
+            testForm.SetInitializationApplyInProgress(False)
+        End If
+
+        If InitSettingsApplyPolicy.RequiresDatabaseRecheck(previousSettings, currentSettings) Then
+            RecheckDatabaseHealthAsync()
+        End If
+        If testForm IsNot Nothing AndAlso Not hasHardwareChecks Then
+            testForm.ResumeAutomaticFlowAfterSettingsApply()
+        End If
+        If Not String.IsNullOrWhiteSpace(testFormApplyError) AndAlso Not options.CheckPlc Then
+            MessageBox.Show(Me,
+                            "配置已保存，但当前运行状态未能完整重建：" & testFormApplyError & Environment.NewLine &
+                            "请检查设备连接；若问题仍在，请退出并重新启动程序。",
+                            "设置已保存，应用未完成",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning)
+        End If
+    End Sub
+
+    Public Sub ApplyStartupDeviceCheckResult(ByVal result As StartupDeviceCheckResult,
+                                             Optional ByVal allowRepeatedFailurePrompt As Boolean = False)
+        If result Is Nothing OrElse IsDisposed Then Return
+
+        If result.ScmChecked Then
+            controlBoardConnected = (result.Scm = 1)
+            If result.Scm <> 1 Then blnOnLine = False
+        End If
+        If result.Dmm34461Checked AndAlso result.Dmm34461 <> 0 Then blnOnLine = False
+        If result.Resistance3561Checked AndAlso result.Resistance3561 <> 1 Then blnOnLine = False
+        If result.PlcChecked Then
+            plcConnected = (result.Plc = 1)
+            If Not plcConnected Then blnOnLine = False
+        End If
+        If result.MesChecked AndAlso result.Mes <> 1 Then blnOnLine = False
+
+        UpdateDeviceCheckStatus(
+            If(result.Dmm34461Checked, CType(result.Dmm34461, Short?), Nothing),
+            If(result.Resistance3561Checked, CType(result.Resistance3561, Short?), Nothing),
+            If(result.MesChecked, CType(result.Mes, Short?), Nothing))
+        ShowStartupDeviceFailurePrompt(result, allowRepeatedFailurePrompt)
+    End Sub
+
+    Private Sub SetInitialSettingsApplyStatus(ByVal message As String)
+        If txtTesting IsNot Nothing Then txtTesting.Text = message
+    End Sub
+
+    Private Sub RecheckDatabaseHealthAsync()
+        If ApplicationShuttingDown OrElse IsDisposed Then Return
+        Threading.ThreadPool.QueueUserWorkItem(Sub()
+                                                   Dim ready As Boolean = False
+                                                   Dim failureDetail As String = String.Empty
+                                                   Try
+                                                       ready = CheckOcvDataHealth(failureDetail)
+                                                   Catch ex As Exception
+                                                       System.Diagnostics.Debug.WriteLine("数据库重新检查失败: " & ex.Message)
+                                                   End Try
+                                                   Try
+                                                       If IsDisposed Then Return
+                                                       BeginInvoke(New Action(Sub()
+                                                                                  If IsDisposed Then Return
+                                                                                  databaseConnected = ready
+                                                                                  UpdateBottomStatus()
+                                                                                  If ready Then
+                                                                                      SetInitialSettingsApplyStatus("数据库连接已按新设置确认。")
+                                                                                  Else
+                                                                                      Dim detailMessage As String = BuildDatabaseFailureMessage(failureDetail)
+                                                                                      SetInitialSettingsApplyStatus("配置已保存，但数据库连接检查失败。" & Environment.NewLine & detailMessage)
+                                                                                      MessageBox.Show(Me, detailMessage, "数据库连接失败", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+                                                                                  End If
+                                                                              End Sub))
+                                                   Catch ex As Exception
+                                                       System.Diagnostics.Debug.WriteLine("数据库重检状态更新失败: " & ex.Message)
+                                                   End Try
+                                               End Sub)
     End Sub
 
     ''' <summary>
     ''' Displays one startup summary for failed external-device checks.
     ''' </summary>
-    Public Sub ShowStartupDeviceFailurePrompt(ByVal result As StartupDeviceCheckResult)
+    Public Sub ShowStartupDeviceFailurePrompt(ByVal result As StartupDeviceCheckResult,
+                                              Optional ByVal allowRepeatedPrompt As Boolean = False)
         If result Is Nothing OrElse Not result.HasFailures Then Return
-        If Threading.Interlocked.Exchange(startupDeviceFailurePromptShown, 1) = 1 Then Return
+        If Not allowRepeatedPrompt AndAlso Threading.Interlocked.Exchange(startupDeviceFailurePromptShown, 1) = 1 Then Return
 
         Dim message As New System.Text.StringBuilder()
-        message.AppendLine("启动设备检查发现以下设备未连接：")
-        If result.Scm <> 1 Then
+        message.AppendLine("设备连接检查发现以下设备未能正常连接或应用：")
+        If result.ScmChecked AndAlso result.Scm <> 1 Then
             AppendStartupFailure(message, result, "SCM", "控制模块（COM" & (Initsetting.SCMComPort + 1).ToString() & "）")
         End If
-        If result.Dmm34461 <> 0 Then
+        If result.Dmm34461Checked AndAlso result.Dmm34461 <> 0 Then
             AppendStartupFailure(message, result, "34461", "数字万用表（" & DisplayOrDefault(Initsetting.IpAddOf34461, "地址未配置") & "）")
         End If
-        If result.Resistance3561 <> 1 Then
+        If result.Resistance3561Checked AndAlso result.Resistance3561 <> 1 Then
             AppendStartupFailure(message, result, "3561", "内阻仪（COM" & (Initsetting.Recom + 1).ToString() & "）")
         End If
-        If result.Plc <> 1 Then
+        If result.Retest3562Checked AndAlso result.Retest3562 <> 1 Then
+            AppendStartupFailure(message, result, "Retest3562", "NG复测仪（COM" & (Initsetting.Retest3562Port + 1).ToString() & "）")
+        End If
+        If result.PlcChecked AndAlso result.Plc <> 1 Then
             AppendStartupFailure(message, result, "PLC", FormatPlcDisplayName())
         End If
-        If result.Mes <> 1 Then
+        If result.MesChecked AndAlso result.Mes <> 1 Then
             AppendStartupFailure(message, result, "MES", "MES（" & DisplayOrDefault(Initsetting.MesApiAddress, "地址未配置") & "）")
         End If
 
         message.AppendLine()
         message.Append("请检查设备供电、通信线缆、串口号及通信参数后再进行测试。")
-        MessageBox.Show(Me,
-                        message.ToString(),
-                        "设备连接检查",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Warning)
+        Using dialog As New StartupDeviceFailureDialog(message.ToString())
+            dialog.ShowDialog(Me)
+        End Using
     End Sub
 
     Private Function FormatPlcDisplayName() As String
@@ -445,9 +795,10 @@ Public Class MDIForm
 
         Threading.ThreadPool.QueueUserWorkItem(Sub()
                                                    Dim ready As Boolean = False
+                                                   Dim failureDetail As String = String.Empty
                                                    Try
                                                        StartupTiming.Mark("database-check-start")
-                                                       ready = CheckOcvDataHealth()
+                                                       ready = CheckOcvDataHealth(failureDetail)
                                                    Catch ex As Exception
                                                        System.Diagnostics.Debug.WriteLine("CheckOcvDataHealth 异常: " & ex.Message)
                                                    End Try
@@ -459,6 +810,13 @@ Public Class MDIForm
                                                                                      If Me.IsDisposed Then Return
                                                                                      databaseConnected = ready
                                                                                      UpdateBottomStatus()
+                                                                                     If Not ready Then
+                                                                                         MessageBox.Show(Me,
+                                                                                                         BuildDatabaseFailureMessage(failureDetail),
+                                                                                                         "数据库连接失败",
+                                                                                                         MessageBoxButtons.OK,
+                                                                                                         MessageBoxIcon.Warning)
+                                                                                     End If
                                                                                  End Sub))
             Catch ex As Exception
                 System.Diagnostics.Debug.WriteLine("数据库状态回调失败: " & ex.Message)
@@ -471,26 +829,40 @@ Public Class MDIForm
         Return mClientTCP.Client     ' New Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp)
     End Function
 
-    Private Function CheckOcvDataHealth() As Boolean
+    Private Function CheckOcvDataHealth(ByRef failureDetail As String) As Boolean
         '此函数只读取数据库健康状态；UI 更新由 StartDatabaseHealthCheckAsync 统一调度。
         Try
             Dim service As New OcvDataService()
             Dim health As OcvDatabaseHealthResult = service.CheckDatabaseHealth()
             If health.IsSuccess Then
                 databaseConnected = True
+                failureDetail = String.Empty
                 Return True
             End If
 
             databaseConnected = False
             blnOnLine = False
+            failureDetail = health.Message
             System.Diagnostics.Debug.WriteLine("OCV_DATA 健康检查未通过: " & health.Message)
             Return False
         Catch ex As Exception
             databaseConnected = False
             blnOnLine = False
+            failureDetail = ex.Message
             System.Diagnostics.Debug.WriteLine("OCV_DATA 健康检查异常: " & ex.Message)
             Return False
         End Try
+    End Function
+
+    Private Shared Function BuildDatabaseFailureMessage(ByVal failureDetail As String) As String
+        Dim message As New System.Text.StringBuilder()
+        message.AppendLine("程序连接 OCV_DATA 数据库失败。")
+        message.AppendLine("服务器：" & If(String.IsNullOrWhiteSpace(Initsetting.strDatabase), "（未配置）", Initsetting.strDatabase))
+        message.AppendLine("账号：" & If(String.IsNullOrWhiteSpace(Initsetting.strUserID), "（未配置）", Initsetting.strUserID))
+        message.AppendLine("原因：" & If(String.IsNullOrWhiteSpace(failureDetail), "未知错误", failureDetail))
+        message.AppendLine()
+        message.AppendLine("数据库与程序在同一台电脑时，请先核对 SQL Server 实例：默认实例可填写 127.0.0.1；命名实例需填写 127.0.0.1\实例名，或填写 127.0.0.1,固定端口。还要确认对应 SQL Server 服务正在运行、TCP/IP 已启用、SQL Server 身份验证已启用，并且该账号已映射到 OCV_DATA。")
+        Return message.ToString()
     End Function
 
     Private Sub SetTestEntryEnabledSafe(ByVal enabled As Boolean)
@@ -536,7 +908,7 @@ Public Class MDIForm
         Return ipe
     End Function
     Private Sub btnDebug_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles btnDebug.Click
-        If Not AuthorizationService.RequireAdministrator(Me) Then Return
+        If Not AuthorizationService.RequirePermission(AppPermission.DeviceDiagnostics, Me) Then Return
         Me.Cursor = Cursors.WaitCursor
         If Not My.Forms.frmDebug.IsDisposed Then
             My.Forms.frmDebug.Dispose()
@@ -550,7 +922,7 @@ Public Class MDIForm
     End Sub
 
     Private Sub ToolDebug_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles ToolDebug.Click
-        If Not AuthorizationService.RequireAdministrator(Me) Then Return
+        If Not AuthorizationService.RequirePermission(AppPermission.DeviceDiagnostics, Me) Then Return
         frmDebug.Show()
     End Sub
     Private Sub ToolInit_Click(ByVal sender As System.Object, ByVal e As System.EventArgs)
@@ -558,7 +930,7 @@ Public Class MDIForm
     End Sub
 
     Private Sub btnInit_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles btnInit.Click
-        If Not AuthorizationService.RequireAdministrator(Me) Then Return
+        If Not AuthorizationService.RequirePermission(AppPermission.ManageProcessParameters, Me) Then Return
         init_Click(sender, e)
     End Sub
     Private Sub TStripbtnInQuery_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles TStripbtnInQuery.Click
@@ -654,6 +1026,7 @@ Public Class MDIForm
         FrmMesTask.Activate()
     End Sub
     Private Sub CalibrationToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles calibrationMenu.Click
+        If Not AuthorizationService.RequirePermission(AppPermission.CalibrateChannels, Me) Then Return
         Dim calibrationForm As FrmChannelCalibration = Nothing
         For Each child As Form In Me.MdiChildren
             If TypeOf child Is FrmChannelCalibration Then

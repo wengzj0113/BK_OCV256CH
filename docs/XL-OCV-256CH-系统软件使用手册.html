@@ -166,7 +166,7 @@
             <tr><td>电芯码加载</td><td>扫码后按托盘码重新查询。256 通道全测；空位只保留测量，不写正式电芯结果。</td><td>点击“启动测试”后按托盘码重新查询；所选通道必须都有电芯码。</td></tr>
             <tr><td>压合检查</td><td>等待 R151 从低到高。</td><td>未压合或 PLC 读取失败时弹框并停止。</td></tr>
             <tr><td>正式测试</td><td>条件满足后自动调用一次 <code>StarTest(1)</code>。</td><td>前置检查全部成功后调用 <code>StarTest(1)</code>。</td></tr>
-            <tr><td>PLC 完成通知</td><td>OCV0 等待 R170，清零 DT 并写入最终 NG；OCV1、OCV2 跳过分选写入。三个阶段均在结果保存后发送 R161 并等待 ACK。</td><td>手动测试不发送自动流程完成通知。</td></tr>
+            <tr><td>PLC 完成通知</td><td>测试结果保存后发送 R161；需要 NG 分选的阶段随后等待 R152，只发送最终 NG 档位 2 到 DT1001～DT1256 对应地址，再发送 R162。合格电池不写 DT。</td><td>手动测试不发送自动流程完成通知。</td></tr>
             <tr><td>MES 上传</td><td colspan="2">均使用测试结果快照后台上传，不阻塞主测试流程。</td></tr>
           </tbody>
         </table>
@@ -177,25 +177,27 @@
         <div class="flow">
           <div class="step"><strong>1</strong>选择自动</div><span class="arrow">→</span>
           <div class="step"><strong>2</strong>托盘到位稳定</div><span class="arrow">→</span>
-          <div class="step"><strong>3</strong>启动扫码</div><span class="arrow">→</span>
-          <div class="step"><strong>4</strong>写入 txtTray</div><span class="arrow">→</span>
-          <div class="step"><strong>5</strong>查询 1～256 电芯码</div><span class="arrow">→</span>
-          <div class="step"><strong>6</strong>确认托盘压合</div><span class="arrow">→</span>
-          <div class="step"><strong>7</strong>StarTest(1)</div>
+          <div class="step"><strong>3</strong>读取 R150 并扫码</div><span class="arrow">→</span>
+          <div class="step"><strong>4</strong>码无效时手工输入</div><span class="arrow">→</span>
+          <div class="step"><strong>5</strong>准备托盘并发送 R160</div><span class="arrow">→</span>
+          <div class="step"><strong>6</strong>R151=1 时开始测试</div><span class="arrow">→</span>
+          <div class="step"><strong>7</strong>保存后发送 R161</div><span class="arrow">→</span>
+          <div class="step"><strong>8</strong>R152 分选握手后发送 R162</div>
         </div>
 
         <h3>5.1 状态说明</h3>
         <div class="state-grid">
           <div class="state"><b>WaitingForTray</b>等待托盘到位。</div>
           <div class="state"><b>TrayDetected</b>托盘到位已稳定。</div>
-          <div class="state"><b>Scanning</b>正在等待扫码结果。</div>
+          <div class="state"><b>Scanning</b>正在读取扫码结果；失败或长度不符时进入手工输入。</div>
           <div class="state"><b>LoadingCellBarcodes</b>按托盘码查询和校验电芯码。</div>
           <div class="state"><b>ReadyToTest</b>条码已准备，等待最终设备检查。</div>
           <div class="state"><b>WaitingForClamp</b>等待 PLC 确认托盘压合。</div>
           <div class="state"><b>Testing</b>执行正式 OCV 测试。</div>
           <div class="state"><b>SavingLocalResult</b>保存本地测试结果。</div>
-          <div class="state"><b>PlcCompletionPending</b>准备发送测试完成通知。</div>
-          <div class="state"><b>WaitingForPlcAck</b>等待 PLC 完成应答。</div>
+          <div class="state"><b>WaitingR151</b>收到 R160 后等待 PLC 的测试启动信号。</div>
+          <div class="state"><b>WaitingR152</b>测试结果保存并发送 R161 后，等待排不良位信号。</div>
+          <div class="state"><b>SendingNgGrades</b>只发送最终 NG 档位 2，全部确认后发送 R162。</div>
           <div class="state"><b>Completed</b>本轮完成，等待托盘离开。</div>
           <div class="state"><b>Error</b>本轮异常，处理后重新开始。</div>
         </div>
@@ -257,16 +259,18 @@ StarTest(1)</pre>
       <section id="result">
         <h2>8. 结果保存、MES 上传与 PLC 通知</h2>
         <div class="flow">
-          <div class="step"><strong>测量完成</strong>生成 OK/NG 结果</div><span class="arrow">→</span>
-          <div class="step"><strong>本地保存</strong>OCV_DATA / 本地文件</div><span class="arrow">→</span>
-          <div class="step"><strong>仅 OCV0</strong>等 R170，清零 DT，再写最终 NG</div><span class="arrow">→</span>
-          <div class="step"><strong>PLC 完成通知</strong>发送 R161</div><span class="arrow">→</span>
-          <div class="step"><strong>PLC ACK</strong>等待确认</div>
+          <div class="step"><strong>测试/复测完成</strong>形成最终结果</div><span class="arrow">→</span>
+          <div class="step"><strong>保存结果</strong>OCV_DATA / 本地文件</div><span class="arrow">→</span>
+          <div class="step"><strong>测试完成</strong>发送 R161 并等待 ACK</div><span class="arrow">→</span>
+          <div class="step"><strong>需分选时</strong>等待 R152=1</div><span class="arrow">→</span>
+          <div class="step"><strong>NG 交接</strong>仅写 NG=2，再发送 R162</div>
         </div>
         <p>MES 上传是旁路任务：</p>
         <pre>本地保存成功
-    ├── 自动 OCV0：等待 R170=1，清零 DT，写入最终 NG，再发送 R161
-    ├── 自动 OCV1/OCV2：不访问分选 DT，直接发送 R161
+    ├── 自动各阶段：最终测试结果保存后发送 R161
+    ├── 需要 NG 分选的阶段：等待 R152=1，只向最终 NG 对应 DT 写入档位 2
+    │                       所有 NG 写入确认后发送 R162
+    ├── R162 获得确认后：释放本托盘状态；新托盘仍须完成 R150/R160 才会读取 R151
     └── 后台：将不可变结果快照加入 MES 上传队列
 
 MES 上传失败 → 记录失败 → 使用同一任务快照和幂等键重试</pre>
@@ -275,14 +279,16 @@ MES 上传失败 → 记录失败 → 使用同一任务快照和幂等键重试
           <tbody>
             <tr><td>测量失败</td><td>不认定为完成，不通知 PLC 完成。</td></tr>
             <tr><td>本地保存失败</td><td>不通知 PLC 完成；保留任务信息，允许人工处理。</td></tr>
-            <tr><td>OCV0 且 R170=0</td><td>上一托盘仍在挑选；保存本轮结果并等待，不覆盖 DT，也不发送 R161。OCV1、OCV2 无需等待 R170。</td></tr>
+            <tr><td>等待 R152=1</td><td>测试结果已保存且 R161 已发送；暂不写 DT、不发送 R162，也不启动下一托盘流程。</td></tr>
+            <tr><td>NG DT 写入失败</td><td>保留当前最终 NG 集合并重试；没有全部确认前不发送 R162。</td></tr>
+            <tr><td>R162 ACK 超时</td><td>只重试 R162，不重新测试、保存结果或重复写档位。</td></tr>
             <tr><td>MES 上传失败</td><td>不阻塞已完成的本地流程和 PLC 放行，进入后台重试。</td></tr>
-            <tr><td>PLC ACK 超时</td><td>不重新测量；按同一任务号/幂等键重发完成通知。</td></tr>
+            <tr><td>R161 ACK 超时</td><td>不重新测量或保存结果；只重试测试完成通知。</td></tr>
           </tbody>
         </table>
-        <p>实际托盘通道号从左到右逐行递增，PLC DT 地址从上到下逐列递增。通道号为 <code>ch</code> 时，行号为 <code>(ch - 1) \ 16</code>、列号为 <code>(ch - 1) Mod 16</code>，地址为 <code>DT(1001 + 列号 × 16 + 行号)</code>。例如 CH1→DT1001、CH16→DT1241、CH17→DT1002、CH241→DT1016、CH256→DT1256。</p>
-        <p>只有 OCV0 使用分选结果区。R170=1 表示上一托盘挑选完成且 DT 可写；程序先将 DT1001～DT1256 全部写为 0，再按映射写入本托盘最终 NG=2。全部写入确认后发送 R161，PLC 随后将 R170 变为 0。下一次交接必须观察到 R170 的 0→1 变化。OCV1、OCV2 不等待 R170，也不清零或写入分选 DT。</p>
-        <p>OCV0 等待 R170 期间，最终结果已保存到数据库和本地文件，自动周期不会启动第三个托盘。若此时程序意外退出，应由维护人员核对已保存的托盘结果和 PLC DT 内容后恢复生产；当前版本不会在重启后自动恢复未完成的 NG 交接。</p>
+        <p>客户定义的 PLC 挑选地址按逻辑序号顺序对应：NG 序号 <code>n</code> 写入 <code>DT(1000+n)</code>，例如序号 1→DT1001、序号 2→DT1002、序号 256→DT1256。该地址序列不表示电池在托盘中的实际坐标，也不使用托盘行列转置映射。</p>
+        <p>需要分选的阶段在测试结果保存并发送 R161 后等待 R152=1。上位机只对复测后的最终 NG 序号写入档位 2，合格序号不写。所有 NG 写入收到确认后才发送 R162；R162 确认前不会开始下一托盘流程，也不会读取下一次 R151。</p>
+        <p>上位机不向合格地址写 0。PLC 需在下一托盘交接前按设备时序清除旧 DT 挑选数据；该清除行为需通过现场 PLC 程序和连续多托盘联调确认。OCV 阶段不需要 NG 分选时，跳过 R152、DT 和 R162。</p>
       </section>
 
       <section id="retest">

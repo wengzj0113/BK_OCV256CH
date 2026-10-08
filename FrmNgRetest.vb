@@ -1,4 +1,5 @@
 Imports System.Drawing
+Imports System.Globalization
 Imports System.Threading.Tasks
 Imports System.Windows.Forms
 
@@ -54,7 +55,7 @@ Public Class FrmNgRetest
         txtBarcode.Focus()
         Try
             Dim portName As String = "COM" & (Initsetting.Retest3562Port + 1).ToString()
-            meterService.Connect(portName, If(Initsetting.Retest3562Rate > 0, Initsetting.Retest3562Rate, 9600))
+            meterService.Connect(portName)
             lblMeterStatus.Text = "复测3562：已连接（" & portName & "）"
             lblMeterStatus.ForeColor = Color.DarkGreen
         Catch ex As Exception
@@ -87,10 +88,12 @@ Public Class FrmNgRetest
                                            currentSource.TrayCode, currentSource.TrayPosition)
             lblResult.Text = "复测结果：待测量"
             btnRetest.Enabled = meterService.IsConnected
+            BusinessLogService.Write("操作", "成功", "查询NG复测记录", currentSource.BatteryCode, "已查询原始测试结果。", String.Format(CultureInfo.InvariantCulture, "原始判定={0}；托盘={1}；位置={2}；原始电压={3:F2} mV；原始内阻={4:F2} mΩ。", currentSource.OriginalResult, currentSource.TrayCode, currentSource.TrayPosition, currentSource.OriginalVoltage * 1000.0F, currentSource.OriginalResistance), "NG复测")
         Catch ex As Exception
             currentSource = Nothing
             btnRetest.Enabled = False
             lblSource.Text = ex.Message
+            BusinessLogService.Write("操作", "失败", "查询NG复测记录", code, "NG复测记录查询失败。", ex.Message, "NG复测")
             MessageBox.Show(ex.Message, "NG复测查询失败", MessageBoxButtons.OK, MessageBoxIcon.Warning)
         Finally
             SetBusy(False)
@@ -107,8 +110,11 @@ Public Class FrmNgRetest
         SetBusy(True)
         Try
             Dim measurement As RetestMeasurement = Await Task.Run(Function() meterService.Measure())
-            lblResult.Text = String.Format("复测结果：{0}    电压：{1:F2} mV    内阻：{2:F2} mΩ    时间：{3:yyyy-MM-dd HH:mm:ss}",
-                                           measurement.Result, measurement.Voltage * 1000.0F, measurement.Resistance, measurement.MeasuredAt)
+            Dim voltageText As String = If(measurement.VoltageMeasured,
+                                           String.Format("复测电压：{0:F2} mV", measurement.Voltage * 1000.0F),
+                                           String.Format("电压沿用原测：{0:F2} mV", measurement.Voltage * 1000.0F))
+            lblResult.Text = String.Format("复测结果：{0}    {1}    内阻：{2:F2} mΩ    时间：{3:yyyy-MM-dd HH:mm:ss}",
+                                           measurement.Result, voltageText, measurement.Resistance, measurement.MeasuredAt)
             lblResult.ForeColor = If(measurement.Result = "OK", Color.DarkGreen, Color.Red)
 
             Dim overwrite As Boolean = chkOverwrite.Checked
@@ -128,7 +134,9 @@ Public Class FrmNgRetest
             }
             Await Task.Run(Sub() dataService.SaveRetest(request))
             lblResult.Text &= If(overwrite, "    已覆盖原数据", "    未覆盖原数据")
+            BusinessLogService.Write("操作", "成功", "完成NG复测", currentSource.BatteryCode, "NG复测数据已保存。", String.Format(CultureInfo.InvariantCulture, "复测判定={0}；电压={1:F2} mV；内阻={2:F2} mΩ；覆盖原数据={3}；仪表端口={4}。", measurement.Result, measurement.Voltage * 1000.0F, measurement.Resistance, overwrite, meterService.PortName), "NG复测")
         Catch ex As Exception
+            BusinessLogService.Write("操作", "失败", "执行NG复测", If(currentSource Is Nothing, "", currentSource.BatteryCode), "NG复测执行失败。", ex.Message, "NG复测")
             MessageBox.Show(ex.Message, "NG复测失败", MessageBoxButtons.OK, MessageBoxIcon.Error)
         Finally
             SetBusy(False)
@@ -148,5 +156,3 @@ Public Class FrmNgRetest
         meterService.Dispose()
     End Sub
 End Class
-
-

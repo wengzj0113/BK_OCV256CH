@@ -4,6 +4,7 @@ Imports System.Threading
 
 Public Interface IAutomaticTestHost
     Function IsAutomaticModeEnabled() As Boolean
+    Function IsDebugModeEnabled() As Boolean
     Function CanStartAutomaticTest() As Boolean
     Function ValidateTrayCode(ByVal trayCode As String) As Boolean
     Function GetNeedNgRetest() As Boolean ' btnNeedNGRetest.Checked
@@ -16,6 +17,7 @@ Public Interface IAutomaticTestHost
     Sub StartRetestPass(ByVal channels As IReadOnlyList(Of Integer), ByVal completed As Action(Of TestPassResult), ByVal failed As Action(Of Exception))
     Function PublishFinalCycle(ByVal cycle As AutomaticTestCycle) As Boolean
     Sub ReportAutomaticStatus(ByVal message As String)
+    Sub ReportAutomaticEvent(ByVal message As String)
 End Interface
 
 Public Class PlcAutomaticTestCoordinator
@@ -25,13 +27,35 @@ Public Class PlcAutomaticTestCoordinator
     Private ReadOnly scanner As ITrayScannerClient
     Private ReadOnly host As IAutomaticTestHost
     Private ReadOnly stateLock As New Object()
+    Private ReadOnly lastReportedRegisterValues As New Dictionary(Of String, Boolean)(StringComparer.Ordinal)
     Private ReadOnly cycle As New AutomaticTestCycle()
+    'OCV0 has one completed-result handoff in flight while the next tray may be scanned.
+    Private pendingNgSelection As PendingNgSelection
+    'Accept a high input once. PLC low re-arms the next request; the first
+    'observed value may already be high, so no prior low sample is required.
+    Private r150RequestConsumed As Boolean
+    Private r151RequestConsumed As Boolean
+    Private r152RequestConsumed As Boolean
+    Private trayRequestPending As Boolean
+    Private testRequestPending As Boolean
+    Private sortingRequestPending As Boolean
+    Private sortingRequestTestStateAtCapture As PlcR152TestState = PlcR152TestState.NoTestStarted
+    Private sortingRequestRequiresNgSortingAtCapture As Boolean
+    Private trayPreparationInProgress As Boolean
+    Private manualTrayCodePending As Boolean
+    Private nextTrayScanRetryAtUtc As DateTime = DateTime.MinValue
+    Private trayConfirmationPending As Boolean
+    Private r160WriteInProgress As Boolean
+    Private r161WriteInProgress As Boolean
+    Private testPrerequisiteWaitingReported As Boolean
+    Private sortingRequestWaitingReported As Boolean
     Private pollTimer As Timer
     Private pollBusy As Integer
     Private stopped As Boolean
+    Private requestGeneration As Integer
+    Private pauseAtBoundaryState As Integer
+    Private boundaryPauseCallback As Action
     Private currentState As PlcAutomaticTestState = PlcAutomaticTestState.Idle
-    Private ngSlotNeedsBusyEdge As Boolean
-    Private ngSlotSawBusy As Boolean
 
     Public Sub New(ByVal plcClient As IPlcAutomationClient,
                    ByVal scannerClient As ITrayScannerClient,
@@ -52,6 +76,30 @@ Public Class PlcAutomaticTestCoordinator
         End Get
     End Property
 
+    Public ReadOnly Property IsPausedAtCycleBoundary As Boolean
+        Get
+            Return Volatile.Read(pauseAtBoundaryState) = 2
+        End Get
+    End Property
+
+    Public Sub RequestPauseAtCycleBoundary(ByVal pausedCallback As Action)
+        If pausedCallback Is Nothing Then Throw New ArgumentNullException(NameOf(pausedCallback))
+        SyncLock stateLock
+            If stopped Then Throw New ObjectDisposedException(NameOf(PlcAutomaticTestCoordinator))
+            boundaryPauseCallback = pausedCallback
+            Interlocked.Exchange(pauseAtBoundaryState, 1)
+        End SyncLock
+        TryCompleteBoundaryPause()
+    End Sub
+
+    Public Sub ResumeAfterPause()
+        SyncLock stateLock
+            If stopped Then Return
+            boundaryPauseCallback = Nothing
+            Interlocked.Exchange(pauseAtBoundaryState, 0)
+        End SyncLock
+    End Sub
+
     Public Sub Start()
         SyncLock stateLock
             If stopped Then Throw New ObjectDisposedException(NameOf(PlcAutomaticTestCoordinator))
@@ -61,11 +109,14 @@ Public Class PlcAutomaticTestCoordinator
             pollTimer = New Timer(AddressOf Poll, Nothing, 1000, 1000)
         End SyncLock
         host.ReportAutomaticStatus("PLC自动流程已启动")
+        ReportAutomaticEventSafely("自动流程启动")
     End Sub
 
     Public Sub [Stop]()
         SyncLock stateLock
             stopped = True
+            boundaryPauseCallback = Nothing
+            Interlocked.Exchange(pauseAtBoundaryState, 0)
             If pollTimer IsNot Nothing Then
                 pollTimer.Dispose()
                 pollTimer = Nothing
@@ -83,53 +134,326 @@ Public Class PlcAutomaticTestCoordinator
         If Interlocked.Exchange(pollBusy, 1) = 1 Then Return
         Try
             If stopped OrElse Not host.IsAutomaticModeEnabled() Then Return
-            ObserveNgSlotBusy()
+            If Volatile.Read(pauseAtBoundaryState) = 2 Then Return
+            If Volatile.Read(pauseAtBoundaryState) = 1 AndAlso IsAtSafeCycleBoundary() Then Return
+            Dim pollGeneration As Integer
+            SyncLock stateLock
+                pollGeneration = requestGeneration
+            End SyncLock
+            Dim r150ReadSucceeded As Boolean
+            Dim r151ReadSucceeded As Boolean
+            Dim r152ReadSucceeded As Boolean
+            Dim r150High As Boolean = ReadRegisterSignal("R150", AddressOf plc.ReadR150, r150ReadSucceeded)
+            Dim r151High As Boolean = ReadRegisterSignal("R151", AddressOf plc.ReadR151, r151ReadSucceeded)
+            Dim r152High As Boolean = ReadRegisterSignal("R152", AddressOf plc.ReadR152, r152ReadSucceeded)
+            Dim r150Accepted As Boolean
+            Dim r151Accepted As Boolean
+            Dim r152Accepted As Boolean
 
-            Select Case Me.State
-                Case PlcAutomaticTestState.Idle
-                    If plc.ReadR150() Then BeginTrayCodeRead()
-                Case PlcAutomaticTestState.WaitingR150Reset
-                    If Not plc.ReadR150() Then MoveTo(PlcAutomaticTestState.ArmingR151, "R150已复位，准备等待R151")
-                Case PlcAutomaticTestState.ArmingR151
-                    If Not plc.ReadR151() Then MoveTo(PlcAutomaticTestState.WaitingFixturePressed, "等待针床压合到位")
-                Case PlcAutomaticTestState.WaitingFixturePressed
-                    If plc.ReadR151() Then BeginInitialTest()
-                Case PlcAutomaticTestState.WaitingCycleReset
-                    If Not plc.ReadR151() Then ResetCycle()
-                Case PlcAutomaticTestState.WaitingNgSlotReady
-                    PublishNgGradesWhenReady()
-                Case PlcAutomaticTestState.WaitingR161Ack
-                    SendCompletionSignal()
-            End Select
+            Dim pollRequestsAccepted As Boolean
+            SyncLock stateLock
+                pollRequestsAccepted = (pollGeneration = requestGeneration)
+                If pollRequestsAccepted Then
+                    If r150ReadSucceeded AndAlso Not r150High Then r150RequestConsumed = False
+                    If r151ReadSucceeded AndAlso Not r151High Then r151RequestConsumed = False
+                    If r152ReadSucceeded AndAlso Not r152High Then r152RequestConsumed = False
+
+                    If r150ReadSucceeded AndAlso r150High AndAlso Not r150RequestConsumed Then
+                        r150RequestConsumed = True
+                        trayRequestPending = True
+                        r150Accepted = True
+                    End If
+                    If r151ReadSucceeded AndAlso r151High AndAlso Not r151RequestConsumed Then
+                        r151RequestConsumed = True
+                        testRequestPending = True
+                        r151Accepted = True
+                    End If
+                    If r152ReadSucceeded AndAlso r152High AndAlso Not r152RequestConsumed Then
+                        r152RequestConsumed = True
+                        sortingRequestPending = True
+                        sortingRequestTestStateAtCapture = CaptureR152TestStateLocked()
+                        sortingRequestRequiresNgSortingAtCapture = pendingNgSelection IsNot Nothing OrElse cycle.RequiresNgSorting
+                        sortingRequestWaitingReported = False
+                        r152Accepted = True
+                    End If
+                End If
+            End SyncLock
+
+            If pollRequestsAccepted Then
+                If r150Accepted Then ReportAutomaticEventSafely("检测到R150=1，托盘扫码请求已记录")
+                If r151Accepted Then ReportAutomaticEventSafely("检测到R151=1，测试请求已记录")
+                If r152Accepted Then ReportAutomaticEventSafely("检测到R152=1，NG分选请求已记录")
+            End If
+
+            ProcessPendingRequests(pollGeneration)
         Catch ex As Exception
             EnterFault(ex)
         Finally
             Volatile.Write(pollBusy, 0)
+            TryCompleteBoundaryPause()
         End Try
     End Sub
 
+    Private Function CaptureR152TestStateLocked() As PlcR152TestState
+        If pendingNgSelection IsNot Nothing Then Return PlcR152TestState.TestCompleted
+        If Not cycle.TestStarted Then Return PlcR152TestState.NoTestStarted
+        If currentState = PlcAutomaticTestState.Fault Then Return PlcR152TestState.TestFaulted
+        If cycle.FinalResultPublished AndAlso cycle.R161Written Then Return PlcR152TestState.TestCompleted
+        Return PlcR152TestState.TestInProgress
+    End Function
+
+    Private Function IsAtSafeCycleBoundary() As Boolean
+        Dim current As PlcAutomaticTestState = Me.State
+        SyncLock stateLock
+            Return (current = PlcAutomaticTestState.Idle OrElse current = PlcAutomaticTestState.Fault) AndAlso
+                   Not trayRequestPending AndAlso Not testRequestPending AndAlso Not sortingRequestPending AndAlso
+                   Not trayPreparationInProgress AndAlso Not manualTrayCodePending AndAlso
+                   String.IsNullOrWhiteSpace(cycle.TrayCode)
+        End SyncLock
+    End Function
+
+    Private Sub ProcessPendingRequests(ByVal pollGeneration As Integer)
+        Dim retryTestCompletion As Boolean
+        Dim acknowledgeEarlySortingRequest As Boolean
+        SyncLock stateLock
+            If sortingRequestPending AndAlso
+               sortingRequestTestStateAtCapture = PlcR152TestState.TestInProgress AndAlso
+               currentState = PlcAutomaticTestState.Fault Then
+                sortingRequestTestStateAtCapture = PlcR152TestState.TestFaulted
+                sortingRequestWaitingReported = False
+            End If
+            retryTestCompletion = cycle.FinalResultPublished AndAlso Not cycle.R161Written
+            acknowledgeEarlySortingRequest = sortingRequestPending AndAlso
+                                             sortingRequestTestStateAtCapture = PlcR152TestState.NoTestStarted AndAlso
+                                             pendingNgSelection Is Nothing
+        End SyncLock
+
+        If acknowledgeEarlySortingRequest Then SendEarlySortingCompletionSignal()
+        'Release the completed tray before consuming a queued R150/R151 request.
+        If retryTestCompletion Then SendTestCompletionSignal()
+
+        Dim canPrepareTray As Boolean
+        SyncLock stateLock
+            canPrepareTray = trayRequestPending AndAlso Not trayPreparationInProgress AndAlso
+                             Not manualTrayCodePending AndAlso String.IsNullOrWhiteSpace(cycle.TrayCode) AndAlso
+                             DateTime.UtcNow >= nextTrayScanRetryAtUtc
+            If canPrepareTray Then
+                trayRequestPending = False
+                trayPreparationInProgress = True
+                nextTrayScanRetryAtUtc = DateTime.MinValue
+            End If
+        End SyncLock
+
+        If canPrepareTray Then
+            Try
+                If Not IsRequestGenerationCurrent(pollGeneration) Then Return
+                BeginTrayCodeRead()
+            Catch ex As Exception
+                EnterFault(ex)
+            Finally
+                SyncLock stateLock
+                    trayPreparationInProgress = False
+                End SyncLock
+            End Try
+        End If
+
+        Dim confirmTray As Boolean
+        SyncLock stateLock
+            confirmTray = trayConfirmationPending AndAlso Not cycle.TrayConfirmed
+        End SyncLock
+        If confirmTray Then ConfirmTrayCodeWithPlc()
+
+        Dim startTest As Boolean
+        SyncLock stateLock
+            startTest = testRequestPending AndAlso Not cycle.TestStarted AndAlso cycle.TrayConfirmed
+        End SyncLock
+        If startTest Then
+            Dim prerequisitesReady As Boolean = False
+            Try
+                prerequisitesReady = host.CanStartAutomaticTest()
+            Catch ex As Exception
+                Debug.WriteLine("PLC automatic test prerequisite check failed: " & ex.Message)
+            End Try
+
+            If prerequisitesReady Then
+                SyncLock stateLock
+                    If testRequestPending AndAlso Not cycle.TestStarted AndAlso cycle.TrayConfirmed Then
+                        testRequestPending = False
+                        testPrerequisiteWaitingReported = False
+                        cycle.TestStarted = True
+                    Else
+                        startTest = False
+                    End If
+                End SyncLock
+                If startTest Then
+                    Try
+                        BeginInitialTest()
+                    Catch ex As Exception
+                        EnterFault(ex)
+                    End Try
+                End If
+            ElseIf Not testPrerequisiteWaitingReported Then
+                testPrerequisiteWaitingReported = True
+                ReportAutomaticEventSafely("R151测试请求已暂存，等待测试前置条件满足")
+            End If
+        End If
+
+        Dim startSorting As Boolean
+        Dim reportSortingWait As Boolean
+        Dim sortingWaitMessage As String = String.Empty
+        SyncLock stateLock
+            startSorting = sortingRequestPending AndAlso
+                           sortingRequestTestStateAtCapture <> PlcR152TestState.NoTestStarted AndAlso
+                           sortingRequestTestStateAtCapture <> PlcR152TestState.TestFaulted AndAlso
+                           ((pendingNgSelection IsNot Nothing) OrElse
+                            (cycle.TestStarted AndAlso cycle.FinalResultPublished AndAlso cycle.R161Written) OrElse
+                            (sortingRequestTestStateAtCapture = PlcR152TestState.TestCompleted AndAlso
+                             Not sortingRequestRequiresNgSortingAtCapture))
+            If sortingRequestPending AndAlso Not startSorting AndAlso Not sortingRequestWaitingReported Then
+                Select Case sortingRequestTestStateAtCapture
+                    Case PlcR152TestState.TestFaulted
+                        reportSortingWait = True
+                        sortingRequestWaitingReported = True
+                        sortingWaitMessage = "R152在测试异常期间到达；结果无效，等待人工停止或恢复"
+                    Case PlcR152TestState.TestInProgress
+                        reportSortingWait = True
+                        sortingRequestWaitingReported = True
+                        sortingWaitMessage = If(cycle.FinalResultPublished,
+                                                "R152分选请求已暂存，等待R161测试完成确认",
+                                                "R152分选请求已暂存，等待当前测试结果")
+                End Select
+            End If
+            If startSorting Then sortingRequestWaitingReported = False
+        End SyncLock
+        If reportSortingWait Then ReportAutomaticEventSafely(sortingWaitMessage)
+        If startSorting Then
+            Dim selection As PendingNgSelection
+            Dim noSortingCycleReady As Boolean
+            Dim noSortingRequestReady As Boolean
+            SyncLock stateLock
+                selection = pendingNgSelection
+                noSortingCycleReady = selection Is Nothing AndAlso cycle.TestStarted AndAlso
+                                      cycle.FinalResultPublished AndAlso cycle.R161Written AndAlso
+                                      Not cycle.RequiresNgSorting
+                noSortingRequestReady = selection Is Nothing AndAlso
+                                        sortingRequestTestStateAtCapture = PlcR152TestState.TestCompleted AndAlso
+                                        Not sortingRequestRequiresNgSortingAtCapture
+            End SyncLock
+            If selection IsNot Nothing Then
+                PublishNgGrades(selection)
+            ElseIf noSortingCycleReady OrElse noSortingRequestReady Then
+                SendNoSortingCompletionSignal()
+            End If
+        End If
+    End Sub
+
+    Private Function IsRequestGenerationCurrent(ByVal expectedGeneration As Integer) As Boolean
+        SyncLock stateLock
+            Return Not stopped AndAlso requestGeneration = expectedGeneration
+        End SyncLock
+    End Function
+
+    Public Sub RequestStopCurrentCycle()
+        SyncLock stateLock
+            If stopped Then Return
+            requestGeneration += 1
+            trayRequestPending = False
+            testRequestPending = False
+            sortingRequestPending = False
+            sortingRequestTestStateAtCapture = PlcR152TestState.NoTestStarted
+            sortingRequestRequiresNgSortingAtCapture = False
+            trayPreparationInProgress = False
+            manualTrayCodePending = False
+            nextTrayScanRetryAtUtc = DateTime.MinValue
+            trayConfirmationPending = False
+            testPrerequisiteWaitingReported = False
+            sortingRequestWaitingReported = False
+            cycle.Reset()
+            currentState = PlcAutomaticTestState.Idle
+        End SyncLock
+        ReportAutomaticEventSafely("自动流程已复位，等待新托盘")
+        host.ReportAutomaticStatus("测试已停止，等待托盘进入")
+    End Sub
+
+    Private Sub TryCompleteBoundaryPause()
+        If Volatile.Read(pauseAtBoundaryState) <> 1 OrElse
+           Volatile.Read(pollBusy) <> 0 OrElse
+           Not IsAtSafeCycleBoundary() Then Return
+        If Interlocked.CompareExchange(pauseAtBoundaryState, 2, 1) <> 1 Then Return
+
+        Dim callback As Action = Nothing
+        SyncLock stateLock
+            callback = boundaryPauseCallback
+            boundaryPauseCallback = Nothing
+        End SyncLock
+        If callback IsNot Nothing Then
+            Try
+                callback()
+            Catch ex As Exception
+                Debug.WriteLine("PLC boundary-pause callback failed: " & ex.Message)
+            End Try
+        End If
+    End Sub
+
     Private Sub BeginTrayCodeRead()
-        MoveTo(PlcAutomaticTestState.ReadingTrayCode, "收到R150，读取托盘码")
-        Dim trayCode As String = scanner.ReadTrayCode(1500)
+        MoveTo(PlcAutomaticTestState.ReadingTrayCode, "收到R150，触发扫码并读取托盘码")
+        ReportAutomaticEventSafely("托盘到位，开始扫码")
+        Dim trayCode As String
+        Try
+            scanner.TriggerScan()
+            trayCode = scanner.ReadTrayCode(1500)
+        Catch ex As Exception
+            ReportAutomaticEventSafely("托盘扫码失败：" & ex.Message & "，请手工输入托盘码或取消后自动重试")
+            PromptManualTrayCode("扫码失败：" & ex.Message)
+            Return
+        End Try
         If Not host.ValidateTrayCode(trayCode) Then
-            EnterFault(New InvalidOperationException("自动扫码未取得有效托盘码，请检查扫码器或切换手动模式。"))
+            ReportAutomaticEventSafely("未读取到有效托盘码，请手工输入托盘码或取消后自动重试")
+            PromptManualTrayCode("未识别到托盘码或托盘码长度不符合设置。")
             Return
         End If
+        ReportAutomaticEventSafely("扫码成功，托盘码：" & trayCode.Trim())
         AcceptTrayCode(trayCode)
     End Sub
 
     Private Sub AcceptManualTrayCode(ByVal trayCode As String)
-        If stopped Then Return
+        If stopped OrElse Not manualTrayCodePending Then Return
         If Not host.ValidateTrayCode(trayCode) Then
-            MoveTo(PlcAutomaticTestState.WaitingManualTrayCode, "手工托盘码无效，继续等待输入")
+            PromptManualTrayCode("手工输入的托盘码为空或长度不符合设置，请重新输入。")
             Return
         End If
-        AcceptTrayCode(trayCode)
+        SyncLock stateLock
+            manualTrayCodePending = False
+            nextTrayScanRetryAtUtc = DateTime.MinValue
+        End SyncLock
+        Try
+            ReportAutomaticEventSafely("手工输入托盘码已确认")
+            AcceptTrayCode(trayCode)
+        Catch ex As Exception
+            EnterFault(ex)
+        End Try
+    End Sub
+
+    Private Sub PromptManualTrayCode(ByVal reason As String)
+        If stopped Then Return
+        SyncLock stateLock
+            manualTrayCodePending = True
+        End SyncLock
+        MoveTo(PlcAutomaticTestState.WaitingManualTrayCode, reason & "请手工输入托盘码。")
+        host.RequestManualTrayCode(AddressOf AcceptManualTrayCode, AddressOf CancelManualTrayCode)
     End Sub
 
     Private Sub CancelManualTrayCode()
         If stopped Then Return
-        MoveTo(PlcAutomaticTestState.WaitingManualTrayCode, "等待有效托盘码")
+        SyncLock stateLock
+            manualTrayCodePending = False
+            If String.IsNullOrWhiteSpace(cycle.TrayCode) Then
+                trayRequestPending = True
+                nextTrayScanRetryAtUtc = DateTime.UtcNow.AddSeconds(2)
+            End If
+        End SyncLock
+        ReportAutomaticEventSafely("手工输入已取消，约2秒后自动重新扫码")
+        MoveTo(PlcAutomaticTestState.WaitingTrayScanRetry, "手工输入已取消，约2秒后自动重新扫码")
     End Sub
 
     Private Sub AcceptTrayCode(ByVal trayCode As String)
@@ -137,30 +461,54 @@ Public Class PlcAutomaticTestCoordinator
         host.PrepareAutomaticTray(trayCode)
         SyncLock stateLock
             cycle.TrayCode = trayCode.Trim()
+            trayConfirmationPending = True
         End SyncLock
-        plc.WriteR160()
-        MoveTo(PlcAutomaticTestState.WaitingR150Reset, "托盘码已确认，已发送R160")
+        ConfirmTrayCodeWithPlc()
+    End Sub
+
+    Private Sub ConfirmTrayCodeWithPlc()
+        SyncLock stateLock
+            If Not trayConfirmationPending OrElse cycle.TrayConfirmed OrElse r160WriteInProgress Then Return
+            r160WriteInProgress = True
+        End SyncLock
+        Try
+            ReportAutomaticEventSafely("上位机准备写入PLC寄存器 R160=1")
+            plc.WriteR160()
+        Catch ex As Exception
+            ReportAutomaticEventSafely("上位机写入PLC寄存器 R160=1失败：" & ex.Message)
+            MoveTo(PlcAutomaticTestState.WaitingR150Reset, "PLC寄存器 R160写入未确认，将重试：" & ex.Message)
+            Return
+        Finally
+            SyncLock stateLock
+                r160WriteInProgress = False
+            End SyncLock
+        End Try
+        SyncLock stateLock
+            trayConfirmationPending = False
+            cycle.TrayConfirmed = True
+            trayRequestPending = False
+            manualTrayCodePending = False
+            nextTrayScanRetryAtUtc = DateTime.MinValue
+        End SyncLock
+        ReportAutomaticEventSafely("托盘码已确认，PLC寄存器 R160=1（已确认）")
+        MoveTo(PlcAutomaticTestState.WaitingFixturePressed, "托盘准备完成，等待独立的R151测试请求")
     End Sub
 
     Private Sub BeginInitialTest()
-        If Not host.CanStartAutomaticTest() Then
-            EnterFault(New InvalidOperationException("自动测试前置条件未满足。"))
-            Return
-        End If
-
         SyncLock stateLock
             cycle.NeedNgRetest = host.GetNeedNgRetest()
             cycle.RequiresNgSorting = host.RequiresNgSorting()
             cycle.MaxRetestRounds = Math.Max(0, host.GetRetestRoundCount())
             cycle.CurrentRetestRound = 0
             cycle.CurrentNgChannels.Clear()
-            cycle.WrittenNgChannels.Clear()
+            cycle.NgGradesWrittenChannels.Clear()
             cycle.FinalResultPublished = False
             cycle.NgGradesWritten = False
             cycle.R161Written = False
         End SyncLock
 
         MoveTo(PlcAutomaticTestState.PreparingTest, "R151已到位，开始测试准备")
+        ReportAutomaticEventSafely("收到R151=1，开始256通道初次测试")
         MoveTo(PlcAutomaticTestState.InitialTesting, "开始256通道初次测试")
         host.StartInitialPass(AddressOf InitialPassCompleted, AddressOf TestPassFailed)
     End Sub
@@ -171,6 +519,7 @@ Public Class PlcAutomaticTestCoordinator
             Return
         End If
         UpdateNgSet(result)
+        ReportAutomaticEventSafely(String.Format("初次测试完成，NG通道 {0} 个", cycle.CurrentNgChannels.Count))
         If ShouldRetest() Then
             StartNextRetest()
         Else
@@ -205,6 +554,7 @@ Public Class PlcAutomaticTestCoordinator
             Return
         End If
         UpdateNgSet(result)
+        ReportAutomaticEventSafely(String.Format("第{0}轮NG复测完成，剩余NG通道 {1} 个", cycle.CurrentRetestRound, cycle.CurrentNgChannels.Count))
         If ShouldRetest() Then
             StartNextRetest()
         Else
@@ -217,7 +567,6 @@ Public Class PlcAutomaticTestCoordinator
             For Each item As ChannelTestResult In result.Results
                 If item.IsNg Then
                     cycle.CurrentNgChannels.Add(item.ChannelNumber)
-                    cycle.WrittenNgChannels.Add(item.ChannelNumber)
                 Else
                     cycle.CurrentNgChannels.Remove(item.ChannelNumber)
                 End If
@@ -233,68 +582,207 @@ Public Class PlcAutomaticTestCoordinator
                 SyncLock stateLock
                     cycle.FinalResultPublished = True
                 End SyncLock
+                ReportAutomaticEventSafely("最终测试结果保存完成")
             End If
-            If cycle.RequiresNgSorting Then
-                PublishNgGradesWhenReady()
-            Else
-                SendCompletionSignal()
-            End If
+            SendTestCompletionSignal()
         Catch ex As Exception
             EnterFault(ex)
         End Try
     End Sub
 
-    Private Sub ObserveNgSlotBusy()
-        If Not ngSlotNeedsBusyEdge OrElse ngSlotSawBusy Then Return
+    Private Sub PublishNgGrades(ByVal selection As PendingNgSelection)
         Try
-            If Not plc.ReadR170() Then ngSlotSawBusy = True
-        Catch ex As Exception
-            '仅延迟下一次交接；正式写入前仍会重新读取 R170。
-        End Try
-    End Sub
+            Dim ngChannels As List(Of Integer)
+            SyncLock stateLock
+                If Not Object.ReferenceEquals(pendingNgSelection, selection) Then Return
+                ngChannels = selection.Channels.OrderBy(Function(item) item).ToList()
+            End SyncLock
 
-    Private Sub PublishNgGradesWhenReady()
-        Try
-            Dim slotReady As Boolean = plc.ReadR170()
-            If ngSlotNeedsBusyEdge AndAlso Not slotReady Then ngSlotSawBusy = True
-            If Not slotReady OrElse (ngSlotNeedsBusyEdge AndAlso Not ngSlotSawBusy) Then
-                MoveTo(PlcAutomaticTestState.WaitingNgSlotReady, "最终测试结果已保存，等待上一托盘NG挑选完成及R170重新置1")
-                Return
-            End If
-            If Not cycle.NgGradesWritten Then
-                '上一托盘挑选完成后，先清除全部旧标记；任何写入失败都从清零重新尝试。
-                For channel As Integer = 1 To 256
-                    plc.WriteChannelGrade(channel, 0)
-                Next
-                For Each channel As Integer In cycle.CurrentNgChannels.OrderBy(Function(item) item)
-                    plc.WriteChannelGrade(channel, 2)
+            If Not selection.GradesWritten Then
+                'R152=1后发送最终NG；每个已确认的固定DT地址只在失败重试时跳过。
+                If ngChannels.Count > 0 Then
+                    ReportAutomaticEventSafely(String.Format("上位机开始写入PLC NG档位，共{0}个点位", ngChannels.Count))
+                End If
+                For Each channel As Integer In ngChannels
+                    Dim alreadyWritten As Boolean
+                    SyncLock stateLock
+                        alreadyWritten = selection.WrittenChannels.Contains(channel)
+                    End SyncLock
+                    If alreadyWritten Then Continue For
+
+                    Dim dtAddress As Integer = 1000 + channel
+                    Try
+                        ReportAutomaticEventSafely(String.Format("上位机准备写入PLC寄存器 DT{0}=2", dtAddress))
+                        plc.WriteNgSelection(channel)
+                    Catch ex As Exception
+                        ReportAutomaticEventSafely(String.Format("上位机写入PLC寄存器 DT{0}=2失败：{1}", dtAddress, ex.Message))
+                        Throw
+                    End Try
+                    SyncLock stateLock
+                        selection.WrittenChannels.Add(channel)
+                    End SyncLock
+                    ReportAutomaticEventSafely(String.Format("NG档位已写入PLC：DT{0}=2", dtAddress))
                 Next
                 SyncLock stateLock
-                    cycle.NgGradesWritten = True
+                    selection.GradesWritten = True
                 End SyncLock
-                ngSlotNeedsBusyEdge = True
-                ngSlotSawBusy = False
             End If
-            SendCompletionSignal()
+            SendSortingCompletionSignal(selection)
         Catch ex As Exception
-            MoveTo(PlcAutomaticTestState.WaitingNgSlotReady, "等待PLC结果区可写或NG写入确认：" & ex.Message)
+                MoveTo(PlcAutomaticTestState.WaitingR152, "NG档位写入失败，等待R152重试：" & ex.Message)
         End Try
     End Sub
 
-    Private Sub SendCompletionSignal()
+    Private Sub SendTestCompletionSignal()
+        Dim blockedByPendingSelection As Boolean
+        SyncLock stateLock
+            If cycle.R161Written OrElse r161WriteInProgress Then Return
+            If cycle.RequiresNgSorting AndAlso pendingNgSelection IsNot Nothing Then
+                blockedByPendingSelection = True
+            Else
+                r161WriteInProgress = True
+            End If
+        End SyncLock
+        If blockedByPendingSelection Then
+            MoveTo(PlcAutomaticTestState.WaitingR152, "上一托盘NG结果尚未收到R162，暂缓当前托盘R161确认")
+            Return
+        End If
         Try
+            ReportAutomaticEventSafely("上位机准备写入PLC寄存器 R161=1")
             plc.WriteR161()
-            SyncLock stateLock
-                cycle.R161Written = True
-            End SyncLock
-            MoveTo(PlcAutomaticTestState.WaitingCycleReset, "R161已确认，等待R151复位")
         Catch ex As Exception
-            MoveTo(PlcAutomaticTestState.WaitingR161Ack, "R161未确认，将重试：" & ex.Message)
+            ReportAutomaticEventSafely("上位机写入PLC寄存器 R161=1失败：" & ex.Message)
+            MoveTo(PlcAutomaticTestState.WaitingR161Ack, "PLC寄存器 R161写入未确认，将重试：" & ex.Message)
+            Return
+        Finally
+            SyncLock stateLock
+                r161WriteInProgress = False
+            End SyncLock
         End Try
+        SyncLock stateLock
+            cycle.R161Written = True
+            If sortingRequestPending AndAlso Not cycle.RequiresNgSorting AndAlso
+               sortingRequestTestStateAtCapture = PlcR152TestState.TestInProgress Then
+                sortingRequestTestStateAtCapture = PlcR152TestState.TestCompleted
+            End If
+            If cycle.RequiresNgSorting Then
+                pendingNgSelection = New PendingNgSelection With {
+                    .TrayCode = cycle.TrayCode,
+                    .Channels = New HashSet(Of Integer)(cycle.CurrentNgChannels)
+                }
+            End If
+            cycle.Reset()
+        End SyncLock
+        ReportAutomaticEventSafely("测试结果已保存，PLC寄存器 R161=1（已确认）")
+        ReportAutomaticEventSafely("测试结果已保存，释放当前托盘上下文，允许开始下一托盘扫码")
+        MoveTo(PlcAutomaticTestState.Idle, "测试完成，等待下一托盘R150；上一份NG结果保留至R152")
+    End Sub
+
+    Private Sub SendSortingCompletionSignal(ByVal selection As PendingNgSelection)
+        If Not selection.GradesWritten Then
+            MoveTo(PlcAutomaticTestState.WaitingR152, "等待NG档位全部写入后发送R162")
+            Return
+        End If
+        Try
+            ReportAutomaticEventSafely("上位机准备写入PLC寄存器 R162=1")
+            plc.WriteR162()
+        Catch ex As Exception
+            ReportAutomaticEventSafely("上位机写入PLC寄存器 R162=1失败：" & ex.Message)
+            MoveTo(PlcAutomaticTestState.WaitingR162Ack, "PLC寄存器 R162写入未确认，将重试：" & ex.Message)
+            Return
+        End Try
+        Dim currentTrayInProgress As Boolean
+        SyncLock stateLock
+            If Not Object.ReferenceEquals(pendingNgSelection, selection) Then Return
+            sortingRequestPending = False
+            sortingRequestTestStateAtCapture = PlcR152TestState.NoTestStarted
+            sortingRequestRequiresNgSortingAtCapture = False
+            sortingRequestWaitingReported = False
+            pendingNgSelection = Nothing
+            currentTrayInProgress = Not String.IsNullOrWhiteSpace(cycle.TrayCode)
+        End SyncLock
+        If selection.Channels.Count > 0 Then
+            ReportAutomaticEventSafely(String.Format("托盘{0}的NG档位发送完成（{1}个点位），PLC寄存器 R162=1（已确认）", selection.TrayCode, selection.Channels.Count))
+        Else
+            ReportAutomaticEventSafely(String.Format("托盘{0}没有NG档位，PLC寄存器 R162=1（已确认）", selection.TrayCode))
+        End If
+        If Not currentTrayInProgress Then
+            MoveTo(PlcAutomaticTestState.Idle, "上一托盘分选握手完成，等待后续PLC请求")
+        End If
+    End Sub
+
+    Private Sub SendNoSortingCompletionSignal()
+        Try
+            ReportAutomaticEventSafely("当前机型无需NG分选，直接准备写入PLC寄存器 R162=1")
+            plc.WriteR162()
+        Catch ex As Exception
+            ReportAutomaticEventSafely("上位机写入PLC寄存器 R162=1失败：" & ex.Message)
+            MoveTo(PlcAutomaticTestState.WaitingR162Ack, "PLC寄存器 R162写入未确认，将重试：" & ex.Message)
+            Return
+        End Try
+        SyncLock stateLock
+            sortingRequestPending = False
+            sortingRequestTestStateAtCapture = PlcR152TestState.NoTestStarted
+            sortingRequestRequiresNgSortingAtCapture = False
+            sortingRequestWaitingReported = False
+        End SyncLock
+        ReportAutomaticEventSafely("当前机型无分选要求，PLC寄存器 R162=1（已确认）")
+    End Sub
+
+    Private Sub SendEarlySortingCompletionSignal()
+        SyncLock stateLock
+            If Not sortingRequestPending OrElse
+               sortingRequestTestStateAtCapture <> PlcR152TestState.NoTestStarted Then Return
+        End SyncLock
+
+        Try
+            ReportAutomaticEventSafely("测试尚未开始，跳过R152分选请求并准备直接写入PLC寄存器 R162=1")
+            plc.WriteR162()
+        Catch ex As Exception
+            ReportAutomaticEventSafely("上位机写入PLC寄存器 R162=1失败：" & ex.Message)
+            MoveTo(PlcAutomaticTestState.WaitingR162Ack, "R162确认失败，将重试：" & ex.Message)
+            Return
+        End Try
+
+        Dim waitForR151 As Boolean
+        SyncLock stateLock
+            If sortingRequestPending AndAlso
+               sortingRequestTestStateAtCapture = PlcR152TestState.NoTestStarted Then
+                sortingRequestPending = False
+                sortingRequestTestStateAtCapture = PlcR152TestState.NoTestStarted
+                sortingRequestRequiresNgSortingAtCapture = False
+                sortingRequestWaitingReported = False
+            End If
+            waitForR151 = cycle.TrayConfirmed AndAlso Not cycle.TestStarted
+        End SyncLock
+
+        ReportAutomaticEventSafely("测试未启动，R152分选请求已跳过，PLC寄存器 R162=1（已确认）")
+        If waitForR151 Then
+            MoveTo(PlcAutomaticTestState.WaitingFixturePressed, "R152请求已确认，继续等待R151测试请求")
+        End If
     End Sub
 
     Private Sub TestPassFailed(ByVal exception As Exception)
         If exception Is Nothing Then exception = New InvalidOperationException("测试过程失败。")
+        If TypeOf exception Is OperationCanceledException Then
+            SyncLock stateLock
+                requestGeneration += 1
+                trayRequestPending = False
+                testRequestPending = False
+                sortingRequestPending = False
+                sortingRequestTestStateAtCapture = PlcR152TestState.NoTestStarted
+                sortingRequestRequiresNgSortingAtCapture = False
+                trayPreparationInProgress = False
+                manualTrayCodePending = False
+                nextTrayScanRetryAtUtc = DateTime.MinValue
+                trayConfirmationPending = False
+                testPrerequisiteWaitingReported = False
+                cycle.Reset()
+            End SyncLock
+            ReportAutomaticEventSafely("自动测试已手动停止，本托盘流程已复位，等待新托盘")
+            MoveTo(PlcAutomaticTestState.Idle, "测试已停止，等待托盘进入")
+            Return
+        End If
         EnterFault(exception)
     End Sub
 
@@ -302,11 +790,13 @@ Public Class PlcAutomaticTestCoordinator
         SyncLock stateLock
             cycle.Reset()
         End SyncLock
+        ReportAutomaticEventSafely("设备已复位，等待下一托盘")
         MoveTo(PlcAutomaticTestState.Idle, "上一托盘流程已复位，等待R150")
     End Sub
 
     Private Sub EnterFault(ByVal exception As Exception)
         If exception Is Nothing Then exception = New InvalidOperationException("PLC自动流程异常。")
+        ReportAutomaticEventSafely("自动流程异常：" & exception.Message)
         MoveTo(PlcAutomaticTestState.Fault, "PLC自动流程异常：" & exception.Message)
     End Sub
 
@@ -316,6 +806,40 @@ Public Class PlcAutomaticTestCoordinator
             currentState = nextState
         End SyncLock
         host.ReportAutomaticStatus(message)
+    End Sub
+
+    Private Function ReadRegisterSignal(ByVal registerName As String,
+                                        ByVal readSignal As Func(Of Boolean),
+                                        ByRef readSucceeded As Boolean) As Boolean
+        readSucceeded = False
+        Dim signalValue As Boolean
+        Try
+            signalValue = readSignal()
+        Catch ex As Exception
+            ReportAutomaticEventSafely("PLC寄存器 " & registerName & " 读取失败：" & ex.Message)
+            Return False
+        End Try
+        readSucceeded = True
+
+        Dim hasPreviousValue As Boolean
+        Dim previousValue As Boolean
+        SyncLock stateLock
+            hasPreviousValue = lastReportedRegisterValues.TryGetValue(registerName, previousValue)
+            lastReportedRegisterValues(registerName) = signalValue
+        End SyncLock
+
+        If host.IsDebugModeEnabled() OrElse Not hasPreviousValue OrElse previousValue <> signalValue Then
+            ReportAutomaticEventSafely(String.Format("PLC寄存器 {0}={1}", registerName, If(signalValue, "1", "0")))
+        End If
+        Return signalValue
+    End Function
+
+    Private Sub ReportAutomaticEventSafely(ByVal message As String)
+        Try
+            host.ReportAutomaticEvent(message)
+        Catch ex As Exception
+            Debug.WriteLine("PLC automatic event reporting failed: " & ex.Message)
+        End Try
     End Sub
 
     Public Sub Dispose() Implements IDisposable.Dispose

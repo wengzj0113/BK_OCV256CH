@@ -35,7 +35,8 @@ Public Partial Class frmTestProgress
             lblProgressEta.Text = "剩余 " & FormatTime(snapshot.EstimatedRemaining.Value)
         ElseIf snapshot.Stage = TestProgressStage.Idle OrElse
                snapshot.Stage = TestProgressStage.Completed OrElse
-               snapshot.Stage = TestProgressStage.Failed Then
+               snapshot.Stage = TestProgressStage.Failed OrElse
+               snapshot.Stage = TestProgressStage.Canceled Then
             lblProgressEta.Text = "剩余 --"
         Else
             lblProgressEta.Text = "剩余计算中"
@@ -58,7 +59,9 @@ Public Partial Class frmTestProgress
         End If
         progressTest.Value = Math.Max(0, Math.Min(100, snapshot.ProgressPercent))
         lblProgressStage.ForeColor = GetStageColor(snapshot.Stage)
-        btnClose.Enabled = snapshot.Stage = TestProgressStage.Completed OrElse snapshot.Stage = TestProgressStage.Failed
+        btnClose.Enabled = snapshot.Stage = TestProgressStage.Completed OrElse
+                           snapshot.Stage = TestProgressStage.Failed OrElse
+                           snapshot.Stage = TestProgressStage.Canceled
         Refresh()
     End Sub
 
@@ -116,6 +119,8 @@ Public Partial Class frmTestProgress
                 Return "测试完成"
             Case TestProgressStage.Failed
                 Return "测试失败"
+            Case TestProgressStage.Canceled
+                Return "测试已停止"
             Case Else
                 Return "等待测试"
         End Select
@@ -127,6 +132,8 @@ Public Partial Class frmTestProgress
                 Return Color.FromArgb(24, 169, 104)
             Case TestProgressStage.Failed
                 Return Color.FromArgb(239, 61, 67)
+            Case TestProgressStage.Canceled
+                Return Color.FromArgb(106, 114, 128)
             Case TestProgressStage.Saving, TestProgressStage.Uploading
                 Return Color.FromArgb(242, 126, 49)
             Case TestProgressStage.Idle

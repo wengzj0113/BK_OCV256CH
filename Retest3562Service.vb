@@ -25,20 +25,26 @@ Public Class Retest3562Service
         End Get
     End Property
 
-    Public Sub Connect(ByVal portName As String, ByVal baudRate As Integer)
+    Public Sub Connect(ByVal portName As String)
         If String.IsNullOrWhiteSpace(portName) Then Throw New ArgumentException("复测3562串口不能为空。", NameOf(portName))
-        If baudRate <= 0 Then Throw New ArgumentOutOfRangeException(NameOf(baudRate))
 
         SyncLock syncRoot
             ThrowIfDisposed()
             DisconnectInternal()
-            meter = New SerialPort(portName.Trim(), baudRate, Parity.None, 8, StopBits.One) With {
+            meter = New SerialPort(portName.Trim(), DefaultRetest3562BaudRate, Parity.None, 8, StopBits.One) With {
                 .ReadTimeout = 3000,
                 .WriteTimeout = 3000,
                 .NewLine = vbLf,
                 .Encoding = Encoding.ASCII
             }
             meter.Open()
+            '复测流程需要重新判定并保存电压与内阻，保持 ΩV 模式，避免把旧电压记录成复测电压。
+            Dim measurementFunction As String = "RV"
+            meter.Write("SAMPle:RATE " & If(String.IsNullOrWhiteSpace(Initsetting.Retest3562SampleRate), "EXF", Initsetting.Retest3562SampleRate) & vbLf)
+            meter.Write(":FUNC " & measurementFunction & vbLf)
+            meter.Write(":AUT OFF" & vbLf)
+            meter.Write(":RES:RANG " & If(String.IsNullOrWhiteSpace(Initsetting.Retest3562ResistanceRange), "300E-3", Initsetting.Retest3562ResistanceRange) & vbLf)
+            meter.Write(":VOLT:RANG " & If(String.IsNullOrWhiteSpace(Initsetting.Retest3562VoltageRange), "6", Initsetting.Retest3562VoltageRange) & vbLf)
         End SyncLock
     End Sub
 
@@ -55,17 +61,19 @@ Public Class Retest3562Service
             If fields.Length < 2 Then Throw New FormatException("复测3562返回数据字段不足：" & response)
 
             Dim resistanceOhm As Double
-            Dim voltage As Double
             If Not Double.TryParse(fields(0).Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, resistanceOhm) Then
                 Throw New FormatException("复测3562内阻数据无效：" & fields(0))
             End If
-            If Not Double.TryParse(fields(1).Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, voltage) Then
+
+            Dim measuredVoltage As Double
+            If Not Double.TryParse(fields(1).Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, measuredVoltage) Then
                 Throw New FormatException("复测3562电压数据无效：" & fields(1))
             End If
 
             Dim result As New RetestMeasurement() With {
                 .Resistance = CSng(resistanceOhm * 1000.0R),
-                .Voltage = CSng(voltage),
+                .Voltage = CSng(measuredVoltage),
+                .VoltageMeasured = True,
                 .MeasuredAt = DateTime.Now
             }
             result.Result = If(IsNG(result.Voltage, result.Resistance) = 0, "OK", "NG")
@@ -101,5 +109,3 @@ Public Class Retest3562Service
         End SyncLock
     End Sub
 End Class
-
-

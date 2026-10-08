@@ -28,7 +28,7 @@ Public Class OcvDataService
         builder.InitialCatalog = DatabaseName
         builder.UserID = Initsetting.strUserID
         builder.Password = Initsetting.strpwd
-        builder.ConnectTimeout = 3
+        builder.ConnectTimeout = 5
         builder.MultipleActiveResultSets = False
         builder.PersistSecurityInfo = False
         Return builder.ConnectionString
@@ -162,12 +162,14 @@ Public Class OcvDataService
     End Function
 
     Public Function GetTrayLatestStageResults(ByVal trayCode As String,
-                                              Optional ByVal ocvStageCode As String = Nothing) As DataTable
+                                              Optional ByVal ocvStageCode As String = Nothing,
+                                              Optional ByVal debugMode As Boolean = False) As DataTable
         Using connection As New SqlConnection(connectionString)
             connection.Open()
             Using command As SqlCommand = CreateStoredProcedureCommand(connection, "dbo.usp_GetTrayLatestStageResults")
                 AddParameter(command, "@TrayCode", SqlDbType.NVarChar, 100, trayCode)
                 AddParameter(command, "@OcvStageCode", SqlDbType.NVarChar, 20, ocvStageCode)
+                command.Parameters.Add("@DebugMode", SqlDbType.Bit).Value = debugMode
                 Return ExecuteDataTable(command)
             End Using
         End Using
@@ -175,12 +177,14 @@ Public Class OcvDataService
 
     Public Function GetTrayListByDate(ByVal startTime As DateTime,
                                       ByVal endTime As DateTime,
-                                      Optional ByVal ocvStageCode As String = Nothing) As DataTable
+                                      Optional ByVal ocvStageCode As String = Nothing,
+                                      Optional ByVal debugMode As Boolean = False) As DataTable
         Dim sql As String =
             "SELECT DISTINCT TrayCode " &
             "FROM dbo.vw_CellTestSummary " &
             "WHERE ResultCreatedAt >= @StartTime AND ResultCreatedAt < @EndTime " &
             "AND (@OcvStageCode IS NULL OR OcvStage = @OcvStageCode) " &
+            "AND ((@DebugMode = 1 AND TestType = N'Debug') OR (@DebugMode = 0 AND TestType <> N'Debug')) " &
             "ORDER BY TrayCode"
 
         Using connection As New SqlConnection(connectionString)
@@ -191,6 +195,7 @@ Public Class OcvDataService
                 command.Parameters.Add("@StartTime", SqlDbType.DateTime2).Value = startTime
                 command.Parameters.Add("@EndTime", SqlDbType.DateTime2).Value = endTime
                 AddParameter(command, "@OcvStageCode", SqlDbType.NVarChar, 20, ocvStageCode)
+                command.Parameters.Add("@DebugMode", SqlDbType.Bit).Value = debugMode
                 Return ExecuteDataTable(command)
             End Using
         End Using

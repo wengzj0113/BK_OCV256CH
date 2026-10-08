@@ -24,8 +24,14 @@ Public Class frmUserManage
     End Sub
 
     Private Function SelectedRole() As UserRole
-        If ComboBoxRole.SelectedIndex = 1 Then Return UserRole.Administrator
-        Return UserRole.[Operator]
+        Select Case ComboBoxRole.SelectedIndex
+            Case 1
+                Return UserRole.Engineer
+            Case 2
+                Return UserRole.Administrator
+            Case Else
+                Return UserRole.[Operator]
+        End Select
     End Function
 
     Private Sub LoadSelectedRole()
@@ -33,7 +39,14 @@ Public Class frmUserManage
         If account Is Nothing Then
             ComboBoxRole.SelectedIndex = 0
         Else
-            ComboBoxRole.SelectedIndex = If(account.Role = UserRole.Administrator, 1, 0)
+            Select Case account.Role
+                Case UserRole.Engineer
+                    ComboBoxRole.SelectedIndex = 1
+                Case UserRole.Administrator
+                    ComboBoxRole.SelectedIndex = 2
+                Case Else
+                    ComboBoxRole.SelectedIndex = 0
+            End Select
         End If
     End Sub
 
@@ -54,14 +67,18 @@ Public Class frmUserManage
         End If
 
         Try
+            Dim isExistingUser As Boolean = UserAccountStore.LoadAccounts().Any(Function(account) String.Equals(account.UserName, userName, StringComparison.OrdinalIgnoreCase))
             UserAccountStore.AddOrUpdate(userName, password, role)
+            BusinessLogService.Write("操作", "成功", If(isExistingUser, "修改用户", "新增用户"), userName, If(isExistingUser, "用户信息已修改。", "已新增用户。"), "角色：" & role.ToString() & "；密码不记录到日志。", "用户管理")
             LoadUsernames()
             ComboBoxUsername.Text = userName
             PasswordTextBox.Clear()
             MessageBox.Show("用户信息已保存。", "成功", MessageBoxButtons.OK, MessageBoxIcon.Information)
         Catch ex As ArgumentException
+            BusinessLogService.Write("操作", "失败", "保存用户", userName, "用户信息保存失败。", ex.Message & "；密码不记录到日志。", "用户管理")
             MessageBox.Show(ex.Message, "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning)
         Catch ex As Exception
+            BusinessLogService.Write("操作", "失败", "保存用户", userName, "用户信息保存失败。", ex.Message & "；密码不记录到日志。", "用户管理")
             MessageBox.Show("保存用户失败：" & ex.Message, "错误", MessageBoxButtons.OK, MessageBoxIcon.Error)
         End Try
     End Sub
@@ -82,6 +99,7 @@ Public Class frmUserManage
 
         If MessageBox.Show("确定删除用户“" & userName & "”吗？", "确认删除", MessageBoxButtons.YesNo, MessageBoxIcon.Question) <> DialogResult.Yes Then Return
         If UserAccountStore.Delete(userName) Then
+            BusinessLogService.Write("操作", "成功", "删除用户", userName, "用户已删除。", "", "用户管理")
             LoadUsernames()
             PasswordTextBox.Clear()
             MessageBox.Show("用户已删除。", "成功", MessageBoxButtons.OK, MessageBoxIcon.Information)

@@ -126,6 +126,12 @@ Public Class frmInquery
         End With
     End Sub
 
+    Private Sub chkDebugResults_CheckedChanged(ByVal sender As Object, ByVal e As EventArgs) Handles chkDebugResults.CheckedChanged
+        LoadTrayListFromOcvData(False)
+        Dim trayCode As String = Trim(txtTray.Text)
+        If trayCode <> String.Empty Then freshTray(trayCode)
+    End Sub
+
     Private Sub txtTray_KeyDown(ByVal sender As Object, ByVal e As System.Windows.Forms.KeyEventArgs) Handles txtTray.KeyDown
         'R2-15:旧 clsDB 查询已移除,回车刷新由 lstTray_SelectedIndexChanged 处理
     End Sub
@@ -306,7 +312,7 @@ Public Class frmInquery
 
         Try
             Dim service As New OcvDataService()
-            Dim table As System.Data.DataTable = service.GetTrayLatestStageResults(trayCode, GetCurrentOcvStageCode())
+            Dim table As System.Data.DataTable = service.GetTrayLatestStageResults(trayCode, GetCurrentOcvStageCode(), chkDebugResults.Checked)
             If table Is Nothing OrElse table.Rows.Count = 0 Then
                 Return False
             End If
@@ -343,7 +349,7 @@ Public Class frmInquery
             Dim startTime As DateTime = DateTimePicker1.Value.Date
             Dim endTime As DateTime = startTime.AddDays(1)
             Dim service As New OcvDataService()
-            Dim table As System.Data.DataTable = service.GetTrayListByDate(startTime, endTime, GetCurrentOcvStageCode())
+            Dim table As System.Data.DataTable = service.GetTrayListByDate(startTime, endTime, GetCurrentOcvStageCode(), chkDebugResults.Checked)
 
             lstTray.Items.Clear()
             For Each row As System.Data.DataRow In table.Rows

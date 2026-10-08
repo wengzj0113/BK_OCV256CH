@@ -41,14 +41,14 @@ Friend Class TwoPassResultMapper
                                           calibrationMilliohm As IList(Of Double),
                                           targetData As Bat_info())
         Dim offset As Integer = 0
-        For i As Integer = 0 To selection.G1PhysicalChannels.Count - 1
-            Dim channel As Integer = selection.G1PhysicalChannels(i)
+        For i As Integer = 0 To selection.G2PhysicalChannels.Count - 1
+            Dim channel As Integer = selection.G2PhysicalChannels(i)
             ApplyResistance(channel, hiokiResistanceMilliohm(offset + i), calibrationMilliohm, targetData)
         Next
 
-        offset += selection.G1PhysicalChannels.Count
-        For i As Integer = 0 To selection.G2PhysicalChannels.Count - 1
-            Dim channel As Integer = selection.G2PhysicalChannels(i)
+        offset += selection.G2PhysicalChannels.Count
+        For i As Integer = 0 To selection.G1PhysicalChannels.Count - 1
+            Dim channel As Integer = selection.G1PhysicalChannels(i)
             ApplyResistance(channel, hiokiResistanceMilliohm(offset + i), calibrationMilliohm, targetData)
         Next
     End Sub
@@ -57,14 +57,14 @@ Friend Class TwoPassResultMapper
                                      dmmVoltage As IList(Of Single),
                                      targetData As Bat_info())
         Dim offset As Integer = 0
-        For i As Integer = 0 To selection.G2PhysicalChannels.Count - 1
-            Dim channel As Integer = selection.G2PhysicalChannels(i)
+        For i As Integer = 0 To selection.G1PhysicalChannels.Count - 1
+            Dim channel As Integer = selection.G1PhysicalChannels(i)
             ApplyVoltage(channel, dmmVoltage(offset + i), targetData)
         Next
 
-        offset += selection.G2PhysicalChannels.Count
-        For i As Integer = 0 To selection.G1PhysicalChannels.Count - 1
-            Dim channel As Integer = selection.G1PhysicalChannels(i)
+        offset += selection.G1PhysicalChannels.Count
+        For i As Integer = 0 To selection.G2PhysicalChannels.Count - 1
+            Dim channel As Integer = selection.G2PhysicalChannels(i)
             ApplyVoltage(channel, dmmVoltage(offset + i), targetData)
         Next
     End Sub
@@ -73,22 +73,23 @@ Friend Class TwoPassResultMapper
                                        measuredMilliohm As Single,
                                        calibrationMilliohm As IList(Of Double),
                                        targetData As Bat_info())
-        Dim channelIndex0 As Integer = channel - 1
-        targetData(channelIndex0).Resistance = CSng(measuredMilliohm + calibrationMilliohm(channelIndex0))
-        If targetData(channelIndex0).Resistance > 10000 Then
-            targetData(channelIndex0).Resistance = 10000
+        Dim standardIndex0 As Integer = TrayChannelMapping.ToStandardChannel(channel) - 1
+        Dim deviceIndex0 As Integer = channel - 1
+        targetData(standardIndex0).Resistance = CSng(measuredMilliohm + calibrationMilliohm(deviceIndex0))
+        If targetData(standardIndex0).Resistance > 10000 Then
+            targetData(standardIndex0).Resistance = 10000
         End If
-        targetData(channelIndex0).TestTime = Now
+        targetData(standardIndex0).TestTime = Now
     End Sub
 
     Private Shared Sub ApplyVoltage(channel As Integer,
                                     measuredVoltage As Single,
                                     targetData As Bat_info())
-        Dim channelIndex0 As Integer = channel - 1
-        targetData(channelIndex0).Voltage = measuredVoltage
-        If targetData(channelIndex0).Voltage > 10000 Then
-            targetData(channelIndex0).Voltage = 10000
+        Dim standardIndex0 As Integer = TrayChannelMapping.ToStandardChannel(channel) - 1
+        targetData(standardIndex0).Voltage = measuredVoltage
+        If targetData(standardIndex0).Voltage > 10000 Then
+            targetData(standardIndex0).Voltage = 10000
         End If
-        targetData(channelIndex0).TestTime = Now
+        targetData(standardIndex0).TestTime = Now
     End Sub
 End Class

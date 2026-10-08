@@ -23,8 +23,13 @@ Module Module1
     Public plcAutomaticModeActive As Boolean
     Public plcConnected As Boolean = False
     Public Const MAX_CHANNEL = 256
+    Public Const DefaultScmBaudRate As Integer = 115200
     Public Const DefaultPlcBaudRate As Integer = 38400
     Public Const DefaultScannerBaudRate As Integer = 9600
+    Public Const DefaultMain3562BaudRate As Integer = 9600
+    Public Const DefaultRetest3562BaudRate As Integer = 9600
+    Public Const DefaultTemperatureBaudRate As Integer = 9600
+    Public Const DefaultIoCardBaudRate As Integer = 115200
     Public Const PlcPortLogicalName As String = "serialPortPLC"
     Public Const ScannerPortLogicalName As String = "serialPortTPM"
     Public CommunicationCounts As Integer
@@ -156,6 +161,9 @@ Module Module1
         'NG复测3562串口参数
         Dim Retest3562Port As Integer
         Dim Retest3562Rate As Integer
+        'NTC 温度采集模块串口参数（追加字段，兼容旧配置文件）
+        Dim TemperatureComPort As Integer
+        Dim TemperatureComRate As Integer
         'SCM控制板时间参数（毫秒）
         Dim ScmRelaySettleMs As Integer
         Dim ScmChannelSettleMs As Integer
@@ -169,6 +177,18 @@ Module Module1
         Dim ChannelResistanceNgColorArgb As Integer
         Dim ChannelVoltageNgColorArgb As Integer
         Dim ChannelSelectedColorArgb As Integer
+        'Instrument measurement settings (SCPI values; appended to Initset.set for compatibility).
+        Dim Dmm34461VoltageRange As String
+        Dim Dmm34461Nplc As String
+        Dim Dmm34461AutoZero As String
+        Dim Main3562ResistanceRange As String
+        Dim Main3562VoltageRange As String
+        Dim Main3562SampleRate As String
+        Dim Main3562Function As String
+        Dim Retest3562ResistanceRange As String
+        Dim Retest3562VoltageRange As String
+        Dim Retest3562SampleRate As String
+        Dim Retest3562Function As String
 
     End Structure
     Public Structure Bat_struct
@@ -638,53 +658,65 @@ Loop_Begin:
         End If
     End Function
     Public Sub InitRes(Optional ByVal pumpUi As Boolean = True)
+        Dim sampleRate As String = If(String.IsNullOrWhiteSpace(Initsetting.Main3562SampleRate), "EXF", Initsetting.Main3562SampleRate)
+        Dim measurementFunction As String = If(String.IsNullOrWhiteSpace(Initsetting.Main3562Function), "RV", Initsetting.Main3562Function)
+        Dim resistanceRange As String = If(String.IsNullOrWhiteSpace(Initsetting.Main3562ResistanceRange), "300E-3", Initsetting.Main3562ResistanceRange)
+        Dim voltageRange As String = If(String.IsNullOrWhiteSpace(Initsetting.Main3562VoltageRange), "6", Initsetting.Main3562VoltageRange)
+        Dim recvStr As String = String.Empty
+        Dim waitDeadline As DateTime = DateTime.UtcNow.AddMilliseconds(100)
 
-        'Dim intCounter As Integer
-        Dim RecvStr As String
-
-        Dim Timer As Single
-        'Static TempUpperR As Single
-        'Static TempDownerR As Single
-        'Static TempUpperV As Single
-        'Static TempDownerV As Single
-        Static blnInitRun As Boolean
-        Dim Start
         If pumpUi Then System.Windows.Forms.Application.DoEvents()
-        If Not blnInitRun Then
-            RecvStr = ""
-            With Com_3561
-                .DiscardInBuffer()
-                .DiscardOutBuffer()
-                Select Case Initsetting.ComRateMode
-                    Case "低速"
-                        .Write("SAMPle:RATE SLOW" & vbCrLf)
-                    Case "中速"
-                        .Write("SAMPle:RATE MED" & vbCrLf)
-                    Case "高速"
-                        .Write("SAMPle:RATE FAST" & vbCrLf)
-                    Case "超快"
-                        .Write("SAMPle:RATE EXF" & vbCrLf)
-                End Select
 
-            End With
+        With Com_3561
+            .DiscardInBuffer()
+            .DiscardOutBuffer()
+            .Write("SAMPle:RATE " & sampleRate & vbCrLf)
+            .Write(":FUNC " & measurementFunction & vbLf)
+            .Write(":AUT OFF" & vbLf)
+            .Write(":RES:RANG " & resistanceRange & vbLf)
+            .Write(":VOLT:RANG " & voltageRange & vbLf)
+        End With
+        SerialMiddleMachineClient.LogMessage("3562 startup settings: function=" & measurementFunction &
+                                             ", resistanceRange=" & resistanceRange &
+                                             ", voltageRange=" & voltageRange & " V, sample=" & sampleRate)
+        Threading.Thread.Sleep(50)
 
-
-            Com_3561.Write(":RES:RANG 300E-3" & vbLf)
-            Threading.Thread.Sleep(50)
-
-            RecvStr = ""
-            Com_3561.DiscardInBuffer()
-            Com_3561.DiscardOutBuffer()
-            Com_3561.Write(":MEMory:State On" & vbLf)
-            Start = Timer
-            Do While Timer < Start + 0.1
-                Timer = Now.TimeOfDay.Hours * 3600 + Now.TimeOfDay.Minutes * 60 + Now.TimeOfDay.Seconds
-                RecvStr = RecvStr + Com_3561.ReadExisting
-                If pumpUi Then System.Windows.Forms.Application.DoEvents()
-            Loop
-            blnInitRun = True
-        End If
+        Com_3561.DiscardInBuffer()
+        Com_3561.DiscardOutBuffer()
+        Com_3561.Write(":MEMory:State On" & vbLf)
+        Do
+            recvStr &= Com_3561.ReadExisting()
+            If pumpUi Then System.Windows.Forms.Application.DoEvents()
+        Loop While DateTime.UtcNow < waitDeadline
     End Sub
+
+    Public Function InitializeConfigured34461AtStartup() As Short
+        Try
+            If CheckCom_34461() <> 0 Then Return -1
+            ReFlag_34461 = ConnectFor34461()
+            If ReFlag_34461 <> 0 OrElse visaSession Is Nothing Then Return -1
+
+            Dim voltageRange As String = If(String.IsNullOrWhiteSpace(Initsetting.Dmm34461VoltageRange), "10", Initsetting.Dmm34461VoltageRange)
+            Dim nplc As String = If(String.IsNullOrWhiteSpace(Initsetting.Dmm34461Nplc), "0.2", Initsetting.Dmm34461Nplc)
+            Dim autoZero As String = If(String.IsNullOrWhiteSpace(Initsetting.Dmm34461AutoZero), "ON", Initsetting.Dmm34461AutoZero)
+            visaSession.IO.Clear()
+            visaSession.IO.Timeout = 5000
+            visaSession.WriteString("ABOR")
+            visaSession.WriteString("*CLS")
+            visaSession.WriteString("CONF:VOLT:DC " & voltageRange)
+            visaSession.WriteString("VOLT:DC:RANG:AUTO OFF")
+            visaSession.WriteString("VOLT:DC:RANG " & voltageRange)
+            visaSession.WriteString("VOLT:DC:NPLC " & nplc)
+            visaSession.WriteString("VOLT:DC:ZERO:AUTO " & autoZero)
+            SerialMiddleMachineClient.LogMessage("34461 startup settings applied: range=" & voltageRange & " V, NPLC=" & nplc & ", autozero=" & autoZero)
+            Return 0
+        Catch ex As Exception
+            SerialMiddleMachineClient.LogMessage("34461 startup initialization failed: " & ex.Message)
+            ReFlag_34461 = -1
+            Close34461Session()
+            Return -1
+        End Try
+    End Function
 
     Private Sub ResetCurrentUserSession()
         '登录状态属于当前进程会话，不应从启动默认值或上一次运行状态继承。
@@ -744,37 +776,7 @@ Loop_Begin:
                                       ByVal reflag_MES As Short,
                                       ByVal result As StartupDeviceCheckResult)
         If frmMDI1 Is Nothing OrElse frmMDI1.IsDisposed Then Return
-
-        '1、中位机
-        controlBoardConnected = (reflag_SCM = 1)
-        If reflag_SCM = -1 Then
-            blnOnLine = False
-        End If
-
-        '3、万用表
-        If reflag_34461 = -1 Then
-            blnOnLine = False
-        End If
-
-        '5、内阻仪
-        If reflag_3561 = -1 Then
-            blnOnLine = False
-        End If
-
-        'PLC
-        plcConnected = (reflag_PLC = 1)
-        If Not plcConnected Then
-            blnOnLine = False
-        End If
-
-        '6、MES
-        If reflag_MES = -1 Then
-            blnOnLine = False
-        End If
-
-        '底部状态控件使用统一的最终检查结果。
-        frmMDI1.UpdateDeviceCheckStatus(reflag_34461, reflag_3561, reflag_MES)
-        frmMDI1.ShowStartupDeviceFailurePrompt(result)
+        frmMDI1.ApplyStartupDeviceCheckResult(result)
     End Sub
 
     Public Function CheckPlc() As Short
@@ -909,7 +911,7 @@ Loop_Begin:
                     .Close()
                 End If
                 .PortName = "COM" & (Initsetting.SCMComPort + 1).ToString()
-                .BaudRate = If(Initsetting.SCMComRate > 0, Initsetting.SCMComRate, 115200)
+                .BaudRate = DefaultScmBaudRate
                 .Parity = Parity.None
                 .DataBits = 8
                 .StopBits = StopBits.One
@@ -928,7 +930,7 @@ Loop_Begin:
         Catch ex As Exception
             Dim configuredPort As String = "COM" & (Initsetting.SCMComPort + 1).ToString()
             Dim detail As String = configuredPort & "，" &
-                                   If(Initsetting.SCMComRate > 0, Initsetting.SCMComRate, 115200).ToString() &
+                                   DefaultScmBaudRate.ToString() &
                                    "，8N1：" & ex.Message
             Try
                 If frmMDI IsNot Nothing AndAlso frmMDI.Com_SCM IsNot Nothing AndAlso frmMDI.Com_SCM.IsOpen Then
@@ -984,11 +986,7 @@ Loop_Begin:
                 .Close()
             End If
             .PortName = "Com" & (Initsetting.ScanerPort + 1).ToString
-            If Initsetting.ScanerRate > 0 Then
-                .BaudRate = Initsetting.ScanerRate
-            Else
-                .BaudRate = 9600
-            End If
+            .BaudRate = DefaultScannerBaudRate
             .DataBits = 8
             .StopBits = 1
             .Parity = Parity.None
@@ -1022,11 +1020,7 @@ Loop_Begin:
                 .Close()
             End If
             .PortName = "Com" & (Initsetting.Recom + 1).ToString
-            If Initsetting.ReRate > 0 Then
-                .BaudRate = Initsetting.ReRate
-            Else
-                .BaudRate = 9600
-            End If
+            .BaudRate = DefaultMain3562BaudRate
             .DataBits = 8
             .StopBits = 1
             .Parity = Parity.None
@@ -1055,90 +1049,108 @@ Loop_Begin:
         CheckCom_3561 = 1
     End Function
     Public Sub SaveInitFile()
+        SaveInitFile(Initsetting)
+    End Sub
+
+    Public Sub SaveInitFile(ByVal settings As Initset)
         '保存初始化文件------------------------
         Dim configPath As String = Application.StartupPath & "\Initset.set"
         Dim tempConfigPath As String = configPath & ".tmp"
         Dim FS As New System.IO.FileStream(tempConfigPath, IO.FileMode.Create, IO.FileAccess.Write, IO.FileShare.None)
         Dim BW As New System.IO.BinaryWriter(FS)
         '通讯参数
-        BW.Write(Initsetting.ScanerPort)
-        BW.Write(Initsetting.ScanerRate)
+        BW.Write(settings.ScanerPort)
+        BW.Write(DefaultScannerBaudRate)
 
-        BW.Write(If(Initsetting.SCMIpAdd, String.Empty))
-        BW.Write(Initsetting.SCM_port)
+        BW.Write(If(settings.SCMIpAdd, String.Empty))
+        BW.Write(settings.SCM_port)
 
-        BW.Write(Initsetting.IOPort)
-        BW.Write(Initsetting.IORate)
+        BW.Write(settings.IOPort)
+        BW.Write(DefaultIoCardBaudRate)
 
-        BW.Write(If(Initsetting.ComRateMode, String.Empty))
-        BW.Write(If(Initsetting.IpAddOf34461, String.Empty))
+        BW.Write(If(settings.ComRateMode, String.Empty))
+        BW.Write(If(settings.IpAddOf34461, String.Empty))
 
-        BW.Write(Initsetting.Recom)
-        BW.Write(Initsetting.ReRate)
+        BW.Write(settings.Recom)
+        BW.Write(DefaultMain3562BaudRate)
 
-        'BW.Write(Initsetting.IpAddOf34461)
+        'BW.Write(settings.IpAddOf34461)
 
         '电压内阻上下限
-        BW.Write(Initsetting.upResistance)
-        BW.Write(Initsetting.downResistance)
-        BW.Write(Initsetting.upVoltage)
-        BW.Write(Initsetting.downVoltage)
+        BW.Write(settings.upResistance)
+        BW.Write(settings.downResistance)
+        BW.Write(settings.upVoltage)
+        BW.Write(settings.downVoltage)
         '数据库
-        BW.Write(Initsetting.chkDatabase)
-        BW.Write(If(Initsetting.strDatabase, String.Empty))
+        BW.Write(settings.chkDatabase)
+        BW.Write(If(settings.strDatabase, String.Empty))
         '文件路径
-        BW.Write(If(Initsetting.sPath, String.Empty))
+        BW.Write(If(settings.sPath, String.Empty))
         '电压B值；内阻B值
-        BW.Write(Initsetting.sngV_B)
-        BW.Write(Initsetting.sngR_B)
-        BW.Write(Initsetting.txtCodeLenth)
+        BW.Write(settings.sngV_B)
+        BW.Write(settings.sngR_B)
+        BW.Write(settings.txtCodeLenth)
         'DataBase UserID and Password
-        BW.Write(If(Initsetting.strUserID, String.Empty))
-        BW.Write(If(Initsetting.strpwd, String.Empty))
-        BW.Write(If(Initsetting.delayTime, String.Empty))
+        BW.Write(If(settings.strUserID, String.Empty))
+        BW.Write(If(settings.strpwd, String.Empty))
+        BW.Write(If(settings.delayTime, String.Empty))
         '探针数据
-        BW.Write(Initsetting.Probelifespan)
-        BW.Write(Initsetting.ProbeUsedCount)
+        BW.Write(settings.Probelifespan)
+        BW.Write(settings.ProbeUsedCount)
         '用户管理
-        BW.Write(If(Initsetting.PsdOfAdmin, String.Empty))
-        BW.Write(If(Initsetting.PsdOfOper, String.Empty))
-        BW.Write(If(Initsetting.PsdOfGuest, String.Empty))
+        BW.Write(If(settings.PsdOfAdmin, String.Empty))
+        BW.Write(If(settings.PsdOfOper, String.Empty))
+        BW.Write(If(settings.PsdOfGuest, String.Empty))
         'MES api 地址
-        BW.Write(If(Initsetting.MesApiAddress, String.Empty))
+        BW.Write(If(settings.MesApiAddress, String.Empty))
         '校准模块阻值
-        BW.Write(Initsetting.cailibrateModelValue)
+        BW.Write(settings.cailibrateModelValue)
         '超温报警
-        BW.Write(Initsetting.overTemperateValue)
+        BW.Write(settings.overTemperateValue)
         '保留旧智能电表字段占位，确保旧 Initset.set 的二进制布局兼容；运行时不再使用。
         BW.Write(0)
         BW.Write(0)
         '工作站选择
-        BW.Write(Initsetting.stationSelect)
+        BW.Write(settings.stationSelect)
         '中位机串口参数
-        BW.Write(Initsetting.SCMComPort)
-        BW.Write(Initsetting.SCMComRate)
+        BW.Write(settings.SCMComPort)
+        BW.Write(DefaultScmBaudRate)
         'PLC 独立通讯参数
-        BW.Write(Initsetting.PLCMode)
-        BW.Write(If(Initsetting.PLCIP, String.Empty))
-        BW.Write(Initsetting.PLCTcpPort)
-        BW.Write(Initsetting.PLCComPort)
-        BW.Write(Initsetting.PLCComRate)
+        BW.Write(settings.PLCMode)
+        BW.Write(If(settings.PLCIP, String.Empty))
+        BW.Write(settings.PLCTcpPort)
+        BW.Write(settings.PLCComPort)
+        BW.Write(DefaultPlcBaudRate)
         'NG复测3562串口参数（追加字段，兼容旧配置文件）
-        BW.Write(Initsetting.Retest3562Port)
-        BW.Write(Initsetting.Retest3562Rate)
+        BW.Write(settings.Retest3562Port)
+        BW.Write(DefaultRetest3562BaudRate)
         'SCM控制板时间参数（追加字段，兼容旧配置文件）
-        BW.Write(Initsetting.ScmRelaySettleMs)
-        BW.Write(Initsetting.ScmChannelSettleMs)
-        BW.Write(Initsetting.ScmAutoStepMs)
-        BW.Write(Initsetting.ScmTriggerPulseMs)
-        BW.Write(Initsetting.ScmPhaseGuardMs)
+        BW.Write(settings.ScmRelaySettleMs)
+        BW.Write(settings.ScmChannelSettleMs)
+        BW.Write(settings.ScmAutoStepMs)
+        BW.Write(settings.ScmTriggerPulseMs)
+        BW.Write(settings.ScmPhaseGuardMs)
         '通道状态颜色（追加字段，兼容旧配置）
-        BW.Write(Initsetting.ChannelPassColorArgb)
-        BW.Write(Initsetting.ChannelTestingColorArgb)
-        BW.Write(Initsetting.ChannelIdleColorArgb)
-        BW.Write(Initsetting.ChannelResistanceNgColorArgb)
-        BW.Write(Initsetting.ChannelVoltageNgColorArgb)
-        BW.Write(Initsetting.ChannelSelectedColorArgb)
+        BW.Write(settings.ChannelPassColorArgb)
+        BW.Write(settings.ChannelTestingColorArgb)
+        BW.Write(settings.ChannelIdleColorArgb)
+        BW.Write(settings.ChannelResistanceNgColorArgb)
+        BW.Write(settings.ChannelVoltageNgColorArgb)
+        BW.Write(settings.ChannelSelectedColorArgb)
+        BW.Write(If(settings.Dmm34461VoltageRange, "10"))
+        BW.Write(If(settings.Dmm34461Nplc, "0.2"))
+        BW.Write(If(settings.Dmm34461AutoZero, "ON"))
+        BW.Write(If(settings.Main3562ResistanceRange, "300E-3"))
+        BW.Write(If(settings.Main3562VoltageRange, "6"))
+        BW.Write(If(settings.Main3562SampleRate, "EXF"))
+        BW.Write(If(settings.Main3562Function, "RV"))
+        BW.Write(If(settings.Retest3562ResistanceRange, "300E-3"))
+        BW.Write(If(settings.Retest3562VoltageRange, "6"))
+        BW.Write(If(settings.Retest3562SampleRate, "EXF"))
+        BW.Write(If(settings.Retest3562Function, "RV"))
+        'NTC 温度采集模块串口参数（追加字段，兼容旧配置文件）
+        BW.Write(settings.TemperatureComPort)
+        BW.Write(DefaultTemperatureBaudRate)
 
         'close
         BW.Close()
@@ -1161,6 +1173,14 @@ Loop_Begin:
     End Sub
     Public Sub ReadInitFile()
         '读初始化文件---------------
+        Initsetting.TemperatureComPort = 0
+        Initsetting.TemperatureComRate = DefaultTemperatureBaudRate
+        Initsetting.ScanerRate = DefaultScannerBaudRate
+        Initsetting.IORate = DefaultIoCardBaudRate
+        Initsetting.ReRate = DefaultMain3562BaudRate
+        Initsetting.SCMComRate = DefaultScmBaudRate
+        Initsetting.PLCComRate = DefaultPlcBaudRate
+        Initsetting.Retest3562Rate = DefaultRetest3562BaudRate
         'If Not System.IO.File.Exists(Application.StartupPath & "\Initset.set") Then
         '    System.IO.File.Create(Application.StartupPath & "\Initset.set")
         'End If
@@ -1326,10 +1346,46 @@ Loop_Begin:
         Else
             Initsetting.ChannelSelectedColorArgb = ChannelColorSettings.DefaultSelected.ToArgb()
         End If
+        Initsetting.Dmm34461VoltageRange = ReadOptionalSettingString(BR, FS, "10")
+        Initsetting.Dmm34461Nplc = ReadOptionalSettingString(BR, FS, "0.2")
+        Initsetting.Dmm34461AutoZero = ReadOptionalSettingString(BR, FS, "ON")
+        Initsetting.Main3562ResistanceRange = ReadOptionalSettingString(BR, FS, "300E-3")
+        Initsetting.Main3562VoltageRange = ReadOptionalSettingString(BR, FS, "6")
+        Initsetting.Main3562SampleRate = ReadOptionalSettingString(BR, FS, "EXF")
+        Initsetting.Main3562Function = ReadOptionalSettingString(BR, FS, "RV")
+        Initsetting.Retest3562ResistanceRange = ReadOptionalSettingString(BR, FS, "300E-3")
+        Initsetting.Retest3562VoltageRange = ReadOptionalSettingString(BR, FS, "6")
+        Initsetting.Retest3562SampleRate = ReadOptionalSettingString(BR, FS, "EXF")
+        Initsetting.Retest3562Function = ReadOptionalSettingString(BR, FS, "RV")
+        If FS.Length - FS.Position >= 4 Then
+            Initsetting.TemperatureComPort = BR.ReadInt32()
+        Else
+            Initsetting.TemperatureComPort = 0
+        End If
+        If FS.Length - FS.Position >= 4 Then
+            Initsetting.TemperatureComRate = BR.ReadInt32()
+        Else
+            Initsetting.TemperatureComRate = DefaultTemperatureBaudRate
+        End If
+        '旧配置仍按原二进制布局读取；串口波特率统一使用设备协议固定值。
+        Initsetting.ScanerRate = DefaultScannerBaudRate
+        Initsetting.IORate = DefaultIoCardBaudRate
+        Initsetting.ReRate = DefaultMain3562BaudRate
+        Initsetting.SCMComRate = DefaultScmBaudRate
+        Initsetting.PLCComRate = DefaultPlcBaudRate
+        Initsetting.Retest3562Rate = DefaultRetest3562BaudRate
+        Initsetting.TemperatureComRate = DefaultTemperatureBaudRate
 exit_sub:
         BR.Close()
         FS.Close()
     End Sub
+
+    Private Function ReadOptionalSettingString(reader As System.IO.BinaryReader,
+                                                stream As System.IO.FileStream,
+                                                defaultValue As String) As String
+        If stream.Position >= stream.Length Then Return defaultValue
+        Return reader.ReadString()
+    End Function
 
     Public Function ConnetTcp_SCM() As Short
         Try
@@ -1572,7 +1628,8 @@ Loop_No:
             If rawPreview.Length > 600 Then rawPreview = rawPreview.Substring(0, 600)
             SerialMiddleMachineClient.LogMessage("3562 cache raw preview=" & rawPreview)
 
-            Dim parseResult As InstrumentCacheParseResult = InstrumentCacheParser.Parse3562MemoryData(recvStr, expectedCount)
+            Dim resistanceOnly As Boolean = String.Equals(Initsetting.Main3562Function, "RES", StringComparison.OrdinalIgnoreCase)
+            Dim parseResult As InstrumentCacheParseResult = InstrumentCacheParser.Parse3562MemoryData(recvStr, expectedCount, resistanceOnly)
             voltages = parseResult.Voltages
             resistances = parseResult.Resistances
             SerialMiddleMachineClient.LogMessage("3562 cache parse summary: expected=" & expectedCount.ToString() &
@@ -1589,7 +1646,8 @@ Loop_No:
                 Return -1
             End If
 
-            SerialMiddleMachineClient.LogMessage("3562 cache read rawLength=" & recvStr.Length.ToString() & ", recordCount=" & resistances.Count.ToString() & ", format=index,resistanceOhm,voltageVolt")
+            SerialMiddleMachineClient.LogMessage("3562 cache read rawLength=" & recvStr.Length.ToString() & ", recordCount=" & resistances.Count.ToString() &
+                                                 ", format=" & If(resistanceOnly, "index,resistanceOhm (34461A supplies voltage)", "index,resistanceOhm,voltageVolt"))
             SerialMiddleMachineClient.LogMessage("3562 cache read success, resultCount=" & resistances.Count.ToString())
             Return 0
         Catch ex As Exception
@@ -1606,14 +1664,22 @@ Loop_No:
 
         Try
             SerialMiddleMachineClient.LogMessage("3562 prepare cache, expectedCount=" & expectedCount.ToString())
+            Dim sampleRate As String = If(String.IsNullOrWhiteSpace(Initsetting.Main3562SampleRate), "EXF", Initsetting.Main3562SampleRate)
+            Dim measurementFunction As String = If(String.IsNullOrWhiteSpace(Initsetting.Main3562Function), "RV", Initsetting.Main3562Function)
+            Dim resistanceRange As String = If(String.IsNullOrWhiteSpace(Initsetting.Main3562ResistanceRange), "300E-3", Initsetting.Main3562ResistanceRange)
+            Dim voltageRange As String = If(String.IsNullOrWhiteSpace(Initsetting.Main3562VoltageRange), "6", Initsetting.Main3562VoltageRange)
             Com_3561.DiscardInBuffer()
             Com_3561.DiscardOutBuffer()
             Com_3561.WriteTimeout = 3000
-            '每次正式测试都重新锁定到 300 mΩ，避免仪表面板或上一次测试留下自动量程/Ω量程。
+            Com_3561.Write("SAMPle:RATE " & sampleRate & vbCrLf)
+            Com_3561.Write(":FUNC " & measurementFunction & vbLf)
+            SerialMiddleMachineClient.LogMessage("3562 prepare function=" & measurementFunction & ", sample=" & sampleRate)
+            '每次正式测试都重新写入量程，避免仪表面板或上一次测试留下其他设置。
             '改变量程会清空仪表内存，因此必须先设置量程，再执行 MEMory:CLEA。
             Com_3561.Write(":AUT OFF" & vbLf)
-            Com_3561.Write(":RES:RANG 300E-3" & vbLf)
-            SerialMiddleMachineClient.LogMessage("3562 prepare range: 300 mOhm (auto range off)")
+            Com_3561.Write(":RES:RANG " & resistanceRange & vbLf)
+            Com_3561.Write(":VOLT:RANG " & voltageRange & vbLf)
+            SerialMiddleMachineClient.LogMessage("3562 prepare ranges: resistance=" & resistanceRange & ", voltage=" & voltageRange & " V (auto range off)")
             Com_3561.Write("TRIG:SOUR EXT" & vbCrLf)
             Com_3561.Write("INIT:CONT ON" & vbLf)
             Com_3561.Write("MEMory:CLEA" & vbLf)
@@ -1645,7 +1711,6 @@ Loop_No:
             Com_3561.DiscardInBuffer()
             Com_3561.DiscardOutBuffer()
             Com_3561.WriteTimeout = Math.Max(100, Math.Min(timeoutMs, 3000))
-            Com_3561.Write("ABOR" & vbLf)
             Com_3561.Write("INIT:CONT OFF" & vbLf)
             Com_3561.Write("MEMory:CLEA" & vbLf)
             Com_3561.Write(":SYST:LOC" & vbLf)
@@ -1691,21 +1756,31 @@ Loop_No:
                     Throw New InvalidOperationException("34461 VISA session is not connected.")
                 End If
 
+                Dim voltageRange As String = If(String.IsNullOrWhiteSpace(Initsetting.Dmm34461VoltageRange), "10", Initsetting.Dmm34461VoltageRange)
+                Dim nplc As String = If(String.IsNullOrWhiteSpace(Initsetting.Dmm34461Nplc), "0.2", Initsetting.Dmm34461Nplc)
+                Dim autoZero As String = If(String.IsNullOrWhiteSpace(Initsetting.Dmm34461AutoZero), "ON", Initsetting.Dmm34461AutoZero)
                 SerialMiddleMachineClient.LogMessage("34461 prepare cache, expectedCount=" & expectedCount.ToString() & ", attempt=" & attempt.ToString())
-                SerialMiddleMachineClient.LogMessage("34461 SCPI prepare: IO.Clear; ABOR; *CLS; CONF:VOLT:DC; SAMP:COUN 1; TRIG:COUN " & expectedCount.ToString() & "; TRIG:SOUR EXT; INIT")
+                SerialMiddleMachineClient.LogMessage("34461 settings: range=" & voltageRange & " V, NPLC=" & nplc & ", autozero=" & autoZero)
+                SerialMiddleMachineClient.LogMessage("34461 SCPI prepare: IO.Clear; ABOR; *CLS; CONF:VOLT:DC " & voltageRange.ToString() &
+                                                     "; VOLT:DC:NPLC " & nplc &
+                                                     "; SAMP:COUN 1; TRIG:COUN " & expectedCount.ToString() &
+                                                     "; TRIG:SOUR EXT; TRIG:SLOP NEG; TRIG:DEL 0; INIT")
                 visaSession.IO.Clear()
                 '采用 INIT + FETC? 的分离式采集，避免 READ? 在触发未完成时长时间阻塞。
                 visaSession.IO.Timeout = 10000
                 visaSession.WriteString("ABOR")
                 visaSession.WriteString("*CLS")
-                visaSession.WriteString("CONF:VOLT:DC")
-                '1 PLC降低单次积分时间，使34461更快准备好接受下一次外部触发。
-                visaSession.WriteString("VOLT:DC:NPLC 1")
+                visaSession.WriteString("CONF:VOLT:DC " & voltageRange)
+                visaSession.WriteString("VOLT:DC:RANG:AUTO OFF")
+                visaSession.WriteString("VOLT:DC:RANG " & voltageRange)
+                visaSession.WriteString("VOLT:DC:NPLC " & nplc)
+                visaSession.WriteString("VOLT:DC:ZERO:AUTO " & autoZero)
                 '每个中位机外部触发对应一个电压采样，全部读数写入 34461 reading memory。
                 visaSession.WriteString("SAMP:COUN 1")
                 visaSession.WriteString("TRIG:COUN " & expectedCount.ToString())
                 visaSession.WriteString("TRIG:SOUR EXT")
-                '不强制设置 TRIG:SLOP：34461A及原有硬件链路使用默认低有效外部触发。
+                visaSession.WriteString("TRIG:SLOP NEG")
+                visaSession.WriteString("TRIG:DEL 0")
                 visaSession.WriteString("INIT")
 
                 'INIT 后立即读取错误队列，避免把仪表拒绝的设置误判为已进入采集状态。

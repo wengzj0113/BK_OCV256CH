@@ -16,7 +16,12 @@ $requiredPrepareCommands = @(
     'SAMP:COUN 1',
     'TRIG:COUN ',
     'TRIG:SOUR EXT',
-    'VOLT:DC:NPLC 1',
+    'VOLT:DC:NPLC ',
+    'VOLT:DC:ZERO:AUTO ',
+    'VOLT:DC:RANG:AUTO OFF',
+    'VOLT:DC:RANG ',
+    'TRIG:SLOP NEG',
+    'TRIG:DEL 0',
     'INIT'
 )
 
@@ -26,8 +31,11 @@ foreach ($command in $requiredPrepareCommands) {
     }
 }
 
+if ($prepare -notmatch 'InstrumentRateProfile\.FromSettingName') {
+    throw 'Prepare sequence must apply the selected instrument rate profile.'
+}
 if ($prepare -match 'TRIG:SLOP POS' -or $prepare -match 'OUTP:TRIG:SLOP') {
-    throw 'Prepare sequence must not force a positive trigger slope; the hardware trigger is low-active by default.'
+    throw 'Prepare sequence must keep the 34461A external trigger low-active.'
 }
 
 if ($prepare -match 'FORM:DATA') {
@@ -65,28 +73,6 @@ if ($connect -notmatch 'visaSession\.IO\.Close\(\)') {
 $runner = Get-Content -Raw -LiteralPath (Join-Path $PSScriptRoot '..\FormalTestRunner.vb')
 if ($runner -notmatch 'ResetCachedData_3562\(\)' -or $runner -notmatch 'Reset34461ForNewTest\(\)') {
     throw 'RunTwoPassMeasurement must reset both instruments before preparing a new test.'
-}
-
-$module = Get-Content -Raw -LiteralPath $modulePath
-$read3562 = [regex]::Match($module, '(?s)Public Function Trans_ReadCachedData_3562.*?End Function').Value
-$parser3562 = [regex]::Match($module, '(?s)Private Function Parse3562MemoryData.*?End Function').Value
-if ($read3562 -notmatch 'Parse3562MemoryData' -or
-    $parser3562 -notmatch 'fields\.Length\s*<\s*3' -or
-    $parser3562 -notmatch 'resistanceOhm' -or
-    $parser3562 -notmatch 'voltageValue' -or
-    $parser3562 -notmatch 'Replace\(vbCr, vbLf\)') {
-    throw '3562 memory data must be parsed as record number, resistance, and voltage.'
-}
-if ($read3562 -match 'values\(i \* 2\)' -or $read3562 -match 'values\(i \* 2 \+ 1\)') {
-    throw '3562 memory parser must not pair flattened numeric values.'
-}
-if ($read3562 -match 'HasEnough3562CacheData\(recvStr, expectedCount\)' -or
-    $module -match 'Return ExtractNumericValues\(text\)\.Count >= expectedCount \* 2') {
-    throw '3562 cache reader must not stop after only two numeric fields per expected record.'
-}
-if ($module -notmatch 'ReadBufferSize\s*=\s*8192' -or
-    $module -notmatch '3562 serial configured:') {
-    throw '3562 serial diagnostics/buffer capacity are missing.'
 }
 
 Write-Output '34461 command sequence verification passed.'

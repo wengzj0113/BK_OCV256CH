@@ -1,5 +1,8 @@
 Imports System.IO
 Imports System.Linq
+Imports System.Diagnostics
+Imports System.Globalization
+Imports System.Text
 Imports System.Text.RegularExpressions
 
 Public Class FrmManualTest
@@ -18,6 +21,9 @@ Public Class FrmManualTest
     Private txtRangeEnd As TextBox
     Private txtChannelList As TextBox
     Private btnStart As Button
+    Private btnMultiple As Button
+    Private nudRepeatCount As NumericUpDown
+    Private btnExport As Button
     Private btnClose As Button
     Private btnClampClose As Button
     Private btnClampOpen As Button
@@ -165,8 +171,9 @@ Public Class FrmManualTest
             box.BackColor = GetUnselectedChannelColor(channel)
             box.FlatStyle = FlatStyle.Standard
 
-            Dim localChannel As Integer = If(channel <= 128, channel, channel - 128)
-            If channel <= 128 Then
+            Dim deviceChannel As Integer = TrayChannelMapping.ToDeviceChannel(channel)
+            Dim localChannel As Integer = If(deviceChannel <= 128, deviceChannel, deviceChannel - 128)
+            If deviceChannel <= 128 Then
                 channelToolTip.SetToolTip(box, "G1 CH" & localChannel.ToString())
             Else
                 channelToolTip.SetToolTip(box, "G2 本地 CH" & localChannel.ToString())
@@ -199,9 +206,13 @@ Public Class FrmManualTest
     Private Function BuildBottomPanel() As Control
         Dim panel As New TableLayoutPanel()
         panel.Dock = DockStyle.Fill
-        panel.ColumnCount = 3
+        panel.ColumnCount = 7
         panel.RowCount = 1
         panel.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
+        panel.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, 62))
+        panel.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, 66))
+        panel.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, 112))
+        panel.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, 112))
         panel.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, 112))
         panel.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, 92))
         panel.Padding = New Padding(10, 7, 10, 7)
@@ -212,17 +223,44 @@ Public Class FrmManualTest
         lblStatus.TextAlign = ContentAlignment.MiddleLeft
         panel.Controls.Add(lblStatus, 0, 0)
 
+        Dim repeatLabel As New Label()
+        repeatLabel.Text = "重复次数"
+        repeatLabel.Dock = DockStyle.Fill
+        repeatLabel.TextAlign = ContentAlignment.MiddleCenter
+        panel.Controls.Add(repeatLabel, 1, 0)
+
+        nudRepeatCount = New NumericUpDown()
+        nudRepeatCount.Minimum = 1
+        nudRepeatCount.Maximum = 1000
+        nudRepeatCount.Value = 10
+        nudRepeatCount.Increment = 1
+        nudRepeatCount.Dock = DockStyle.Fill
+        panel.Controls.Add(nudRepeatCount, 2, 0)
+
+        btnMultiple = New Button()
+        btnMultiple.Text = "多次测试"
+        btnMultiple.Dock = DockStyle.Fill
+        AddHandler btnMultiple.Click, AddressOf StartMultipleManualTests
+        panel.Controls.Add(btnMultiple, 3, 0)
+
+        btnExport = New Button()
+        btnExport.Text = "导出CSV"
+        btnExport.Dock = DockStyle.Fill
+        btnExport.Enabled = False
+        AddHandler btnExport.Click, AddressOf ExportManualTestResults
+        panel.Controls.Add(btnExport, 4, 0)
+
         btnStart = New Button()
         btnStart.Text = "开始测试"
         btnStart.Dock = DockStyle.Fill
         AddHandler btnStart.Click, AddressOf StartManualTest
-        panel.Controls.Add(btnStart, 1, 0)
+        panel.Controls.Add(btnStart, 5, 0)
 
         btnClose = New Button()
         btnClose.Text = "关闭"
         btnClose.Dock = DockStyle.Fill
         AddHandler btnClose.Click, Sub(sender, e) Me.Close()
-        panel.Controls.Add(btnClose, 2, 0)
+        panel.Controls.Add(btnClose, 6, 0)
 
         Return panel
     End Function
@@ -243,7 +281,7 @@ Public Class FrmManualTest
     End Sub
 
     Private Function GetUnselectedChannelColor(channel As Integer) As Color
-        If channel <= 128 Then
+        If TrayChannelMapping.ToDeviceChannel(channel) <= 128 Then
             Return Color.AliceBlue
         End If
         Return Color.Honeydew
@@ -274,21 +312,21 @@ Public Class FrmManualTest
     End Sub
 
     Private Sub SelectG1Channels(sender As Object, e As EventArgs)
-        For channel As Integer = 1 To 128
-            SetChannelChecked(channel, True)
+        For deviceChannel As Integer = 1 To 128
+            SetChannelChecked(TrayChannelMapping.ToStandardChannel(deviceChannel), True)
         Next
     End Sub
 
     Private Sub SelectG2Channels(sender As Object, e As EventArgs)
-        For channel As Integer = 129 To 256
-            SetChannelChecked(channel, True)
+        For deviceChannel As Integer = 129 To 256
+            SetChannelChecked(TrayChannelMapping.ToStandardChannel(deviceChannel), True)
         Next
     End Sub
 
     Private Sub UpdateSelectionSummary()
         Dim total As Integer = selectedChannels.Count
-        Dim g1 As Integer = selectedChannels.Where(Function(channel) channel <= 128).Count()
-        Dim g2 As Integer = selectedChannels.Where(Function(channel) channel > 128).Count()
+        Dim g1 As Integer = selectedChannels.Where(Function(channel) TrayChannelMapping.ToDeviceChannel(channel) <= 128).Count()
+        Dim g2 As Integer = total - g1
         Dim expectedHioki As Integer = g1 + g2
         Dim expectedDmm As Integer = g2 + g1
 
@@ -396,11 +434,13 @@ Public Class FrmManualTest
         End If
 
         Try
+            resultGrid.Rows.Clear()
+            btnExport.Enabled = False
             SetTestingState(True, "测试中...")
             WriteManualLog("开始手动测试：" & String.Join(",", channels))
 
             Dim formalRunner As New FormalTestRunner(AddressOf WriteManualLog)
-            formalRunner.RunSparseMeasurement(channels)
+            formalRunner.RunSparseMeasurement(channels.Select(Function(channel) TrayChannelMapping.ToDeviceChannel(channel)), operationName:="手动测试")
 
             DisplayManualTestResult(channels)
             WriteManualLog("手动测试完成。")
@@ -414,12 +454,168 @@ Public Class FrmManualTest
         End Try
     End Sub
 
+    Private Sub StartMultipleManualTests(sender As Object, e As EventArgs)
+        If Not AuthorizationService.RequireAuthenticatedUser(Me) Then Return
+        If plcAutomaticModeActive Then
+            MsgBox("PLC 自动测试流程正在运行，不能启动调试测试。", vbOKOnly, "提示")
+            Return
+        End If
+
+        Dim channels As List(Of Integer) = GetSelectedChannels()
+        If channels.Count = 0 Then
+            MsgBox("请选择至少一个通道。", vbOKOnly, "提示")
+            Return
+        End If
+
+        If isRuning OrElse isManualTesting Then
+            MsgBox("系统正在测试中，请稍后。", vbOKOnly, "提示")
+            Return
+        End If
+
+        If CheckCom_SCM() <> 1 Then
+            MsgBox("中位机串口通讯失败，无法启动手动测试。", vbOKOnly, "错误")
+            Return
+        End If
+
+        Dim repeatCount As Integer = Decimal.ToInt32(nudRepeatCount.Value)
+        Dim outputDirectory As String = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "testData")
+        Dim outputPath As String = Path.Combine(outputDirectory,
+                                                "ManualTest_Multi_" & DateTime.Now.ToString("yyyyMMdd_HHmmss_fff") & ".csv")
+        Dim writer As StreamWriter = Nothing
+        Dim completedRounds As Integer = 0
+        Dim currentRound As Integer = 0
+        Dim failedRound As Integer = 0
+        Dim failure As Exception = Nothing
+
+        Try
+            resultGrid.Rows.Clear()
+            btnExport.Enabled = False
+            SetTestingState(True, "准备多次测试...")
+            WriteManualLog("开始手动多次测试：轮数=" & repeatCount.ToString(CultureInfo.InvariantCulture) &
+                           "，通道=" & String.Join(",", channels))
+
+            Directory.CreateDirectory(outputDirectory)
+            writer = New StreamWriter(outputPath, False, New UTF8Encoding(True))
+            writer.WriteLine("测试轮次,采集时间,通道,分组,电压 mV,内阻 mΩ,判定")
+            writer.Flush()
+
+            Dim formalRunner As New FormalTestRunner(AddressOf WriteManualLog)
+            For currentRound = 1 To repeatCount
+                lblStatus.Text = String.Format(CultureInfo.InvariantCulture, "第 {0}/{1} 次测试中...", currentRound, repeatCount)
+                WriteManualLog(lblStatus.Text)
+
+                Try
+                    formalRunner.RunSparseMeasurement(channels.Select(Function(channel) TrayChannelMapping.ToDeviceChannel(channel)), operationName:="手动测试")
+                    Dim capturedAt As DateTime = DateTime.Now
+                    Dim csvRows As List(Of String()) = SnapshotManualTestRows(channels, currentRound, capturedAt)
+
+                    For Each fields As String() In csvRows
+                        writer.WriteLine(SerializeCsvRecord(fields))
+                    Next
+                    writer.Flush()
+
+                    completedRounds = currentRound
+                    DisplayManualTestResult(channels)
+                    lblStatus.Text = String.Format(CultureInfo.InvariantCulture, "已完成 {0}/{1} 次", completedRounds, repeatCount)
+                Catch ex As Exception
+                    failure = ex
+                    failedRound = currentRound
+                    WriteManualLog("手动多次测试第 " & currentRound.ToString(CultureInfo.InvariantCulture) & " 次失败：" & ex.ToString())
+                    Exit For
+                End Try
+            Next
+        Catch ex As Exception
+            failure = ex
+            failedRound = currentRound
+            WriteManualLog("手动多次测试初始化或保存失败：" & ex.ToString())
+        Finally
+            If writer IsNot Nothing Then
+                Try
+                    writer.Dispose()
+                Catch ex As Exception
+                    If failure Is Nothing Then
+                        failure = ex
+                        If failedRound = 0 Then failedRound = Math.Min(currentRound, repeatCount)
+                    End If
+                    WriteManualLog("关闭多次测试CSV失败：" & ex.ToString())
+                End Try
+            End If
+            SetTestingState(False, lblStatus.Text)
+        End Try
+
+        If completedRounds > 0 Then
+            Try
+                Process.Start(New ProcessStartInfo(outputPath) With {.UseShellExecute = True})
+            Catch openException As Exception
+                WriteManualLog("多次测试CSV已保存但自动打开失败：" & openException.ToString())
+                lblStatus.Text = "CSV已保存，自动打开失败"
+                MsgBox("测试数据已保存，但自动打开CSV失败：" & openException.Message &
+                       Environment.NewLine & outputPath,
+                       vbOKOnly,
+                       "CSV已保存")
+                Return
+            End Try
+        End If
+
+        If failure IsNot Nothing Then
+            lblStatus.Text = If(completedRounds > 0,
+                                String.Format(CultureInfo.InvariantCulture, "第 {0}/{1} 次失败，已保存 {2} 次", failedRound, repeatCount, completedRounds),
+                                "多次测试失败")
+            Dim failureDetail As String = If(failedRound > 0,
+                                             "第 " & failedRound.ToString(CultureInfo.InvariantCulture) & " 次失败：",
+                                             "多次测试失败：") & failure.Message
+            If completedRounds > 0 Then
+                failureDetail &= Environment.NewLine & "已完成的数据已保存并打开：" & outputPath
+            ElseIf File.Exists(outputPath) Then
+                failureDetail &= Environment.NewLine & "CSV未包含完整测试轮次，文件位置：" & outputPath
+            End If
+            MsgBox(failureDetail, vbOKOnly, "多次测试失败")
+            Return
+        End If
+
+        lblStatus.Text = String.Format(CultureInfo.InvariantCulture, "多次测试完成：{0}/{1} 次", completedRounds, repeatCount)
+        WriteManualLog("手动多次测试完成：轮数=" & completedRounds.ToString(CultureInfo.InvariantCulture) & "，CSV=" & outputPath)
+        MsgBox("多次测试完成，数据已保存并打开：" & outputPath, vbOKOnly, "测试完成")
+    End Sub
+
+    Private Function SnapshotManualTestRows(channels As IEnumerable(Of Integer),
+                                            roundNumber As Integer,
+                                            capturedAt As DateTime) As List(Of String())
+        Dim rows As New List(Of String())()
+        Dim timestamp As String = capturedAt.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture)
+        For Each channel As Integer In channels.OrderBy(Function(ch) ch)
+            Dim index0 As Integer = channel - 1
+            Dim voltage As Single = RecieveData(index0).Voltage
+            Dim resistance As Single = RecieveData(index0).Resistance
+            Dim deviceChannel As Integer = TrayChannelMapping.ToDeviceChannel(channel)
+            Dim groupText As String = If(deviceChannel <= 128, "G1", "G2 本地CH" & (deviceChannel - 128).ToString(CultureInfo.InvariantCulture))
+            Dim resultText As String = If(IsNG(voltage, resistance) = 0, "OK", "NG")
+            rows.Add(New String() {
+                roundNumber.ToString(CultureInfo.InvariantCulture),
+                timestamp,
+                "CH" & channel.ToString(CultureInfo.InvariantCulture),
+                groupText,
+                (voltage * 1000.0F).ToString("0.0000", CultureInfo.InvariantCulture),
+                resistance.ToString("0.0000", CultureInfo.InvariantCulture),
+                resultText
+            })
+        Next
+        Return rows
+    End Function
+
+    Private Shared Function SerializeCsvRecord(fields As IEnumerable(Of String)) As String
+        Return String.Join(",", fields.Select(Function(field) EscapeCsvField(field)).ToArray())
+    End Function
+
     Private Sub SetTestingState(testing As Boolean, statusText As String)
         isManualTesting = testing
         isRuning = testing
         lblStatus.Text = statusText
 
         btnStart.Enabled = Not testing
+        If btnMultiple IsNot Nothing Then btnMultiple.Enabled = Not testing
+        If nudRepeatCount IsNot Nothing Then nudRepeatCount.Enabled = Not testing
+        btnExport.Enabled = Not testing AndAlso resultGrid IsNot Nothing AndAlso resultGrid.Rows.Count > 0
         btnClose.Enabled = Not testing
         If commandPanel IsNot Nothing Then
             For Each control As Control In commandPanel.Controls
@@ -441,7 +637,8 @@ Public Class FrmManualTest
             Dim voltageMv As Single = RecieveData(index0).Voltage * 1000
             Dim resistance As Single = RecieveData(index0).Resistance
             Dim resultText As String = If(IsNG(RecieveData(index0).Voltage, resistance) = 0, "OK", "NG")
-            Dim groupText As String = If(channel <= 128, "G1", "G2 本地CH" & (channel - 128).ToString())
+            Dim deviceChannel As Integer = TrayChannelMapping.ToDeviceChannel(channel)
+            Dim groupText As String = If(deviceChannel <= 128, "G1", "G2 本地CH" & (deviceChannel - 128).ToString())
 
             resultGrid.Rows.Add("CH" & channel.ToString(),
                                 groupText,
@@ -449,7 +646,85 @@ Public Class FrmManualTest
                                 resistance.ToString("0.0000"),
                                 resultText)
         Next
+
+        btnExport.Enabled = resultGrid.Rows.Count > 0
     End Sub
+
+    Private Sub ExportManualTestResults(sender As Object, e As EventArgs)
+        If resultGrid Is Nothing OrElse resultGrid.Rows.Count = 0 Then
+            MsgBox("当前没有可导出的测试结果。", vbOKOnly, "导出结果")
+            Return
+        End If
+
+        Dim defaultName As String = "ManualTest_" & DateTime.Now.ToString("yyyyMMdd_HHmmss")
+        Dim requestedName As String = Microsoft.VisualBasic.Interaction.InputBox(
+            "请输入CSV文件名（不需要输入扩展名）：",
+            "导出测试结果",
+            defaultName).Trim()
+        If requestedName = String.Empty Then Return
+
+        If requestedName.EndsWith(".csv", StringComparison.OrdinalIgnoreCase) Then
+            requestedName = requestedName.Substring(0, requestedName.Length - 4)
+        End If
+        If requestedName = String.Empty OrElse requestedName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 Then
+            MsgBox("文件名不能为空，也不能包含路径分隔符或系统不允许的字符。", vbOKOnly, "文件名无效")
+            Return
+        End If
+
+        Try
+            Dim outputDirectory As String = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "testData")
+            Directory.CreateDirectory(outputDirectory)
+            Dim outputPath As String = Path.Combine(outputDirectory, requestedName & ".csv")
+            If File.Exists(outputPath) AndAlso
+               MsgBox("文件已存在，是否覆盖？" & Environment.NewLine & outputPath,
+                      vbYesNo Or vbQuestion,
+                      "确认覆盖") <> vbYes Then
+                Return
+            End If
+
+            Dim csv As New StringBuilder()
+            Dim headers As New List(Of String)()
+            For Each column As DataGridViewColumn In resultGrid.Columns
+                headers.Add(EscapeCsvField(column.HeaderText))
+            Next
+            csv.AppendLine(String.Join(",", headers.ToArray()))
+
+            For Each row As DataGridViewRow In resultGrid.Rows
+                Dim fields As New List(Of String)()
+                For Each cell As DataGridViewCell In row.Cells
+                    fields.Add(EscapeCsvField(If(cell.Value Is Nothing, String.Empty, cell.Value.ToString())))
+                Next
+                csv.AppendLine(String.Join(",", fields.ToArray()))
+            Next
+
+            File.WriteAllText(outputPath, csv.ToString(), New UTF8Encoding(True))
+            lblStatus.Text = "结果已导出：" & Path.GetFileName(outputPath)
+            WriteManualLog("导出测试结果：" & outputPath & "，行数=" & resultGrid.Rows.Count.ToString())
+            Try
+                Process.Start(New ProcessStartInfo(outputPath) With {.UseShellExecute = True})
+            Catch openException As Exception
+                WriteManualLog("CSV已保存但自动打开失败：" & openException.Message)
+                MsgBox("文件已保存，但自动打开失败：" & openException.Message & Environment.NewLine & outputPath,
+                       vbOKOnly,
+                       "文件已保存")
+                Return
+            End Try
+
+            MsgBox("测试结果已导出并打开：" & outputPath, vbOKOnly, "导出完成")
+        Catch ex As Exception
+            WriteManualLog("导出测试结果失败：" & ex.ToString())
+            MsgBox("导出测试结果失败：" & ex.Message, vbOKOnly, "导出失败")
+        End Try
+    End Sub
+
+    Private Shared Function EscapeCsvField(value As String) As String
+        Dim text As String = If(value, String.Empty)
+        Dim quote As String = ChrW(34).ToString()
+        If text.Contains(",") OrElse text.Contains(quote) OrElse text.Contains(vbCr) OrElse text.Contains(vbLf) Then
+            Return quote & text.Replace(quote, quote & quote) & quote
+        End If
+        Return text
+    End Function
 
     Private Sub WriteManualLog(message As String)
         AppLog.Write("ManualTest", message)

@@ -8,10 +8,11 @@ Public Interface IPlcAutomationClient
     Sub Close()
     Function ReadR150() As Boolean
     Function ReadR151() As Boolean
-    Function ReadR170() As Boolean
+    Function ReadR152() As Boolean
     Sub WriteR160()
     Sub WriteR161()
-    Sub WriteChannelGrade(ByVal channelNumber As Integer, ByVal grade As Integer)
+    Sub WriteR162()
+    Sub WriteNgSelection(ByVal ngChannelNumber As Integer)
 End Interface
 
 Friend Class PlcAutomationClient
@@ -62,8 +63,8 @@ Friend Class PlcAutomationClient
         Return PlcAutomationProtocol.ParseSignal(SendAndReceive(PlcAutomationProtocol.WithCr(PlcAutomationProtocol.ReadR151Frame)))
     End Function
 
-    Public Function ReadR170() As Boolean Implements IPlcAutomationClient.ReadR170
-        Return PlcAutomationProtocol.ParseSignal(SendAndReceive(PlcAutomationProtocol.WithCr(PlcAutomationProtocol.ReadR170Frame)))
+    Public Function ReadR152() As Boolean Implements IPlcAutomationClient.ReadR152
+        Return PlcAutomationProtocol.ParseSignal(SendAndReceive(PlcAutomationProtocol.WithCr(PlcAutomationProtocol.ReadR152Frame)))
     End Function
 
     Public Sub WriteR160() Implements IPlcAutomationClient.WriteR160
@@ -74,8 +75,12 @@ Friend Class PlcAutomationClient
         WriteAndRequireAck(PlcAutomationProtocol.WithCr(PlcAutomationProtocol.WriteR161Frame), "WC")
     End Sub
 
-    Public Sub WriteChannelGrade(ByVal channelNumber As Integer, ByVal grade As Integer) Implements IPlcAutomationClient.WriteChannelGrade
-        WriteAndRequireAck(PlcAutomationProtocol.BuildDtGradeFrame(channelNumber, grade), "WD")
+    Public Sub WriteR162() Implements IPlcAutomationClient.WriteR162
+        WriteAndRequireAck(PlcAutomationProtocol.WithCr(PlcAutomationProtocol.WriteR162Frame), "WC")
+    End Sub
+
+    Public Sub WriteNgSelection(ByVal ngChannelNumber As Integer) Implements IPlcAutomationClient.WriteNgSelection
+        WriteAndRequireAck(PlcAutomationProtocol.BuildNgSelectionFrame(ngChannelNumber), "WD")
     End Sub
 
     Private Sub WriteAndRequireAck(ByVal frame As String, ByVal expectedCommand As String)
@@ -120,7 +125,7 @@ Friend Class PlcAutomationClient
         End If
 
         serialPortPLC.PortName = "COM" & (settings.PLCComPort + 1).ToString()
-        serialPortPLC.BaudRate = If(settings.PLCComRate > 0, settings.PLCComRate, DefaultPlcBaudRate)
+        serialPortPLC.BaudRate = DefaultPlcBaudRate
         serialPortPLC.Parity = Parity.Odd
         serialPortPLC.DataBits = 8
         serialPortPLC.StopBits = StopBits.One

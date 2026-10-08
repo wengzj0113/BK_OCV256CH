@@ -1,5 +1,7 @@
 # PLC Automatic Test v4.0 Implementation Plan
 
+> Historical plan: its PLC grade-write ordering predates the customer R150/R160, R151/R161, and R152/R162 contract. Use the updated customer handshake design and 2026-10-07 implementation plan for current work.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Implement a safe PLC-driven automatic test cycle that uses the successful ASCII serial protocol, owns each physical COM port exactly once, runs a non-interactive 256-channel test and configured NG retests, publishes final data only after all retests, and sends R161 only after the final PLC grade state is complete.

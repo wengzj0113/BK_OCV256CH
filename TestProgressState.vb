@@ -10,6 +10,7 @@ Public Enum TestProgressStage
     Uploading = 6
     Completed = 7
     Failed = 8
+    Canceled = 9
 End Enum
 
 Public NotInheritable Class TestProgressSnapshot
@@ -104,6 +105,11 @@ Public NotInheritable Class TestProgressState
         _message = If(message, "测试失败")
     End Sub
 
+    Public Sub Cancel(message As String)
+        _stage = TestProgressStage.Canceled
+        _message = If(message, "测试已停止")
+    End Sub
+
     Public Function CreateSnapshot() As TestProgressSnapshot
         Dim elapsed As TimeSpan = GetElapsed()
         Return New TestProgressSnapshot(_stage,
@@ -125,6 +131,7 @@ Public NotInheritable Class TestProgressState
         If _stage = TestProgressStage.Idle OrElse
            _stage = TestProgressStage.Completed OrElse
            _stage = TestProgressStage.Failed OrElse
+           _stage = TestProgressStage.Canceled OrElse
            _progressPercent <= 0 OrElse
            _progressPercent >= 100 Then
             Return Nothing

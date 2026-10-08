@@ -8,6 +8,7 @@ Public Enum DebugDeviceId
     PlcTray
     IoCard
     Scanner
+    Retest3562
     Database
     Mes
 End Enum

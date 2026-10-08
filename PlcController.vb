@@ -66,8 +66,8 @@ Friend Class ModbusRtuPlcController
             If serialPort Is Nothing Then serialPort = New SerialPort()
             If serialPort.IsOpen Then serialPort.Close()
             serialPort.PortName = "COM" & (settings.PLCComPort + 1).ToString()
-            serialPort.BaudRate = If(settings.PLCComRate > 0, settings.PLCComRate, 115200)
-            serialPort.Parity = Parity.None
+            serialPort.BaudRate = DefaultPlcBaudRate
+            serialPort.Parity = Parity.Odd
             serialPort.DataBits = 8
             serialPort.StopBits = StopBits.One
             serialPort.ReadTimeout = 1000

@@ -22,5 +22,8 @@ if ($clearIndex -lt 0) { throw 'PrepareCachedData_3562 must clear the instrument
 if ($autoOffIndex -ge $rangeIndex -or $rangeIndex -ge $clearIndex) {
     throw 'Range preparation order must be :AUT OFF, :RES:RANG 300E-3, then MEMory:CLEA.'
 }
+if ($method -notmatch 'InstrumentRateProfile\.FromSettingName' -or $method -notmatch 'SAMPle:RATE') {
+    throw 'PrepareCachedData_3562 must apply the selected sample rate on every test.'
+}
 
-Write-Host 'PASS: 3562 test preparation disables auto-ranging and selects 300 mOhm before clearing memory.'
+Write-Host 'PASS: 3562 test preparation applies rate, disables auto-ranging and selects 300 mOhm before clearing memory.'

@@ -53,7 +53,8 @@ Public NotInheritable Class UserAccountStore
         Dim role As UserRole = UserRole.[Operator]
         If parts.Length >= 3 Then
             Dim parsedRole As UserRole
-            If [Enum].TryParse(parts(2).Trim(), True, parsedRole) AndAlso (parsedRole = UserRole.Administrator OrElse parsedRole = UserRole.[Operator]) Then
+            If [Enum].TryParse(parts(2).Trim(), True, parsedRole) AndAlso
+               (parsedRole = UserRole.Administrator OrElse parsedRole = UserRole.[Operator] OrElse parsedRole = UserRole.Engineer) Then
                 role = parsedRole
             End If
         ElseIf parts(0).Trim() = "系统管理员" Then

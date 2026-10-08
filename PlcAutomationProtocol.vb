@@ -5,31 +5,26 @@ Public NotInheritable Class PlcAutomationProtocol
     End Sub
 
     Public Const SignalValueIndex As Integer = 6
-    Public Const ReadR150Frame As String = "%01#CSR0150**"
+    Public Const ReadR150Frame As String = "%01#RCSR0150**"
     Public Const ReadR151Frame As String = "%01#RCSR0151**"
-    Public Const ReadR170Frame As String = "%01#RCSR0170**"
+    Public Const ReadR152Frame As String = "%01#RCSR0152**"
     Public Const WriteR160Frame As String = "%01#WCSR01601**"
     Public Const WriteR161Frame As String = "%01#WCSR01611**"
+    Public Const WriteR162Frame As String = "%01#WCSR01621**"
 
     Public Shared Function WithCr(ByVal frame As String) As String
         If frame Is Nothing Then Throw New ArgumentNullException(NameOf(frame))
         Return frame.TrimEnd(ControlChars.Cr, ControlChars.Lf) & ControlChars.Cr
     End Function
 
-    Public Shared Function BuildDtGradeFrame(ByVal channelNumber As Integer, ByVal grade As Integer) As String
-        If channelNumber < 1 OrElse channelNumber > 256 Then
-            Throw New ArgumentOutOfRangeException(NameOf(channelNumber), "通道号必须在1到256之间。")
-        End If
-        If grade < 0 OrElse grade > 99 Then
-            Throw New ArgumentOutOfRangeException(NameOf(grade), "档位必须在0到99之间。")
+    Public Shared Function BuildNgSelectionFrame(ByVal ngChannelNumber As Integer) As String
+        If ngChannelNumber < 1 OrElse ngChannelNumber > 256 Then
+            Throw New ArgumentOutOfRangeException(NameOf(ngChannelNumber), "NG挑选序号必须在1到256之间。")
         End If
 
-        '电芯通道按行编号，PLC DT 地址按列编号。
-        Dim row As Integer = (channelNumber - 1) \ 16
-        Dim column As Integer = (channelNumber - 1) Mod 16
-        Dim dtAddress As String = (1001 + column * 16 + row).ToString(CultureInfo.InvariantCulture)
-        Dim gradeText As String = grade.ToString("00", CultureInfo.InvariantCulture)
-        Return WithCr("%01#WD" & dtAddress & "0" & dtAddress & gradeText & "00**")
+        'PLC挑选地址按NG逻辑序号顺序排列，不对应托盘物理行列或实际坐标。
+        Dim dtAddress As String = (1000 + ngChannelNumber).ToString("D5", CultureInfo.InvariantCulture)
+        Return WithCr("%01#WDD" & dtAddress & dtAddress & "0200**")
     End Function
 
     Public Shared Function ParseSignal(ByVal response As String) As Boolean

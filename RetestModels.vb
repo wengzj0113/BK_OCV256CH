@@ -12,6 +12,7 @@ Public Class NgRetestSource
 End Class
 Public Class RetestMeasurement
     Public Property Voltage As Single
+    Public Property VoltageMeasured As Boolean
     Public Property Resistance As Single
     Public Property Result As String
     Public Property MeasuredAt As DateTime
@@ -24,5 +25,4 @@ Public Class NgRetestSaveRequest
     Public Property OperatorName As String
     Public Property MeterPort As String
 End Class
-
 
