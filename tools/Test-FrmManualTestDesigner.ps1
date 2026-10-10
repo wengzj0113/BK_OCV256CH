@@ -23,25 +23,120 @@ function Assert-Regex {
     }
 }
 
-$designer = Get-Content -LiteralPath $designerPath -Raw
+function Remove-VbComments {
+    param([string]$Text)
+
+    $withoutCommentLines = [System.Text.RegularExpressions.Regex]::Replace($Text, '(?m)^\s*''.*(?:\r?\n|$)', '')
+    return [System.Text.RegularExpressions.Regex]::Replace($withoutCommentLines, '(?m)(?<=\s)''.*$', '')
+}
+
+function Find-ControlByName {
+    param(
+        $Parent,
+        [string]$Name
+    )
+
+    if ($Parent.Name -eq $Name) {
+        return $Parent
+    }
+    foreach ($child in $Parent.Controls) {
+        $match = Find-ControlByName -Parent $child -Name $Name
+        if ($null -ne $match) {
+            return $match
+        }
+    }
+    return $null
+}
+
+function Get-CheckedChannels {
+    param([System.Collections.IDictionary]$ChannelBoxes)
+
+    $checked = [System.Collections.Generic.List[int]]::new()
+    for ($channel = 1; $channel -le 256; $channel++) {
+        if ($ChannelBoxes[$channel].Checked) {
+            $checked.Add($channel)
+        }
+    }
+    return $checked.ToArray()
+}
+
+function Assert-CheckedChannels {
+    param(
+        [System.Collections.IDictionary]$ChannelBoxes,
+        [int[]]$Expected,
+        [string]$Scenario
+    )
+
+    $actual = @(Get-CheckedChannels -ChannelBoxes $ChannelBoxes)
+    $expectedSorted = @($Expected | Sort-Object)
+    if ($actual.Count -ne $expectedSorted.Count) {
+        throw "$Scenario selected $($actual.Count) channels; expected $($expectedSorted.Count)."
+    }
+    for ($index = 0; $index -lt $expectedSorted.Count; $index++) {
+        if ($actual[$index] -ne $expectedSorted[$index]) {
+            throw "$Scenario selected channel $($actual[$index]) at position $($index + 1); expected $($expectedSorted[$index])."
+        }
+    }
+}
+
+$designerText = Get-Content -LiteralPath $designerPath -Raw
+$classMatch = [System.Text.RegularExpressions.Regex]::Match(
+    $designerText,
+    '(?ims)^\s*(?:Partial\s+Public|Public\s+Partial|Partial)\s+Class\s+FrmManualTest\b(?<body>.*?)^\s*End\s+Class\b'
+)
+if (-not $classMatch.Success) {
+    throw 'FrmManualTest.Designer.vb must declare the partial FrmManualTest class.'
+}
+$designerClass = Remove-VbComments $classMatch.Value
+$classBody = Remove-VbComments $classMatch.Groups['body'].Value
+Assert-Regex $designerClass '(?im)^\s*(?:Partial\s+Public|Public\s+Partial|Partial)\s+Class\s+FrmManualTest\b' 'Designer must declare partial FrmManualTest.'
+Assert-Regex $classBody '(?im)^\s*Inherits\s+System\.Windows\.Forms\.Form\s*$' 'Designer FrmManualTest must inherit System.Windows.Forms.Form.'
+
+$initializeMatch = [System.Text.RegularExpressions.Regex]::Match(
+    $classBody,
+    '(?ims)^\s*(?:(?:Private|Protected|Friend|Public)\s+)?Sub\s+InitializeComponent\s*\(\s*\)(?<body>.*?)^\s*End\s+Sub\b'
+)
+if (-not $initializeMatch.Success) {
+    throw 'FrmManualTest class must define InitializeComponent.'
+}
+$initializeComponent = Remove-VbComments $initializeMatch.Groups['body'].Value
+
 $codeBehindPath = Join-Path $repoRoot 'FrmManualTest.vb'
-$codeBehind = Get-Content -LiteralPath $codeBehindPath -Raw
+$codeBehind = Remove-VbComments (Get-Content -LiteralPath $codeBehindPath -Raw)
 $projectPath = Join-Path $repoRoot 'MP-60A-RV-64Mem.vbproj'
 $project = [xml](Get-Content -LiteralPath $projectPath -Raw)
 
-Assert-Regex $designer '(?im)^\s*(?:Partial\s+Public|Public\s+Partial|Partial)\s+Class\s+FrmManualTest\b' 'Designer must declare partial FrmManualTest.'
-Assert-Regex $designer '(?im)^\s*Inherits\s+System\.Windows\.Forms\.Form\s*$' 'Designer FrmManualTest must inherit System.Windows.Forms.Form.'
-Assert-Regex $designer '(?im)^\s*(?:(?:Private|Protected|Friend|Public)\s+)?Sub\s+InitializeComponent\s*\(' 'Designer must define InitializeComponent.'
+Assert-Regex $initializeComponent '(?im)\bMe\.Text\s*=\s*"手动测试"' 'Designer must preserve the 手动测试 form title.'
+Assert-Regex $initializeComponent '(?im)\bMe\.Size\s*=\s*New\s+(?:System\.Drawing\.)?Size\s*\(\s*1475\s*,\s*975\s*\)' 'Designer must preserve the 1475 x 975 form size.'
+Assert-Regex $initializeComponent '(?im)\bMe\.MinimumSize\s*=\s*New\s+(?:System\.Drawing\.)?Size\s*\(\s*1225\s*,\s*850\s*\)' 'Designer must preserve the 1225 x 850 minimum size.'
 
-Assert-Regex $designer '(?im)\bMe\.Text\s*=\s*"手动测试"' 'Designer must preserve the 手动测试 form title.'
-Assert-Regex $designer '(?im)\bMe\.Size\s*=\s*New\s+(?:System\.Drawing\.)?Size\s*\(\s*1475\s*,\s*975\s*\)' 'Designer must preserve the 1475 x 975 form size.'
-Assert-Regex $designer '(?im)\bMe\.MinimumSize\s*=\s*New\s+(?:System\.Drawing\.)?Size\s*\(\s*1225\s*,\s*850\s*\)' 'Designer must preserve the 1225 x 850 minimum size.'
+Assert-Regex $initializeComponent '(?im)^\s*(?:Me\.)?rootLayoutPanel\s*=\s*New\s+(?:System\.Windows\.Forms\.)?TableLayoutPanel\b' 'Designer must create rootLayoutPanel as a TableLayoutPanel.'
+Assert-Regex $initializeComponent '(?im)\b(?:Me\.)?rootLayoutPanel\.RowCount\s*=\s*4\b' 'Designer rootLayoutPanel must have four rows.'
+$rootNamePattern = '(?im)\b(?:Me\.)?rootLayoutPanel\.Name\s*=\s*"rootLayoutPanel"'
+Assert-Regex $initializeComponent $rootNamePattern 'Designer must name the root table rootLayoutPanel.'
 
-Assert-Regex $designer '(?im)^\s*(?:Me\.)?rootLayoutPanel\s*=\s*New\s+(?:System\.Windows\.Forms\.)?TableLayoutPanel\b' 'Designer must create rootLayoutPanel as a TableLayoutPanel.'
-Assert-Regex $designer '(?im)\b(?:Me\.)?rootLayoutPanel\.RowCount\s*=\s*4\b' 'Designer rootLayoutPanel must have four rows.'
-$quoteClass = '[' + '"' + "'" + ']'
-$rootNamePattern = '(?im)\b(?:Me\.)?rootLayoutPanel\.Name\s*=\s*' + $quoteClass + 'rootLayoutPanel' + $quoteClass
-Assert-Regex $designer $rootNamePattern 'Designer must name the root table rootLayoutPanel.'
+$rowStylePattern = '(?im)\brootLayoutPanel\.RowStyles\.Add\(\s*New\s+(?:System\.Windows\.Forms\.)?RowStyle\s*\(\s*(?:System\.Windows\.Forms\.)?SizeType\.(?<type>Absolute|Percent)\s*,\s*(?<value>\d+(?:\.\d+)?(?:[FfRrDd!#])?)\s*\)\s*\)'
+$rowStyles = [System.Text.RegularExpressions.Regex]::Matches($initializeComponent, $rowStylePattern)
+if ($rowStyles.Count -ne 4) {
+    throw "Designer rootLayoutPanel defines $($rowStyles.Count) explicit row styles; expected four."
+}
+$expectedRows = @(
+    @{ Type = 'Absolute'; Value = 112 },
+    @{ Type = 'Percent'; Value = 58 },
+    @{ Type = 'Percent'; Value = 42 },
+    @{ Type = 'Absolute'; Value = 46 }
+)
+for ($index = 0; $index -lt $expectedRows.Count; $index++) {
+    $actualType = $rowStyles[$index].Groups['type'].Value
+    $actualValueText = $rowStyles[$index].Groups['value'].Value.TrimEnd([char[]]@('F', 'f', 'R', 'r', 'D', 'd', '!', '#'))
+    $actualValue = [double]::Parse($actualValueText, [Globalization.CultureInfo]::InvariantCulture)
+    if ($actualType -ne $expectedRows[$index].Type -or $actualValue -ne $expectedRows[$index].Value) {
+        throw "Designer root row $($index + 1) is $actualType $actualValue; expected $($expectedRows[$index].Type) $($expectedRows[$index].Value)."
+    }
+}
+
+Assert-Regex $initializeComponent '(?im)\bmatrixPanel\.ColumnCount\s*=\s*16\b' 'Designer matrixPanel must define 16 columns.'
+Assert-Regex $initializeComponent '(?im)\bmatrixPanel\.RowCount\s*=\s*16\b' 'Designer matrixPanel must define 16 rows.'
 
 $staticControls = @(
     @{ Name = 'commandPanel'; Type = 'FlowLayoutPanel'; Row = 0 },
@@ -49,27 +144,81 @@ $staticControls = @(
     @{ Name = 'resultGrid'; Type = 'DataGridView'; Row = 2 },
     @{ Name = 'bottomPanel'; Type = 'TableLayoutPanel'; Row = 3 }
 )
+$doubleQuote = [char]34
 foreach ($control in $staticControls) {
     $name = $control.Name
     $type = $control.Type
     $row = $control.Row
-    Assert-Regex $designer "(?im)^\s*(?:Me\.)?$name\s*=\s*New\s+(?:System\.Windows\.Forms\.)?$type\b" "Designer must create $name as $type."
-    $namePattern = '(?im)\b(?:Me\.)?' + [regex]::Escape($name) + '\.Name\s*=\s*' + $quoteClass + [regex]::Escape($name) + $quoteClass
-    Assert-Regex $designer $namePattern "Designer must name the $name control."
-    Assert-Regex $designer "(?im)\brootLayoutPanel\.Controls\.Add\(\s*(?:Me\.)?$name\s*,\s*0\s*,\s*$row\s*\)" "Designer must place $name in rootLayoutPanel row $($row + 1)."
+    Assert-Regex $initializeComponent "(?im)^\s*(?:Me\.)?$name\s*=\s*New\s+(?:System\.Windows\.Forms\.)?$type\b" "Designer must create $name as $type."
+    $namePattern = '(?im)\b(?:Me\.)?' + [regex]::Escape($name) + '\.Name\s*=\s*' + $doubleQuote + [regex]::Escape($name) + $doubleQuote
+    Assert-Regex $initializeComponent $namePattern "Designer must name the $name control."
+    Assert-Regex $initializeComponent "(?im)\brootLayoutPanel\.Controls\.Add\(\s*(?:Me\.)?$name\s*,\s*0\s*,\s*$row\s*\)" "Designer must place $name in rootLayoutPanel row $($row + 1)."
+}
+
+$designerControls = @(
+    @{ Name = 'btnSelectAll'; Type = 'Button'; Caption = '全选'; Owner = 'commandPanel' },
+    @{ Name = 'btnClearSelection'; Type = 'Button'; Caption = '清空'; Owner = 'commandPanel' },
+    @{ Name = 'btnInvertSelection'; Type = 'Button'; Caption = '反选'; Owner = 'commandPanel' },
+    @{ Name = 'btnSelectG1'; Type = 'Button'; Caption = 'G1全选'; Owner = 'commandPanel' },
+    @{ Name = 'btnSelectG2'; Type = 'Button'; Caption = 'G2全选'; Owner = 'commandPanel' },
+    @{ Name = 'btnClampClose'; Type = 'Button'; Caption = '夹具压合'; Owner = 'commandPanel' },
+    @{ Name = 'btnClampOpen'; Type = 'Button'; Caption = '夹具松开'; Owner = 'commandPanel' },
+    @{ Name = 'lblRangeStart'; Type = 'Label'; Caption = '起始'; Owner = 'commandPanel' },
+    @{ Name = 'txtRangeStart'; Type = 'TextBox'; Caption = $null; Owner = 'commandPanel' },
+    @{ Name = 'lblRangeEnd'; Type = 'Label'; Caption = '结束'; Owner = 'commandPanel' },
+    @{ Name = 'txtRangeEnd'; Type = 'TextBox'; Caption = $null; Owner = 'commandPanel' },
+    @{ Name = 'btnAddRange'; Type = 'Button'; Caption = '添加范围'; Owner = 'commandPanel' },
+    @{ Name = 'lblChannelList'; Type = 'Label'; Caption = '零星通道'; Owner = 'commandPanel' },
+    @{ Name = 'txtChannelList'; Type = 'TextBox'; Caption = $null; Owner = 'commandPanel' },
+    @{ Name = 'btnAddList'; Type = 'Button'; Caption = '添加列表'; Owner = 'commandPanel' },
+    @{ Name = 'lblSummary'; Type = 'Label'; Caption = $null; Owner = 'commandPanel' },
+    @{ Name = 'lblStatus'; Type = 'Label'; Caption = '空闲'; Owner = 'bottomPanel' },
+    @{ Name = 'lblRepeatCount'; Type = 'Label'; Caption = '重复次数'; Owner = 'bottomPanel' },
+    @{ Name = 'nudRepeatCount'; Type = 'NumericUpDown'; Caption = $null; Owner = 'bottomPanel' },
+    @{ Name = 'btnMultiple'; Type = 'Button'; Caption = '多次测试'; Owner = 'bottomPanel' },
+    @{ Name = 'btnExport'; Type = 'Button'; Caption = '导出CSV'; Owner = 'bottomPanel' },
+    @{ Name = 'btnStart'; Type = 'Button'; Caption = '开始测试'; Owner = 'bottomPanel' },
+    @{ Name = 'btnClose'; Type = 'Button'; Caption = '关闭'; Owner = 'bottomPanel' }
+)
+foreach ($control in $designerControls) {
+    $name = $control.Name
+    $type = $control.Type
+    $owner = $control.Owner
+    Assert-Regex $initializeComponent "(?im)^\s*(?:Me\.)?$name\s*=\s*New\s+(?:System\.Windows\.Forms\.)?$type\b" "Designer must create $name as $type."
+    $namePattern = '(?im)\b(?:Me\.)?' + [regex]::Escape($name) + '\.Name\s*=\s*' + $doubleQuote + [regex]::Escape($name) + $doubleQuote
+    Assert-Regex $initializeComponent $namePattern "Designer must name $name."
+    if ($null -ne $control.Caption) {
+        $captionPattern = '(?im)\b(?:Me\.)?' + [regex]::Escape($name) + '\.Text\s*=\s*"' + [regex]::Escape($control.Caption) + '"'
+        Assert-Regex $initializeComponent $captionPattern "Designer must preserve $name caption '$($control.Caption)'."
+    }
+
+    $directOwnerPattern = "(?im)\b(?:Me\.)?$owner\.Controls\.Add\(\s*(?:Me\.)?$name(?:\s*,\s*\d+\s*,\s*\d+)?\s*\)"
+    $addedDirectly = [System.Text.RegularExpressions.Regex]::IsMatch($initializeComponent, $directOwnerPattern)
+    $ownerArrayPattern = '(?is)\b(?:Me\.)?' + [regex]::Escape($owner) + '\.Controls\.AddRange\s*\(.*?\{(?<controls>[^}]*)\}'
+    $ownerArrays = [System.Text.RegularExpressions.Regex]::Matches($initializeComponent, $ownerArrayPattern)
+    $addedByRange = $false
+    foreach ($ownerArray in $ownerArrays) {
+        $memberPattern = '(?im)(?:Me\.)?' + [regex]::Escape($name) + '\b'
+        if ([System.Text.RegularExpressions.Regex]::IsMatch($ownerArray.Groups['controls'].Value, $memberPattern)) {
+            $addedByRange = $true
+            break
+        }
+    }
+    if (-not $addedDirectly -and -not $addedByRange) {
+        throw "Designer must add $name to its owning panel $owner."
+    }
 }
 
 $expectedHeaders = @('通道', '分组', '电压 mV', '内阻 mΩ', '判定')
 $directColumnAdds = [System.Text.RegularExpressions.Regex]::Matches(
-    $designer,
+    $initializeComponent,
     '(?im)\bresultGrid\.Columns\.Add\(\s*"[^"]+"\s*,\s*"(?<header>[^"]*)"\s*\)'
 )
 $addRangePattern = '(?is)\bresultGrid\.Columns\.AddRange\s*\(.*?\{(?<columns>[^}]*)\}'
-$addRangeMatches = [System.Text.RegularExpressions.Regex]::Matches($designer, $addRangePattern)
+$addRangeMatches = [System.Text.RegularExpressions.Regex]::Matches($initializeComponent, $addRangePattern)
 if ($directColumnAdds.Count -eq 0 -and $addRangeMatches.Count -eq 0) {
     throw 'Designer must add columns to resultGrid directly or through Columns.AddRange.'
 }
-
 $includedColumnNames = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
 foreach ($addRange in $addRangeMatches) {
     $columnReferences = [System.Text.RegularExpressions.Regex]::Matches(
@@ -81,7 +230,7 @@ foreach ($addRange in $addRangeMatches) {
     }
 }
 $headerAssignments = [System.Text.RegularExpressions.Regex]::Matches(
-    $designer,
+    $initializeComponent,
     '(?im)\b(?:Me\.)?(?<column>[A-Za-z_]\w*)\.HeaderText\s*=\s*"(?<header>[^"]*)"'
 )
 foreach ($header in $expectedHeaders) {
@@ -106,15 +255,53 @@ foreach ($header in $expectedHeaders) {
         throw "Designer resultGrid must include a column with HeaderText '$header'."
     }
 }
+
+$selectableButtonEvents = @(
+    @{ Button = 'btnSelectAll'; Handler = 'SelectAllChannels' },
+    @{ Button = 'btnClearSelection'; Handler = 'ClearSelection' },
+    @{ Button = 'btnInvertSelection'; Handler = 'InvertSelection' },
+    @{ Button = 'btnSelectG1'; Handler = 'SelectG1Channels' },
+    @{ Button = 'btnSelectG2'; Handler = 'SelectG2Channels' },
+    @{ Button = 'btnAddRange'; Handler = 'AddRangeSelection' },
+    @{ Button = 'btnAddList'; Handler = 'AddListSelection' }
+)
+foreach ($event in $selectableButtonEvents) {
+    $eventPattern = '(?im)\bAddHandler\s+(?:Me\.)?' + [regex]::Escape($event.Button) + '\.Click\s*,\s*AddressOf\s+(?:Me\.)?' + [regex]::Escape($event.Handler) + '\b'
+    Assert-Regex $initializeComponent $eventPattern "Designer must connect $($event.Button).Click to $($event.Handler)."
+}
+
+$bottomButtonEvents = @(
+    @{ Button = 'btnMultiple'; Handler = 'StartMultipleManualTests' },
+    @{ Button = 'btnExport'; Handler = 'ExportManualTestResults' },
+    @{ Button = 'btnStart'; Handler = 'StartManualTest' }
+)
+foreach ($event in $bottomButtonEvents) {
+    $eventPattern = '(?im)\bAddHandler\s+(?:Me\.)?' + [regex]::Escape($event.Button) + '\.Click\s*,\s*AddressOf\s+(?:Me\.)?' + [regex]::Escape($event.Handler) + '\b'
+    Assert-Regex $initializeComponent $eventPattern "Designer must connect $($event.Button).Click to $($event.Handler)."
+}
+Assert-Regex $initializeComponent '(?im)\bAddHandler\s+(?:Me\.)?btnClose\.Click\s*,\s*Sub\s*\(' 'Designer must wire btnClose to close the form.'
+
 $constructor = [System.Text.RegularExpressions.Regex]::Match(
     $codeBehind,
-    '(?ims)^\s*Public\s+Sub\s+New\s*\(\s*\)(?<body>.*?)^\s*End\s+Sub'
+    '(?ims)^\s*Public\s+Sub\s+New\s*\(\s*\)(?<body>.*?)^\s*End\s+Sub\b'
 )
 if (-not $constructor.Success) {
     throw 'FrmManualTest must define a Public parameterless constructor.'
 }
+$constructorBody = $constructor.Groups['body'].Value
+$constructorCalls = @()
 foreach ($call in @('InitializeComponent', 'PopulateChannelMatrix', 'UpdateSelectionSummary')) {
-    Assert-Regex $constructor.Groups['body'].Value "(?im)^\s*(?:Me\.)?$call\s*\(\s*\)\s*$" "FrmManualTest constructor must call $call."
+    $callMatch = [System.Text.RegularExpressions.Regex]::Match(
+        $constructorBody,
+        '(?im)^\s*(?:Me\.)?' + [regex]::Escape($call) + '\s*\(\s*\)\s*(?:''.*)?$'
+    )
+    if (-not $callMatch.Success) {
+        throw "FrmManualTest constructor must call $call."
+    }
+    $constructorCalls += $callMatch.Index
+}
+if (-not ($constructorCalls[0] -lt $constructorCalls[1] -and $constructorCalls[1] -lt $constructorCalls[2])) {
+    throw 'FrmManualTest constructor must call InitializeComponent, PopulateChannelMatrix, then UpdateSelectionSummary in that order.'
 }
 
 $removedBuilders = @(
@@ -161,90 +348,143 @@ $runtimeExe = if ($env:FRMTEST_EXE) {
 } else {
     Join-Path $repoRoot 'bin\AnyCPU\XL_OCV_256CH.exe'
 }
-if ($env:FRMTEST_EXE -and -not (Test-Path -LiteralPath $runtimeExe -PathType Leaf)) {
-    throw "FRMTEST_EXE does not exist: $runtimeExe"
+if (-not (Test-Path -LiteralPath $runtimeExe -PathType Leaf)) {
+    if ($env:FRMTEST_EXE) {
+        throw "FRMTEST_EXE does not exist: $runtimeExe"
+    }
+
+    $x86Candidate = Join-Path $repoRoot 'bin\Debug\XL_OCV_256CH.exe'
+    if (Test-Path -LiteralPath $x86Candidate -PathType Leaf) {
+        $x86CandidateName = [Reflection.AssemblyName]::GetAssemblyName((Resolve-Path -LiteralPath $x86Candidate).Path)
+        if ($x86CandidateName.ProcessorArchitecture.ToString() -eq 'X86') {
+            throw "Required AnyCPU runtime assembly is missing at $runtimeExe; only an x86 assembly is available at $x86Candidate. Build AnyCPU or set FRMTEST_EXE to a compatible assembly."
+        }
+    }
+    throw "Required runtime assembly is missing at $runtimeExe. Build the AnyCPU configuration or set FRMTEST_EXE to a compatible assembly."
 }
 
-if (Test-Path -LiteralPath $runtimeExe -PathType Leaf) {
-    Add-Type -AssemblyName System.Windows.Forms
-    Add-Type -AssemblyName System.Drawing
-    $resolvedAssemblyPath = (Resolve-Path -LiteralPath $runtimeExe).Path
+$resolvedAssemblyPath = (Resolve-Path -LiteralPath $runtimeExe).Path
+$runtimeAssemblyName = [Reflection.AssemblyName]::GetAssemblyName($resolvedAssemblyPath)
+if ([Environment]::Is64BitProcess -and $runtimeAssemblyName.ProcessorArchitecture.ToString() -eq 'X86') {
+    throw "Runtime assembly is x86-only: $resolvedAssemblyPath. Use an AnyCPU build or set FRMTEST_EXE to an AnyCPU assembly."
+}
+
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+try {
     $assembly = [Reflection.Assembly]::LoadFrom($resolvedAssemblyPath)
-    $formType = $assembly.GetType('software.FrmManualTest', $false)
-    if ($null -eq $formType) {
-        throw "Built assembly does not contain software.FrmManualTest: $resolvedAssemblyPath"
-    }
-
-    function Find-ControlByName {
-        param(
-            [System.Windows.Forms.Control]$Parent,
-            [string]$Name
-        )
-
-        if ($Parent.Name -eq $Name) {
-            return $Parent
-        }
-        foreach ($child in $Parent.Controls) {
-            $match = Find-ControlByName -Parent $child -Name $Name
-            if ($null -ne $match) {
-                return $match
-            }
-        }
-        return $null
-    }
-
-    $form = $null
-    try {
-        $form = [Activator]::CreateInstance($formType)
-        if ($form.Text -ne '手动测试' -or $form.Width -ne 1475 -or $form.Height -ne 975) {
-            throw "Runtime form settings were $($form.Text), $($form.Width)x$($form.Height); expected 手动测试, 1475x975."
-        }
-        if ($form.MinimumSize.Width -ne 1225 -or $form.MinimumSize.Height -ne 850) {
-            throw "Runtime minimum size was $($form.MinimumSize.Width)x$($form.MinimumSize.Height); expected 1225x850."
-        }
-
-        $rootLayoutPanel = Find-ControlByName -Parent $form -Name 'rootLayoutPanel'
-        if ($null -eq $rootLayoutPanel -or -not ($rootLayoutPanel -is [System.Windows.Forms.TableLayoutPanel])) {
-            throw 'Runtime form must contain the rootLayoutPanel TableLayoutPanel.'
-        }
-        if ($rootLayoutPanel.RowCount -ne 4) {
-            throw "Runtime rootLayoutPanel has $($rootLayoutPanel.RowCount) rows; expected 4."
-        }
-
-        $matrixPanel = Find-ControlByName -Parent $form -Name 'matrixPanel'
-        if ($null -eq $matrixPanel -or -not ($matrixPanel -is [System.Windows.Forms.TableLayoutPanel])) {
-            throw 'Runtime form must contain the matrixPanel TableLayoutPanel.'
-        }
-        if ($matrixPanel.ColumnCount -ne 16 -or $matrixPanel.RowCount -ne 16) {
-            throw "Runtime matrixPanel is $($matrixPanel.ColumnCount)x$($matrixPanel.RowCount); expected 16x16."
-        }
-        $matrixCheckBoxes = @($matrixPanel.Controls | Where-Object { $_ -is [System.Windows.Forms.CheckBox] })
-        if ($matrixPanel.Controls.Count -ne 256 -or $matrixCheckBoxes.Count -ne 256) {
-            throw "Runtime matrixPanel contains $($matrixPanel.Controls.Count) controls and $($matrixCheckBoxes.Count) CheckBoxes; expected exactly 256 CheckBoxes."
-        }
-
-        $resultGrid = Find-ControlByName -Parent $form -Name 'resultGrid'
-        if ($null -eq $resultGrid -or -not ($resultGrid -is [System.Windows.Forms.DataGridView])) {
-            throw 'Runtime form must contain the resultGrid DataGridView.'
-        }
-        $actualHeaders = @($resultGrid.Columns | ForEach-Object { $_.HeaderText })
-        if ($actualHeaders.Count -ne $expectedHeaders.Count) {
-            throw "Runtime resultGrid has $($actualHeaders.Count) columns; expected five."
-        }
-        for ($index = 0; $index -lt $expectedHeaders.Count; $index++) {
-            if ($actualHeaders[$index] -ne $expectedHeaders[$index]) {
-                throw "Runtime resultGrid column $($index + 1) is '$($actualHeaders[$index])'; expected '$($expectedHeaders[$index])'."
-            }
-        }
-    } finally {
-        if ($null -ne $form) {
-            $form.Dispose()
-        }
-    }
-
-    Write-Output "PASS: runtime FrmManualTest layout verified from $resolvedAssemblyPath."
-} else {
-    Write-Output "SKIP: runtime assembly not found at $runtimeExe; set FRMTEST_EXE to verify the built form."
+} catch [System.BadImageFormatException] {
+    throw "Could not load runtime assembly $resolvedAssemblyPath; it may be x86-only in this 64-bit PowerShell host. Use AnyCPU or set FRMTEST_EXE to a compatible assembly."
+}
+$formType = $assembly.GetType('software.FrmManualTest', $false)
+if ($null -eq $formType) {
+    throw "Built assembly does not contain software.FrmManualTest: $resolvedAssemblyPath"
 }
 
-Write-Output 'FrmManualTest Designer contract passed.'
+$form = $null
+try {
+    $form = [Activator]::CreateInstance($formType)
+    $form.ShowInTaskbar = $false
+    $form.Opacity = 0
+    $form.Show()
+    [System.Windows.Forms.Application]::DoEvents()
+
+    if ($form.Text -ne '手动测试' -or $form.Width -ne 1475 -or $form.Height -ne 975) {
+        throw "Runtime form settings were $($form.Text), $($form.Width)x$($form.Height); expected 手动测试, 1475x975."
+    }
+    if ($form.MinimumSize.Width -ne 1225 -or $form.MinimumSize.Height -ne 850) {
+        throw "Runtime minimum size was $($form.MinimumSize.Width)x$($form.MinimumSize.Height); expected 1225x850."
+    }
+
+    $rootLayoutPanel = Find-ControlByName -Parent $form -Name 'rootLayoutPanel'
+    if ($null -eq $rootLayoutPanel -or -not ($rootLayoutPanel -is [System.Windows.Forms.TableLayoutPanel])) {
+        throw 'Runtime form must contain the rootLayoutPanel TableLayoutPanel.'
+    }
+    if ($rootLayoutPanel.RowCount -ne 4 -or $rootLayoutPanel.RowStyles.Count -ne 4) {
+        throw "Runtime rootLayoutPanel has $($rootLayoutPanel.RowCount) rows and $($rootLayoutPanel.RowStyles.Count) row styles; expected four of each."
+    }
+
+    $matrixPanel = Find-ControlByName -Parent $form -Name 'matrixPanel'
+    if ($null -eq $matrixPanel -or -not ($matrixPanel -is [System.Windows.Forms.TableLayoutPanel])) {
+        throw 'Runtime form must contain the matrixPanel TableLayoutPanel.'
+    }
+    if ($matrixPanel.ColumnCount -ne 16 -or $matrixPanel.RowCount -ne 16) {
+        throw "Runtime matrixPanel is $($matrixPanel.ColumnCount)x$($matrixPanel.RowCount); expected 16x16."
+    }
+    $channelBoxes = @{}
+    foreach ($control in $matrixPanel.Controls) {
+        if ($control -is [System.Windows.Forms.CheckBox]) {
+            $channel = [int]$control.Tag
+            if ($channel -lt 1 -or $channel -gt 256 -or $channelBoxes.ContainsKey($channel)) {
+                throw "Runtime matrixPanel contains an invalid or duplicate channel CheckBox tag: $channel."
+            }
+            $channelBoxes[$channel] = $control
+        }
+    }
+    if ($matrixPanel.Controls.Count -ne 256 -or $channelBoxes.Count -ne 256) {
+        throw "Runtime matrixPanel contains $($matrixPanel.Controls.Count) controls and $($channelBoxes.Count) tagged CheckBoxes; expected exactly 256."
+    }
+
+    $resultGrid = Find-ControlByName -Parent $form -Name 'resultGrid'
+    if ($null -eq $resultGrid -or -not ($resultGrid -is [System.Windows.Forms.DataGridView])) {
+        throw 'Runtime form must contain the resultGrid DataGridView.'
+    }
+    $actualHeaders = @($resultGrid.Columns | ForEach-Object { $_.HeaderText })
+    if ($actualHeaders.Count -ne $expectedHeaders.Count) {
+        throw "Runtime resultGrid has $($actualHeaders.Count) columns; expected five."
+    }
+    for ($index = 0; $index -lt $expectedHeaders.Count; $index++) {
+        if ($actualHeaders[$index] -ne $expectedHeaders[$index]) {
+            throw "Runtime resultGrid column $($index + 1) is '$($actualHeaders[$index])'; expected '$($expectedHeaders[$index])'."
+        }
+    }
+
+    $btnSelectAll = Find-ControlByName -Parent $form -Name 'btnSelectAll'
+    $btnClearSelection = Find-ControlByName -Parent $form -Name 'btnClearSelection'
+    $btnInvertSelection = Find-ControlByName -Parent $form -Name 'btnInvertSelection'
+    $btnAddRange = Find-ControlByName -Parent $form -Name 'btnAddRange'
+    $btnAddList = Find-ControlByName -Parent $form -Name 'btnAddList'
+    $txtRangeStart = Find-ControlByName -Parent $form -Name 'txtRangeStart'
+    $txtRangeEnd = Find-ControlByName -Parent $form -Name 'txtRangeEnd'
+    $txtChannelList = Find-ControlByName -Parent $form -Name 'txtChannelList'
+    foreach ($buttonName in @('btnSelectAll', 'btnClearSelection', 'btnInvertSelection', 'btnAddRange', 'btnAddList')) {
+        $button = Find-ControlByName -Parent $form -Name $buttonName
+        if ($null -eq $button -or -not ($button -is [System.Windows.Forms.Button])) {
+            throw "Runtime form must contain the $buttonName Button."
+        }
+    }
+    foreach ($textBoxName in @('txtRangeStart', 'txtRangeEnd', 'txtChannelList')) {
+        $textBox = Find-ControlByName -Parent $form -Name $textBoxName
+        if ($null -eq $textBox -or -not ($textBox -is [System.Windows.Forms.TextBox])) {
+            throw "Runtime form must contain the $textBoxName TextBox."
+        }
+    }
+
+    $btnSelectAll.PerformClick()
+    Assert-CheckedChannels -ChannelBoxes $channelBoxes -Expected ([int[]](1..256)) -Scenario 'Select all'
+    $btnClearSelection.PerformClick()
+    Assert-CheckedChannels -ChannelBoxes $channelBoxes -Expected ([int[]]@()) -Scenario 'Clear selection'
+
+    $channelBoxes[1].Checked = $true
+    $channelBoxes[256].Checked = $true
+    $btnInvertSelection.PerformClick()
+    Assert-CheckedChannels -ChannelBoxes $channelBoxes -Expected ([int[]](2..255)) -Scenario 'Invert selection'
+    $btnClearSelection.PerformClick()
+
+    $txtRangeStart.Text = '5'
+    $txtRangeEnd.Text = '8'
+    $btnAddRange.PerformClick()
+    Assert-CheckedChannels -ChannelBoxes $channelBoxes -Expected ([int[]](5..8)) -Scenario 'Range selection'
+    $btnClearSelection.PerformClick()
+
+    $txtChannelList.Text = '1, 4, 256'
+    $btnAddList.PerformClick()
+    Assert-CheckedChannels -ChannelBoxes $channelBoxes -Expected ([int[]]@(1, 4, 256)) -Scenario 'List selection'
+    $btnClearSelection.PerformClick()
+} finally {
+    if ($null -ne $form) {
+        $form.Dispose()
+    }
+}
+
+Write-Output "PASS: FrmManualTest Designer contract and runtime layout/selection behavior verified from $resolvedAssemblyPath."
