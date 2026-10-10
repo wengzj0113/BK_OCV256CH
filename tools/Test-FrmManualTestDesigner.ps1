@@ -60,12 +60,52 @@ foreach ($control in $staticControls) {
 }
 
 $expectedHeaders = @('通道', '分组', '电压 mV', '内阻 mΩ', '判定')
-Assert-Regex $designer '(?im)\bresultGrid\.Columns\.(?:Add|AddRange)\s*\(' 'Designer must add result columns in the Designer file.'
-foreach ($header in $expectedHeaders) {
-    $captionPattern = $quoteClass + [regex]::Escape($header) + $quoteClass
-    Assert-Regex $designer $captionPattern "Designer result grid must include the $header column."
+$directColumnAdds = [System.Text.RegularExpressions.Regex]::Matches(
+    $designer,
+    '(?im)\bresultGrid\.Columns\.Add\(\s*"[^"]+"\s*,\s*"(?<header>[^"]*)"\s*\)'
+)
+$addRangePattern = '(?is)\bresultGrid\.Columns\.AddRange\s*\(.*?\{(?<columns>[^}]*)\}'
+$addRangeMatches = [System.Text.RegularExpressions.Regex]::Matches($designer, $addRangePattern)
+if ($directColumnAdds.Count -eq 0 -and $addRangeMatches.Count -eq 0) {
+    throw 'Designer must add columns to resultGrid directly or through Columns.AddRange.'
 }
 
+$includedColumnNames = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+foreach ($addRange in $addRangeMatches) {
+    $columnReferences = [System.Text.RegularExpressions.Regex]::Matches(
+        $addRange.Groups['columns'].Value,
+        '(?:Me\.)?(?<name>[A-Za-z_]\w*)'
+    )
+    foreach ($reference in $columnReferences) {
+        [void]$includedColumnNames.Add($reference.Groups['name'].Value)
+    }
+}
+$headerAssignments = [System.Text.RegularExpressions.Regex]::Matches(
+    $designer,
+    '(?im)\b(?:Me\.)?(?<column>[A-Za-z_]\w*)\.HeaderText\s*=\s*"(?<header>[^"]*)"'
+)
+foreach ($header in $expectedHeaders) {
+    $isDirectResultGridHeader = $false
+    foreach ($columnAdd in $directColumnAdds) {
+        if ($columnAdd.Groups['header'].Value -ceq $header) {
+            $isDirectResultGridHeader = $true
+            break
+        }
+    }
+
+    $isIncludedResultGridHeader = $false
+    foreach ($assignment in $headerAssignments) {
+        if ($assignment.Groups['header'].Value -ceq $header -and
+            $includedColumnNames.Contains($assignment.Groups['column'].Value)) {
+            $isIncludedResultGridHeader = $true
+            break
+        }
+    }
+
+    if (-not $isDirectResultGridHeader -and -not $isIncludedResultGridHeader) {
+        throw "Designer resultGrid must include a column with HeaderText '$header'."
+    }
+}
 $constructor = [System.Text.RegularExpressions.Regex]::Match(
     $codeBehind,
     '(?ims)^\s*Public\s+Sub\s+New\s*\(\s*\)(?<body>.*?)^\s*End\s+Sub'
