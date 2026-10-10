@@ -299,24 +299,38 @@ if (-not $disposeMethod.Success) {
     throw 'Designer must override Dispose(disposing As Boolean).'
 }
 $disposeBody = $disposeMethod.Groups['body'].Value
-$singleLineDispose = [System.Text.RegularExpressions.Regex]::IsMatch(
-    $disposeBody,
-    '(?im)\bIf\s+disposing\b[^\r\n]*\bcomponents\.Dispose\s*\(\s*\)'
-)
-$disposeGuard = [System.Text.RegularExpressions.Regex]::Match($disposeBody, '(?im)\bIf\s+disposing\b')
-$disposeCall = [System.Text.RegularExpressions.Regex]::Match($disposeBody, '(?im)\bcomponents\.Dispose\s*\(\s*\)')
-$endIfAfterGuard = $null
-if ($disposeGuard.Success) {
-    $endIfAfterGuard = [System.Text.RegularExpressions.Regex]::Match(
-        $disposeBody.Substring($disposeGuard.Index + $disposeGuard.Length),
+$disposingGuards = [System.Text.RegularExpressions.Regex]::Matches($disposeBody, '(?im)\bIf\s+disposing\b')
+$componentDisposeCalls = [System.Text.RegularExpressions.Regex]::Matches($disposeBody, '(?im)\bcomponents\.Dispose\s*\(\s*\)')
+$guardedComponentDispose = $null
+foreach ($guard in $disposingGuards) {
+    $guardBodyStart = $guard.Index + $guard.Length
+    $lineEnd = $disposeBody.IndexOf("`n", $guardBodyStart)
+    if ($lineEnd -lt 0) {
+        $lineEnd = $disposeBody.Length
+    }
+    $endIf = [System.Text.RegularExpressions.Regex]::Match(
+        $disposeBody.Substring($guardBodyStart),
         '(?im)^\s*End\s+If\b'
     )
+    $blockEnd = if ($endIf.Success) { $guardBodyStart + $endIf.Index } else { -1 }
+
+    foreach ($disposeCall in $componentDisposeCalls) {
+        if ($disposeCall.Index -lt $guardBodyStart) {
+            continue
+        }
+        if ($disposeCall.Index -lt $lineEnd -or ($blockEnd -ge 0 -and $disposeCall.Index -lt $blockEnd)) {
+            $guardedComponentDispose = $disposeCall
+            break
+        }
+    }
+    if ($null -ne $guardedComponentDispose) {
+        break
+    }
 }
-$blockDispose = $disposeGuard.Success -and $disposeCall.Success -and $null -ne $endIfAfterGuard -and
-    $endIfAfterGuard.Success -and
-    $disposeCall.Index -lt ($disposeGuard.Index + $disposeGuard.Length + $endIfAfterGuard.Index)
-if (-not $singleLineDispose -and -not $blockDispose) {
-    throw 'Designer Dispose must call components.Dispose() inside the disposing guard.'
+$baseDispose = [System.Text.RegularExpressions.Regex]::Match($disposeBody, '(?im)\bMyBase\.Dispose\s*\(\s*disposing\s*\)')
+if ($null -eq $guardedComponentDispose -or -not $baseDispose.Success -or
+    $baseDispose.Index -le $guardedComponentDispose.Index) {
+    throw 'Designer Dispose must call components.Dispose() inside the disposing guard, then call MyBase.Dispose(disposing).'
 }
 
 $constructor = [System.Text.RegularExpressions.Regex]::Match(
