@@ -148,6 +148,7 @@ Public Class PlcAutomaticTestCoordinator
             pollTimer = New Timer(AddressOf Poll, Nothing, 1000, 1000)
         End SyncLock
         host.ReportAutomaticStatus("手动测试 PLC 周期已就绪，等待操作员启动")
+        ReportAutomaticEventSafely("手动测试流程已启动，等待主页面启动测试")
     End Sub
 
     Public Sub [Stop]()
@@ -258,11 +259,11 @@ Public Class PlcAutomaticTestCoordinator
             Dim r152ReadSucceeded As Boolean
             Dim r150High As Boolean
             If automaticModeEnabled Then r150High = ReadRegisterSignal("R150", AddressOf plc.ReadR150, r150ReadSucceeded)
-            Dim r151High As Boolean = ReadRegisterSignal("R151", AddressOf plc.ReadR151, r151ReadSucceeded)
+            Dim r151High As Boolean
+            If automaticModeEnabled Then r151High = ReadRegisterSignal("R151", AddressOf plc.ReadR151, r151ReadSucceeded)
             Dim r152High As Boolean = ReadRegisterSignal("R152", AddressOf plc.ReadR152, r152ReadSucceeded)
             Dim r150Accepted As Boolean
             Dim r151Accepted As Boolean
-            Dim r151Ignored As Boolean
             Dim r152Accepted As Boolean
             Dim trayPreparationRecoveryReleased As Boolean
 
@@ -270,8 +271,7 @@ Public Class PlcAutomaticTestCoordinator
             SyncLock stateLock
                 pollRequestsAccepted = (pollGeneration = requestGeneration)
                 If pollRequestsAccepted Then
-                    Dim canAcceptR151 As Boolean = automaticModeEnabled OrElse
-                                                   (manualModeEnabled AndAlso cycle.IsManualCycle AndAlso cycle.TrayConfirmed)
+                    Dim canAcceptR151 As Boolean = automaticModeEnabled
                     If r150ReadSucceeded AndAlso Not r150High Then
                         r150RequestConsumed = False
                         If currentState = PlcAutomaticTestState.WaitingTrayPreparationRecovery Then
@@ -295,8 +295,6 @@ Public Class PlcAutomaticTestCoordinator
                         If canAcceptR151 Then
                             testRequestPending = True
                             r151Accepted = True
-                        ElseIf manualModeEnabled Then
-                            r151Ignored = True
                         End If
                     End If
                     If r152ReadSucceeded AndAlso r152High AndAlso Not r152RequestConsumed Then
@@ -313,7 +311,6 @@ Public Class PlcAutomaticTestCoordinator
             If pollRequestsAccepted Then
                 If r150Accepted Then ReportAutomaticEventSafely("检测到R150=1，托盘扫码请求已记录")
                 If r151Accepted Then ReportAutomaticEventSafely("检测到R151=1，测试请求已记录")
-                If r151Ignored Then ReportAutomaticEventSafely("手动测试的R160尚未确认，忽略本次R151请求；请在R160确认后重新触发R151")
                 If r152Accepted Then ReportAutomaticEventSafely("检测到R152=1，NG分选请求已记录")
             End If
             If trayPreparationRecoveryReleased Then
@@ -490,7 +487,9 @@ Public Class PlcAutomaticTestCoordinator
                 End If
             ElseIf Not testPrerequisiteWaitingReported Then
                 testPrerequisiteWaitingReported = True
-                Dim waitingMessage As String = "R151测试请求已暂存，等待测试前置条件满足"
+                Dim waitingMessage As String = If(manualCycle,
+                                                  "手动启动请求已暂存，等待测试前置条件满足",
+                                                  "R151测试请求已暂存，等待测试前置条件满足")
                 If manualCycle AndAlso prerequisiteFailure.Length > 0 Then waitingMessage &= "：" & prerequisiteFailure
                 ReportAutomaticEventSafely(waitingMessage)
                 If manualCycle AndAlso prerequisiteFailure.Length > 0 Then host.ReportAutomaticStatus(waitingMessage)
@@ -754,16 +753,22 @@ Public Class PlcAutomaticTestCoordinator
     End Sub
 
     Private Sub ConfirmTrayCodeWithPlc()
+        Dim manualCycle As Boolean
         SyncLock stateLock
             If Not trayConfirmationPending OrElse cycle.TrayConfirmed OrElse r160WriteInProgress Then Return
             r160WriteInProgress = True
+            manualCycle = cycle.IsManualCycle
         End SyncLock
         Try
             ReportAutomaticEventSafely("上位机准备写入PLC寄存器 R160=1")
             plc.WriteR160()
         Catch ex As Exception
             ReportAutomaticEventSafely("上位机写入PLC寄存器 R160=1失败：" & ex.Message)
-            MoveTo(PlcAutomaticTestState.WaitingR150Reset, "PLC寄存器 R160写入未确认，将重试：" & ex.Message)
+            Dim retryState As PlcAutomaticTestState = If(manualCycle, PlcAutomaticTestState.PreparingTest, PlcAutomaticTestState.WaitingR150Reset)
+            Dim retryMessage As String = If(manualCycle,
+                                           "手动托盘码尚未得到R160确认，将重试：" & ex.Message,
+                                           "PLC寄存器 R160写入未确认，将重试：" & ex.Message)
+            MoveTo(retryState, retryMessage)
             Return
         Finally
             SyncLock stateLock
@@ -776,9 +781,19 @@ Public Class PlcAutomaticTestCoordinator
             trayRequestPending = False
             manualTrayCodePending = False
             nextTrayScanRetryAtUtc = DateTime.MinValue
+            If manualCycle Then
+                testRequestPending = True
+                testPrerequisiteWaitingReported = False
+                testTrayConfirmationWaitingReported = False
+            End If
         End SyncLock
-        ReportAutomaticEventSafely("托盘码已确认，PLC寄存器 R160=1（已确认）")
-        MoveTo(PlcAutomaticTestState.WaitingFixturePressed, "托盘准备完成，等待独立的R151测试请求")
+        If manualCycle Then
+            ReportAutomaticEventSafely("手动托盘码已确认，PLC寄存器 R160=1（已确认），开始手选通道测试")
+            MoveTo(PlcAutomaticTestState.PreparingTest, "R160=1已确认，开始手选通道测试")
+        Else
+            ReportAutomaticEventSafely("托盘码已确认，PLC寄存器 R160=1（已确认）")
+            MoveTo(PlcAutomaticTestState.WaitingFixturePressed, "托盘准备完成，等待独立的R151测试请求")
+        End If
     End Sub
 
     Private Sub BeginInitialTest()
@@ -812,12 +827,14 @@ Public Class PlcAutomaticTestCoordinator
 
         If isManualCycle Then
             If Not TryMoveToCurrentManualCycle(initialGeneration, trayCodeSnapshot, measurementChannels,
-                                               PlcAutomaticTestState.PreparingTest, "R151已到位，开始测试准备") Then Return
+                                               PlcAutomaticTestState.PreparingTest, "手动启动已确认，开始测试准备") Then Return
         Else
             MoveTo(PlcAutomaticTestState.PreparingTest, "R151已到位，开始测试准备")
         End If
         Dim initialPassDescription As String = If(isManualCycle, "手选通道初次测试", "256通道初次测试")
-        ReportAutomaticEventSafely(If(isManualCycle, "收到R151=1，开始手动通道初次测试", "收到R151=1，开始256通道初次测试"))
+        ReportAutomaticEventSafely(If(isManualCycle,
+                                      "R160=1已确认，开始手选通道初次测试",
+                                      "收到R151=1，开始256通道初次测试"))
         If isManualCycle Then
             If Not TryMoveToCurrentManualCycle(initialGeneration, trayCodeSnapshot, measurementChannels,
                                                PlcAutomaticTestState.InitialTesting, "开始" & initialPassDescription) Then Return
@@ -1115,7 +1132,7 @@ Public Class PlcAutomaticTestCoordinator
                 sortingRequestRequiresNgSortingAtCapture = False
                 sortingRequestWaitingReported = False
             End If
-            waitForR151 = cycle.TrayConfirmed AndAlso Not cycle.TestStarted
+            waitForR151 = cycle.TrayConfirmed AndAlso Not cycle.TestStarted AndAlso Not cycle.IsManualCycle
         End SyncLock
 
         ReportAutomaticEventSafely("测试未启动，R152分选请求已跳过，PLC寄存器 R162=1（已确认）")

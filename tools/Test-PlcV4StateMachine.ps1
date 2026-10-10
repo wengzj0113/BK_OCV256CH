@@ -27,7 +27,7 @@ Assert-True ($coordinator.Contains('R151')) 'R151 transition is missing'
 Assert-True ($coordinator.Contains('ReportAutomaticEventSafely("检测到R150=1，托盘扫码请求已记录")')) 'R150 trigger must be logged independently'
 Assert-True ($coordinator.Contains('ReportAutomaticEventSafely("检测到R151=1，测试请求已记录")')) 'R151 trigger must be logged independently'
 Assert-True ($coordinator.Contains('ReportAutomaticEventSafely("检测到R152=1，NG分选请求已记录")')) 'R152 trigger must be logged independently'
-Assert-True ($coordinator.Contains('ReportAutomaticEventSafely(If(isManualCycle, "收到R151=1，开始手动通道初次测试", "收到R151=1，开始256通道初次测试"))')) 'initial-test start must be visible in the event log'
+Assert-True ($coordinator.Contains('R160=1') -and $coordinator.Contains('R151=1')) 'manual and automatic initial-test triggers must be visible in the event log'
 Assert-True ($coordinator.Contains('R160')) 'R160 transition is missing'
 Assert-True ($coordinator.Contains('R161')) 'R161 transition is missing'
 Assert-True ($coordinator.Contains('ReadR152')) 'R152 NG-slot gate is missing'
@@ -37,7 +37,7 @@ foreach ($name in @('NoTestStarted','TestInProgress','TestCompleted','TestFaulte
     Assert-True ($state.Contains($name)) "R152 state $name is missing"
 }
 Assert-True ($poll.Contains('ReadRegisterSignal("R150", AddressOf plc.ReadR150, r150ReadSucceeded)')) 'R150 must be polled independently in automatic mode'
-Assert-True ($poll.Contains('ReadRegisterSignal("R151", AddressOf plc.ReadR151, r151ReadSucceeded)')) 'R151 must be polled independently on every coordinator tick'
+Assert-True ($poll.Contains('If automaticModeEnabled Then r151High = ReadRegisterSignal("R151", AddressOf plc.ReadR151, r151ReadSucceeded)')) 'R151 must gate startup only in automatic mode'
 Assert-True ($poll.Contains('ReadRegisterSignal("R152", AddressOf plc.ReadR152, r152ReadSucceeded)')) 'R152 must be polled independently on every coordinator tick'
 Assert-True (-not $poll.Contains('Select Case Me.State')) 'input-register polling must not be gated by the current workflow state'
 Assert-True ($coordinator.Contains('testRequestPending AndAlso Not cycle.TestStarted AndAlso cycle.TrayConfirmed')) 'an early R151 trigger must be held until its tray is prepared and R160 acknowledged'

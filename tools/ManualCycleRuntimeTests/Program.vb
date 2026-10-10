@@ -5,12 +5,12 @@ Imports System.Threading
 
 Public Module Program
     Public Sub Main()
-        TestManualCycleUsesOneSnapshotAndWaitsForR151()
+        TestManualCycleUsesOneSnapshotAndStartsAfterR160()
         TestManualCycleUsesSharedNgSortingHandoff()
         TestManualStopCancelsQueuedInitialPass()
         TestManualPreparationFailureDoesNotConfirmTray()
         TestManualR160FailureDoesNotMeasure()
-        TestManualStopBeforeR151PreventsMeasurement()
+        TestManualStopAfterR160FailurePreventsMeasurement()
         TestAutomaticCycleStillUsesScannerAndR150()
         Console.WriteLine("PASS: manual/automatic unified PLC cycle runtime")
     End Sub
@@ -23,9 +23,8 @@ Public Module Program
         Try
             Assert(coordinator.RequestManualCycle("TRAY-1", New Integer() {6}), "manual request must be accepted")
             InvokePoll(coordinator)
-            plc.R151 = True
-            InvokePoll(coordinator)
             Assert(host.ManualInitialCalls = 0, "a queued UI initial pass must not count as started before its authorization check")
+            Assert(plc.R160WriteCount = 1, "manual R160 ACK must queue the initial pass once")
 
             coordinator.RequestStopCurrentCycle()
             host.ResumeManualInitialPass()
@@ -49,8 +48,6 @@ Public Module Program
         Try
             Assert(coordinator.RequestManualCycle("TRAY-1", New Integer() {3, 7}), "manual sorting cycle must be accepted")
             InvokePoll(coordinator)
-            plc.R151 = True
-            InvokePoll(coordinator)
             Assert(host.PublishCalls = 1 AndAlso plc.R161WriteCount = 1, "manual final result must publish before the shared R161 handshake")
             Assert(plc.R162WriteCount = 0 AndAlso coordinator.IsCycleOccupied, "manual NG selection must remain pending until R152")
 
@@ -64,7 +61,7 @@ Public Module Program
         End Try
     End Sub
 
-    Private Sub TestManualCycleUsesOneSnapshotAndWaitsForR151()
+    Private Sub TestManualCycleUsesOneSnapshotAndStartsAfterR160()
         Dim plc As New FakePlc()
         Dim scanner As New FakeScanner()
         Dim host As New FakeHost() With {.AutomaticMode = False, .ManualMode = True}
@@ -76,21 +73,11 @@ Public Module Program
             Assert(Not coordinator.RequestManualCycle("TRAY-1", New Integer() {2}), "duplicate start must be rejected")
             Assert(host.ManualPrepareCalls = 1 AndAlso String.Join(",", host.PreparedChannels) = "2,5", "preparation must receive the sorted startup snapshot")
 
-            plc.R151 = True
             InvokePoll(coordinator)
-            InvokePoll(coordinator)
-            Assert(plc.R150ReadCount = 0, "manual polling must not read R150")
-            Assert(scanner.ScanCount = 0, "manual flow must not scan")
+            Assert(plc.R150ReadCount = 0 AndAlso plc.R151ReadCount = 0, "manual polling must not read automatic tray/start registers")
+            Assert(scanner.OpenCount = 0 AndAlso scanner.ScanCount = 0, "manual flow must not use the scanner")
             Assert(plc.R160WriteCount = 1, "prepared manual tray must be confirmed once")
-            Assert(coordinator.State = PlcAutomaticTestState.WaitingFixturePressed, "manual flow must wait for the R151 request after R160 ACK")
-            Assert(host.ManualInitialCalls = 0, "a high R151 observed before R160 ACK must not start measurement")
-
-            plc.R151 = False
-            InvokePoll(coordinator)
-            plc.R151 = True
-            InvokePoll(coordinator)
-            InvokePoll(coordinator)
-            Assert(host.ManualInitialCalls = 1, "one accepted R151 request must start one manual initial pass")
+            Assert(host.ManualInitialCalls = 1, "manual button plus successful R160 ACK must start without waiting for R151")
             Assert(String.Join(",", host.InitialChannels) = "2,5", "initial pass must use the frozen manual channel snapshot")
             Assert(host.PublishCalls = 1 AndAlso String.Join(",", host.PublishedChannels) = "2,5", "final publication must retain the manual channel snapshot")
             Assert(plc.R160WriteCount = 1, "waiting and repeated polls must not rewrite R160")
@@ -138,29 +125,25 @@ Public Module Program
             Assert(coordinator.IsCycleOccupied, "failed R160 confirmation must retain the active tray context")
 
             InvokePoll(coordinator)
-            Assert(plc.R160WriteCount = 2 AndAlso host.ManualInitialCalls = 0, "successful R160 retry must still wait for R151")
-            Assert(coordinator.State = PlcAutomaticTestState.WaitingFixturePressed, "R160 retry ACK with R151 low must leave the cycle waiting")
-            plc.R151 = True
-            InvokePoll(coordinator)
-            Assert(host.ManualInitialCalls = 1 AndAlso String.Join(",", host.InitialChannels) = "4", "only the confirmed retry followed by R151 may measure")
+            Assert(plc.R160WriteCount = 2 AndAlso host.ManualInitialCalls = 1, "successful R160 retry must start measurement without R151")
+            Assert(String.Join(",", host.InitialChannels) = "4", "only a successful R160 ACK may start measurement")
         Finally
             coordinator.Stop()
         End Try
     End Sub
 
-    Private Sub TestManualStopBeforeR151PreventsMeasurement()
-        Dim plc As New FakePlc()
+    Private Sub TestManualStopAfterR160FailurePreventsMeasurement()
+        Dim plc As New FakePlc() With {.FailR160Count = 1}
         Dim scanner As New FakeScanner()
         Dim host As New FakeHost() With {.AutomaticMode = False, .ManualMode = True}
         Dim coordinator As PlcAutomaticTestCoordinator = StartCoordinator(plc, scanner, host, False)
         Try
             Assert(coordinator.RequestManualCycle("TRAY-1", New Integer() {11}), "manual request must be accepted")
             InvokePoll(coordinator)
-            Assert(plc.R160WriteCount = 1 AndAlso host.ManualInitialCalls = 0, "manual cycle must wait for R151 after R160")
+            Assert(plc.R160WriteCount = 1 AndAlso host.ManualInitialCalls = 0, "failed R160 ACK must not start measurement")
             coordinator.RequestStopCurrentCycle()
-            plc.R151 = True
             InvokePoll(coordinator)
-            Assert(host.ManualInitialCalls = 0 AndAlso plc.R160WriteCount = 1, "stop before R151 must prevent measurement and duplicate R160")
+            Assert(host.ManualInitialCalls = 0 AndAlso plc.R160WriteCount = 1, "stop after failed R160 must prevent measurement and another R160 attempt")
             Assert(Not coordinator.IsCycleOccupied, "stopped cycle must release its occupancy")
         Finally
             coordinator.Stop()
@@ -174,7 +157,8 @@ Public Module Program
         Dim coordinator As PlcAutomaticTestCoordinator = StartCoordinator(plc, scanner, host, True)
         Try
             InvokePoll(coordinator)
-            Assert(plc.R150ReadCount > 0 AndAlso scanner.OpenCount = 1 AndAlso scanner.ScanCount = 1, "automatic entry must retain R150 and scanner behavior")
+            Assert(plc.R150ReadCount > 0 AndAlso plc.R151ReadCount > 0 AndAlso scanner.OpenCount = 1 AndAlso scanner.ScanCount = 1,
+                   "automatic entry must retain R150/R151 and scanner behavior")
             Assert(host.AutomaticPrepareCalls = 1 AndAlso plc.R160WriteCount = 1, "automatic entry must still prepare then confirm the scanned tray")
             plc.R151 = True
             InvokePoll(coordinator)
@@ -217,6 +201,7 @@ Public NotInheritable Class FakePlc
     Public Property R151 As Boolean
     Public Property R152 As Boolean
     Public Property R150ReadCount As Integer
+    Public Property R151ReadCount As Integer
     Public Property R160WriteCount As Integer
     Public Property R161WriteCount As Integer
     Public Property R162WriteCount As Integer
@@ -239,6 +224,7 @@ Public NotInheritable Class FakePlc
         Return R150
     End Function
     Public Function ReadR151() As Boolean Implements IPlcAutomationClient.ReadR151
+        R151ReadCount += 1
         Return R151
     End Function
     Public Function ReadR152() As Boolean Implements IPlcAutomationClient.ReadR152
