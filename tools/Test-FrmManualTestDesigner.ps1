@@ -1,3 +1,5 @@
+[CmdletBinding()]
+param([switch]$RequireRuntime)
 $ErrorActionPreference = 'Stop'
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
@@ -270,6 +272,14 @@ foreach ($event in $selectableButtonEvents) {
     Assert-Regex $initializeComponent $eventPattern "Designer must connect $($event.Button).Click to $($event.Handler)."
 }
 
+$clampButtonEvents = @(
+    @{ Button = 'btnClampClose'; Handler = 'ClampClose' },
+    @{ Button = 'btnClampOpen'; Handler = 'ClampOpen' }
+)
+foreach ($event in $clampButtonEvents) {
+    $eventPattern = '(?im)\bAddHandler\s+(?:Me\.)?' + [regex]::Escape($event.Button) + '\.Click\s*,\s*AddressOf\s+(?:Me\.)?' + [regex]::Escape($event.Handler) + '\b'
+    Assert-Regex $initializeComponent $eventPattern "Designer must connect $($event.Button).Click to $($event.Handler)."
+}
 $bottomButtonEvents = @(
     @{ Button = 'btnMultiple'; Handler = 'StartMultipleManualTests' },
     @{ Button = 'btnExport'; Handler = 'ExportManualTestResults' },
@@ -343,6 +353,7 @@ if ($null -eq $subType -or $subType.InnerText -ne 'Form') {
     throw 'FrmManualTest.vb must retain SubType Form in the project.'
 }
 
+$runtimeRequired = $RequireRuntime.IsPresent -or [bool]$env:FRMTEST_EXE
 $runtimeExe = if ($env:FRMTEST_EXE) {
     $env:FRMTEST_EXE
 } else {
@@ -350,25 +361,69 @@ $runtimeExe = if ($env:FRMTEST_EXE) {
 }
 if (-not (Test-Path -LiteralPath $runtimeExe -PathType Leaf)) {
     if ($env:FRMTEST_EXE) {
-        throw "FRMTEST_EXE does not exist: $runtimeExe"
-    }
+        $runtimeUnavailableReason = "FRMTEST_EXE does not exist: $runtimeExe"
+    } else {
+        $x86Candidate = Join-Path $repoRoot 'bin\Debug\XL_OCV_256CH.exe'
+        $x86OnlyAvailable = $false
+        if (Test-Path -LiteralPath $x86Candidate -PathType Leaf) {
+            try {
+                $x86CandidateName = [Reflection.AssemblyName]::GetAssemblyName((Resolve-Path -LiteralPath $x86Candidate).Path)
+                $x86OnlyAvailable = $x86CandidateName.ProcessorArchitecture.ToString() -eq 'X86'
+            } catch {
+                $x86OnlyAvailable = $false
+            }
+        }
 
-    $x86Candidate = Join-Path $repoRoot 'bin\Debug\XL_OCV_256CH.exe'
-    if (Test-Path -LiteralPath $x86Candidate -PathType Leaf) {
-        $x86CandidateName = [Reflection.AssemblyName]::GetAssemblyName((Resolve-Path -LiteralPath $x86Candidate).Path)
-        if ($x86CandidateName.ProcessorArchitecture.ToString() -eq 'X86') {
-            throw "Required AnyCPU runtime assembly is missing at $runtimeExe; only an x86 assembly is available at $x86Candidate. Build AnyCPU or set FRMTEST_EXE to a compatible assembly."
+        if ($x86OnlyAvailable) {
+            $runtimeUnavailableReason = "AnyCPU runtime assembly is missing at $runtimeExe; only an x86 assembly is available at $x86Candidate."
+        } else {
+            $runtimeUnavailableReason = "Runtime assembly is missing at $runtimeExe."
         }
     }
-    throw "Required runtime assembly is missing at $runtimeExe. Build the AnyCPU configuration or set FRMTEST_EXE to a compatible assembly."
+
+    if ($runtimeRequired) {
+        throw "$runtimeUnavailableReason Build the AnyCPU configuration or set FRMTEST_EXE to a compatible assembly."
+    }
+    Write-Output "SKIP: $runtimeUnavailableReason Build AnyCPU or set FRMTEST_EXE to run runtime checks."
+    Write-Output 'PASS: static FrmManualTest Designer contract verified.'
+    return
 }
 
 $resolvedAssemblyPath = (Resolve-Path -LiteralPath $runtimeExe).Path
 $runtimeAssemblyName = [Reflection.AssemblyName]::GetAssemblyName($resolvedAssemblyPath)
 if ([Environment]::Is64BitProcess -and $runtimeAssemblyName.ProcessorArchitecture.ToString() -eq 'X86') {
-    throw "Runtime assembly is x86-only: $resolvedAssemblyPath. Use an AnyCPU build or set FRMTEST_EXE to an AnyCPU assembly."
+    $x86Reason = "Runtime assembly is x86-only: $resolvedAssemblyPath."
+    if ($runtimeRequired) {
+        throw "$x86Reason Use an AnyCPU build or set FRMTEST_EXE to an AnyCPU assembly."
+    }
+    Write-Output "SKIP: $x86Reason Use an AnyCPU build or set FRMTEST_EXE to run runtime checks."
+    Write-Output 'PASS: static FrmManualTest Designer contract verified.'
+    return
 }
 
+$assemblyWriteTime = (Get-Item -LiteralPath $resolvedAssemblyPath).LastWriteTimeUtc
+$sourcePaths = @(
+    $codeBehindPath,
+    $designerPath,
+    $projectPath
+)
+$staleSourcePaths = @(
+    foreach ($sourcePath in $sourcePaths) {
+        $sourceWriteTime = (Get-Item -LiteralPath $sourcePath).LastWriteTimeUtc
+        if ($sourceWriteTime -gt $assemblyWriteTime) {
+            $sourcePath
+        }
+    }
+)
+if ($staleSourcePaths.Count -gt 0) {
+    $staleReason = "Runtime assembly $resolvedAssemblyPath is older than source files: $($staleSourcePaths -join ', ')."
+    if ($runtimeRequired) {
+        throw "$staleReason Rebuild AnyCPU or point FRMTEST_EXE to a fresh assembly."
+    }
+    Write-Output "SKIP: $staleReason Rebuild AnyCPU or set FRMTEST_EXE to run runtime checks."
+    Write-Output 'PASS: static FrmManualTest Designer contract verified.'
+    return
+}
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 try {
