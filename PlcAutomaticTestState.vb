@@ -17,6 +17,8 @@ Public Enum PlcAutomaticTestState
     WaitingR162Ack
     WaitingCycleReset
     Fault
+    'Keep this appended so existing enum values remain unchanged.
+    WaitingTrayPreparationRecovery
 End Enum
 
 Public Enum PlcR152TestState

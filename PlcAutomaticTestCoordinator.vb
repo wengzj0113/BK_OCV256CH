@@ -52,6 +52,8 @@ Public Class PlcAutomaticTestCoordinator
     Private testTrayConfirmationWaitingReported As Boolean
     Private sortingRequestWaitingReported As Boolean
     Private trayRequestBlockedReason As String = String.Empty
+    Private trayPreparationRecoveryCode As String = String.Empty
+    Private trayPreparationRetryPending As Boolean
     Private pollTimer As Timer
     Private pollBusy As Integer
     Private stopped As Boolean
@@ -152,12 +154,22 @@ Public Class PlcAutomaticTestCoordinator
             Dim r150Accepted As Boolean
             Dim r151Accepted As Boolean
             Dim r152Accepted As Boolean
+            Dim trayPreparationRecoveryReleased As Boolean
 
             Dim pollRequestsAccepted As Boolean
             SyncLock stateLock
                 pollRequestsAccepted = (pollGeneration = requestGeneration)
                 If pollRequestsAccepted Then
-                    If r150ReadSucceeded AndAlso Not r150High Then r150RequestConsumed = False
+                    If r150ReadSucceeded AndAlso Not r150High Then
+                        r150RequestConsumed = False
+                        If currentState = PlcAutomaticTestState.WaitingTrayPreparationRecovery Then
+                            trayPreparationRecoveryCode = String.Empty
+                            trayPreparationRetryPending = False
+                            trayRequestPending = False
+                            trayPreparationRecoveryReleased = True
+                            currentState = PlcAutomaticTestState.Idle
+                        End If
+                    End If
                     If r151ReadSucceeded AndAlso Not r151High Then r151RequestConsumed = False
                     If r152ReadSucceeded AndAlso Not r152High Then r152RequestConsumed = False
 
@@ -186,6 +198,10 @@ Public Class PlcAutomaticTestCoordinator
                 If r150Accepted Then ReportAutomaticEventSafely("检测到R150=1，托盘扫码请求已记录")
                 If r151Accepted Then ReportAutomaticEventSafely("检测到R151=1，测试请求已记录")
                 If r152Accepted Then ReportAutomaticEventSafely("检测到R152=1，NG分选请求已记录")
+            End If
+            If trayPreparationRecoveryReleased Then
+                ReportAutomaticEventSafely("检测到R150=0，已释放准备失败的托盘；等待新的R150请求")
+                host.ReportAutomaticStatus("托盘准备请求已复位，等待新托盘")
             End If
 
             ProcessPendingRequests(pollGeneration)
@@ -234,6 +250,28 @@ Public Class PlcAutomaticTestCoordinator
         If acknowledgeEarlySortingRequest Then SendEarlySortingCompletionSignal()
         'Release the completed tray before consuming a queued R150/R151 request.
         If retryTestCompletion Then SendTestCompletionSignal()
+
+        Dim retryTrayPreparation As Boolean
+        Dim retryTrayCode As String = String.Empty
+        SyncLock stateLock
+            If currentState = PlcAutomaticTestState.WaitingTrayPreparationRecovery AndAlso
+               trayPreparationRetryPending AndAlso Not trayPreparationInProgress AndAlso
+               Not String.IsNullOrWhiteSpace(trayPreparationRecoveryCode) Then
+                retryTrayPreparation = True
+                retryTrayCode = trayPreparationRecoveryCode
+                trayPreparationRetryPending = False
+                trayPreparationInProgress = True
+            End If
+        End SyncLock
+        If retryTrayPreparation Then
+            Try
+                PrepareTrayAndConfirm(retryTrayCode, pollGeneration)
+            Finally
+                SyncLock stateLock
+                    trayPreparationInProgress = False
+                End SyncLock
+            End Try
+        End If
 
         Dim canPrepareTray As Boolean
         Dim trayRequestWaitMessage As String = String.Empty
@@ -395,6 +433,8 @@ Public Class PlcAutomaticTestCoordinator
             sortingRequestTestStateAtCapture = PlcR152TestState.NoTestStarted
             sortingRequestRequiresNgSortingAtCapture = False
             trayPreparationInProgress = False
+            trayPreparationRecoveryCode = String.Empty
+            trayPreparationRetryPending = False
             manualTrayCodePending = False
             nextTrayScanRetryAtUtc = DateTime.MinValue
             trayConfirmationPending = False
@@ -524,15 +564,43 @@ Public Class PlcAutomaticTestCoordinator
             ReportAutomaticEventSafely("托盘码确认前流程已停止/复位，已丢弃本次托盘码")
             Return
         End If
-        host.SetTrayCode(trayCode)
-        host.PrepareAutomaticTray(trayCode)
+        PrepareTrayAndConfirm(trayCode, expectedGeneration)
+    End Sub
+
+    Private Sub PrepareTrayAndConfirm(ByVal trayCode As String, ByVal expectedGeneration As Integer)
+        If Not IsRequestGenerationCurrent(expectedGeneration) Then Return
+        Dim normalizedTrayCode As String = If(trayCode, String.Empty).Trim()
+        host.SetTrayCode(normalizedTrayCode)
+        Try
+            host.PrepareAutomaticTray(normalizedTrayCode)
+        Catch ex As Exception
+            Dim preparationRequestCancelled As Boolean
+            SyncLock stateLock
+                If stopped OrElse requestGeneration <> expectedGeneration Then
+                    preparationRequestCancelled = True
+                Else
+                    trayPreparationRecoveryCode = normalizedTrayCode
+                    trayPreparationRetryPending = False
+                    currentState = PlcAutomaticTestState.WaitingTrayPreparationRecovery
+                End If
+            End SyncLock
+            If preparationRequestCancelled Then
+                ReportAutomaticEventSafely("托盘准备期间流程已停止/复位，未向PLC确认本托盘")
+                Return
+            End If
+            ReportAutomaticEventSafely("托盘准备失败，托盘码已保留，R160未写入；请开启调试模式后重试：" & ex.Message)
+            host.ReportAutomaticStatus("托盘准备失败，已保留当前托盘码；开启调试模式后自动重试")
+            Return
+        End Try
         Dim requestCancelled As Boolean
         SyncLock stateLock
             If stopped OrElse requestGeneration <> expectedGeneration Then
                 requestCancelled = True
             Else
-                cycle.TrayCode = trayCode.Trim()
+                cycle.TrayCode = normalizedTrayCode
                 trayConfirmationPending = True
+                trayPreparationRecoveryCode = String.Empty
+                trayPreparationRetryPending = False
             End If
         End SyncLock
         If requestCancelled Then
@@ -540,6 +608,17 @@ Public Class PlcAutomaticTestCoordinator
             Return
         End If
         ConfirmTrayCodeWithPlc()
+    End Sub
+
+    Public Sub RequestTrayPreparationRetry()
+        If Not host.IsDebugModeEnabled() Then Return
+        SyncLock stateLock
+            If stopped OrElse currentState <> PlcAutomaticTestState.WaitingTrayPreparationRecovery OrElse
+               trayPreparationInProgress OrElse trayPreparationRetryPending OrElse
+               String.IsNullOrWhiteSpace(trayPreparationRecoveryCode) Then Return
+            trayPreparationRetryPending = True
+        End SyncLock
+        ReportAutomaticEventSafely("调试模式已开启，准备重试当前托盘")
     End Sub
 
     Private Sub ConfirmTrayCodeWithPlc()

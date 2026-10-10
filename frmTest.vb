@@ -1542,10 +1542,13 @@ exit_sub:
 
     Private Sub DebugTestModeCheckedChanged(ByVal sender As Object, ByVal e As EventArgs) Handles chk_Test.CheckedChanged
         If chk_Test Is Nothing Then Return
+        Dim coordinatorState As PlcAutomaticTestState = If(plcAutomaticCoordinator Is Nothing,
+                                                            PlcAutomaticTestState.Idle,
+                                                            plcAutomaticCoordinator.State)
         If isRuning OrElse automaticTestPassInProgress OrElse
-           (plcAutomaticCoordinator IsNot Nothing AndAlso
-            plcAutomaticCoordinator.State <> PlcAutomaticTestState.Idle AndAlso
-            plcAutomaticCoordinator.State <> PlcAutomaticTestState.Fault) Then
+           (coordinatorState <> PlcAutomaticTestState.Idle AndAlso
+            coordinatorState <> PlcAutomaticTestState.Fault AndAlso
+            coordinatorState <> PlcAutomaticTestState.WaitingTrayPreparationRecovery) Then
             chk_Test.Checked = activeTrayDebugMode
             SetTestStatus("测试周期进行中，不能切换调试模式")
             Return
@@ -1558,6 +1561,10 @@ exit_sub:
         Next
         RefreshChannelOverview()
         SetTestStatus(If(activeTrayDebugMode, "调试模式已开启，启动时生成临时电芯码。", "调试模式已关闭，请重新获取真实电芯码。"))
+        If activeTrayDebugMode AndAlso coordinatorState = PlcAutomaticTestState.WaitingTrayPreparationRecovery Then
+            plcAutomaticCoordinator.RequestTrayPreparationRetry()
+            SetTestStatus("调试模式已开启，正在使用当前托盘码重试准备流程。")
+        End If
         UpdateTestModeVisuals()
     End Sub
 
@@ -3276,7 +3283,8 @@ exit_sub:
         If chk_Test IsNot Nothing Then
             Dim plcCycleRunning As Boolean = plcAutomaticCoordinator IsNot Nothing AndAlso
                 plcAutomaticCoordinator.State <> PlcAutomaticTestState.Idle AndAlso
-                plcAutomaticCoordinator.State <> PlcAutomaticTestState.Fault
+                plcAutomaticCoordinator.State <> PlcAutomaticTestState.Fault AndAlso
+                plcAutomaticCoordinator.State <> PlcAutomaticTestState.WaitingTrayPreparationRecovery
             chk_Test.Enabled = Not isRuning AndAlso Not automaticTestPassInProgress AndAlso
                 Not plcCycleRunning AndAlso Not initializationApplyInProgress
         End If

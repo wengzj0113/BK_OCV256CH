@@ -24,12 +24,17 @@ if ($modeHandler -notmatch 'Handles\s+chk_Test\.CheckedChanged' -or
     $modeHandler -notmatch 'BatCode\s*=\s*String\.Empty') {
     throw 'Changing debug mode must invalidate the active plan and all cached cell codes.'
 }
+if ($modeHandler -notmatch 'WaitingTrayPreparationRecovery' -or
+    $modeHandler -notmatch 'RequestTrayPreparationRetry') {
+    throw 'Enabling debug mode during tray-preparation recovery must retry the retained tray.'
+}
 
 $visuals = [regex]::Match($code, '(?ms)Private Sub UpdateTestModeVisuals\(\).*?^\s*End Sub').Value
 if ($visuals -notmatch 'chk_Test\.Enabled' -or
     $visuals -notmatch 'automaticTestPassInProgress' -or
-    $visuals -notmatch 'plcAutomaticCoordinator') {
-    throw 'Debug mode must be locked during a manual pass and a complete PLC tray cycle.'
+    $visuals -notmatch 'plcAutomaticCoordinator' -or
+    $visuals -notmatch 'WaitingTrayPreparationRecovery') {
+    throw 'Debug mode must be locked during a manual pass and a complete PLC tray cycle, but enabled during preparation recovery.'
 }
 
 $automaticStatus = [regex]::Match($code, '(?ms)Public Sub ReportAutomaticStatus\(.*?^\s*End Sub').Value
