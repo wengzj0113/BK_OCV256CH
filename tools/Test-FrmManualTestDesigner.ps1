@@ -313,7 +313,17 @@ foreach ($event in $bottomButtonEvents) {
     $eventPattern = '(?im)\bAddHandler\s+(?:Me\.)?' + [regex]::Escape($event.Button) + '\.Click\s*,\s*AddressOf\s+(?:Me\.)?' + [regex]::Escape($event.Handler) + '\b'
     Assert-Regex $initializeComponent $eventPattern "Designer must connect $($event.Button).Click to $($event.Handler)."
 }
-Assert-Regex $initializeComponent '(?im)\bAddHandler\s+(?:Me\.)?btnClose\.Click\s*,\s*Sub\s*\([^)]*\)[ \t]*Me\.Close\s*\(\s*\)' 'Designer must wire btnClose.Click to a lambda that calls Me.Close().'
+Assert-Regex $initializeComponent '(?im)\bAddHandler\s+(?:Me\.)?btnClose\.Click\s*,\s*AddressOf\s+(?:Me\.)?CloseManualTestForm\b' 'Designer must wire btnClose.Click to the named CloseManualTestForm handler.'
+$closeHandler = [System.Text.RegularExpressions.Regex]::Match(
+    $codeBehind,
+    '(?is)\bPrivate\s+Sub\s+CloseManualTestForm\s*\(\s*sender\s+As\s+Object\s*,\s*e\s+As\s+EventArgs\s*\)(?<body>.*?)\bEnd\s+Sub\b'
+)
+if (-not $closeHandler.Success) {
+    throw 'Code-behind must define the named CloseManualTestForm handler.'
+}
+if (-not [System.Text.RegularExpressions.Regex]::IsMatch($closeHandler.Groups['body'].Value, '(?im)\bMe\.Close\s*\(\s*\)')) {
+    throw 'CloseManualTestForm must call Me.Close().'
+}
 
 $disposeMethod = [System.Text.RegularExpressions.Regex]::Match(
     $classBody,

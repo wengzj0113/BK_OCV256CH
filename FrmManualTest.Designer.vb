@@ -412,7 +412,7 @@ Partial Public Class FrmManualTest
         Me.btnClose.Name = "btnClose"
         Me.btnClose.TabIndex = 6
         Me.btnClose.Text = "关闭"
-        AddHandler Me.btnClose.Click, Sub(sender, e) Me.Close()
+        AddHandler Me.btnClose.Click, AddressOf Me.CloseManualTestForm
         '
         'FrmManualTest
         '

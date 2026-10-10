@@ -17,6 +17,10 @@ Partial Public Class FrmManualTest
         UpdateSelectionSummary()
     End Sub
 
+    Private Sub CloseManualTestForm(sender As Object, e As EventArgs)
+        Me.Close()
+    End Sub
+
     Private Sub ClampClose(sender As Object, e As EventArgs)
         OperateClamp(True)
     End Sub
