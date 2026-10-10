@@ -409,6 +409,9 @@
     <Compile Include="FrmManualTest.vb">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="FrmManualTest.Designer.vb">
+      <DependentUpon>FrmManualTest.vb</DependentUpon>
+    </Compile>
     <Compile Include="FrmChannelCalibration.Designer.vb">
       <DependentUpon>FrmChannelCalibration.vb</DependentUpon>
     </Compile>

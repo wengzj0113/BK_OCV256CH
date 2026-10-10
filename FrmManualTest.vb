@@ -5,95 +5,17 @@ Imports System.Globalization
 Imports System.Text
 Imports System.Text.RegularExpressions
 
-Public Class FrmManualTest
-    Inherits Form
+Partial Public Class FrmManualTest
 
     Private ReadOnly channelButtons As New Dictionary(Of Integer, CheckBox)()
     Private ReadOnly selectedChannels As New HashSet(Of Integer)()
-    Private ReadOnly channelToolTip As New ToolTip()
-
-    Private commandPanel As FlowLayoutPanel
-    Private matrixPanel As TableLayoutPanel
-    Private resultGrid As DataGridView
-    Private lblSummary As Label
-    Private lblStatus As Label
-    Private txtRangeStart As TextBox
-    Private txtRangeEnd As TextBox
-    Private txtChannelList As TextBox
-    Private btnStart As Button
-    Private btnMultiple As Button
-    Private nudRepeatCount As NumericUpDown
-    Private btnExport As Button
-    Private btnClose As Button
-    Private btnClampClose As Button
-    Private btnClampOpen As Button
     Private isManualTesting As Boolean
 
     Public Sub New()
-        InitializeManualForm()
-    End Sub
-
-    Private Sub InitializeManualForm()
-        Me.Text = "手动测试"
-        Me.StartPosition = FormStartPosition.CenterParent
-        Me.Size = New Size(1475, 975)
-        Me.MinimumSize = New Size(1225, 850)
-        Me.MaximizeBox = False
-        Me.MinimizeBox = False
-
-        Dim root As New TableLayoutPanel()
-        root.Dock = DockStyle.Fill
-        root.ColumnCount = 1
-        root.RowCount = 4
-        root.RowStyles.Add(New RowStyle(SizeType.Absolute, 112))
-        root.RowStyles.Add(New RowStyle(SizeType.Percent, 58))
-        root.RowStyles.Add(New RowStyle(SizeType.Percent, 42))
-        root.RowStyles.Add(New RowStyle(SizeType.Absolute, 46))
-        Me.Controls.Add(root)
-
-        root.Controls.Add(BuildCommandPanel(), 0, 0)
-        root.Controls.Add(BuildMatrixPanel(), 0, 1)
-        root.Controls.Add(BuildResultGrid(), 0, 2)
-        root.Controls.Add(BuildBottomPanel(), 0, 3)
-
+        InitializeComponent()
+        PopulateChannelMatrix()
         UpdateSelectionSummary()
     End Sub
-
-    Private Function BuildCommandPanel() As Control
-        commandPanel = New FlowLayoutPanel()
-        commandPanel.Dock = DockStyle.Fill
-        commandPanel.Padding = New Padding(10)
-        commandPanel.AutoScroll = True
-
-        commandPanel.Controls.Add(CreateButton("全选", AddressOf SelectAllChannels))
-        commandPanel.Controls.Add(CreateButton("清空", AddressOf ClearSelection))
-        commandPanel.Controls.Add(CreateButton("反选", AddressOf InvertSelection))
-        commandPanel.Controls.Add(CreateButton("G1全选", AddressOf SelectG1Channels))
-        commandPanel.Controls.Add(CreateButton("G2全选", AddressOf SelectG2Channels))
-
-        btnClampClose = CreateButton("夹具压合", AddressOf ClampClose)
-        btnClampOpen = CreateButton("夹具松开", AddressOf ClampOpen)
-        commandPanel.Controls.Add(btnClampClose)
-        commandPanel.Controls.Add(btnClampOpen)
-
-        commandPanel.Controls.Add(New Label() With {.Text = "起始", .AutoSize = True, .Padding = New Padding(10, 8, 0, 0)})
-        txtRangeStart = New TextBox() With {.Width = 56}
-        commandPanel.Controls.Add(txtRangeStart)
-        commandPanel.Controls.Add(New Label() With {.Text = "结束", .AutoSize = True, .Padding = New Padding(10, 8, 0, 0)})
-        txtRangeEnd = New TextBox() With {.Width = 56}
-        commandPanel.Controls.Add(txtRangeEnd)
-        commandPanel.Controls.Add(CreateButton("添加范围", AddressOf AddRangeSelection))
-
-        commandPanel.Controls.Add(New Label() With {.Text = "零星通道", .AutoSize = True, .Padding = New Padding(10, 8, 0, 0)})
-        txtChannelList = New TextBox() With {.Width = 260}
-        commandPanel.Controls.Add(txtChannelList)
-        commandPanel.Controls.Add(CreateButton("添加列表", AddressOf AddListSelection))
-
-        lblSummary = New Label() With {.AutoSize = True, .Padding = New Padding(10, 8, 0, 0)}
-        commandPanel.Controls.Add(lblSummary)
-
-        Return commandPanel
-    End Function
 
     Private Sub ClampClose(sender As Object, e As EventArgs)
         OperateClamp(True)
@@ -139,27 +61,7 @@ Public Class FrmManualTest
         End Try
     End Sub
 
-    Private Function CreateButton(text As String, handler As EventHandler) As Button
-        Dim button As New Button()
-        button.Text = text
-        button.Width = 82
-        button.Height = 30
-        AddHandler button.Click, handler
-        Return button
-    End Function
-
-    Private Function BuildMatrixPanel() As Control
-        matrixPanel = New TableLayoutPanel()
-        matrixPanel.Dock = DockStyle.Fill
-        matrixPanel.ColumnCount = 16
-        matrixPanel.RowCount = 16
-        matrixPanel.Padding = New Padding(10)
-
-        For i As Integer = 0 To 15
-            matrixPanel.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 6.25F))
-            matrixPanel.RowStyles.Add(New RowStyle(SizeType.Percent, 6.25F))
-        Next
-
+    Private Sub PopulateChannelMatrix()
         For channel As Integer = 1 To 256
             Dim box As New CheckBox()
             box.Appearance = Appearance.Button
@@ -183,87 +85,7 @@ Public Class FrmManualTest
             channelButtons(channel) = box
             matrixPanel.Controls.Add(box, (channel - 1) Mod 16, (channel - 1) \ 16)
         Next
-
-        Return matrixPanel
-    End Function
-
-    Private Function BuildResultGrid() As Control
-        resultGrid = New DataGridView()
-        resultGrid.Dock = DockStyle.Fill
-        resultGrid.AllowUserToAddRows = False
-        resultGrid.AllowUserToDeleteRows = False
-        resultGrid.ReadOnly = True
-        resultGrid.RowHeadersVisible = False
-        resultGrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
-        resultGrid.Columns.Add("Channel", "通道")
-        resultGrid.Columns.Add("Group", "分组")
-        resultGrid.Columns.Add("Voltage", "电压 mV")
-        resultGrid.Columns.Add("Resistance", "内阻 mΩ")
-        resultGrid.Columns.Add("Result", "判定")
-        Return resultGrid
-    End Function
-
-    Private Function BuildBottomPanel() As Control
-        Dim panel As New TableLayoutPanel()
-        panel.Dock = DockStyle.Fill
-        panel.ColumnCount = 7
-        panel.RowCount = 1
-        panel.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100))
-        panel.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, 62))
-        panel.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, 66))
-        panel.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, 112))
-        panel.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, 112))
-        panel.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, 112))
-        panel.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, 92))
-        panel.Padding = New Padding(10, 7, 10, 7)
-
-        lblStatus = New Label()
-        lblStatus.Text = "空闲"
-        lblStatus.Dock = DockStyle.Fill
-        lblStatus.TextAlign = ContentAlignment.MiddleLeft
-        panel.Controls.Add(lblStatus, 0, 0)
-
-        Dim repeatLabel As New Label()
-        repeatLabel.Text = "重复次数"
-        repeatLabel.Dock = DockStyle.Fill
-        repeatLabel.TextAlign = ContentAlignment.MiddleCenter
-        panel.Controls.Add(repeatLabel, 1, 0)
-
-        nudRepeatCount = New NumericUpDown()
-        nudRepeatCount.Minimum = 1
-        nudRepeatCount.Maximum = 1000
-        nudRepeatCount.Value = 10
-        nudRepeatCount.Increment = 1
-        nudRepeatCount.Dock = DockStyle.Fill
-        panel.Controls.Add(nudRepeatCount, 2, 0)
-
-        btnMultiple = New Button()
-        btnMultiple.Text = "多次测试"
-        btnMultiple.Dock = DockStyle.Fill
-        AddHandler btnMultiple.Click, AddressOf StartMultipleManualTests
-        panel.Controls.Add(btnMultiple, 3, 0)
-
-        btnExport = New Button()
-        btnExport.Text = "导出CSV"
-        btnExport.Dock = DockStyle.Fill
-        btnExport.Enabled = False
-        AddHandler btnExport.Click, AddressOf ExportManualTestResults
-        panel.Controls.Add(btnExport, 4, 0)
-
-        btnStart = New Button()
-        btnStart.Text = "开始测试"
-        btnStart.Dock = DockStyle.Fill
-        AddHandler btnStart.Click, AddressOf StartManualTest
-        panel.Controls.Add(btnStart, 5, 0)
-
-        btnClose = New Button()
-        btnClose.Text = "关闭"
-        btnClose.Dock = DockStyle.Fill
-        AddHandler btnClose.Click, Sub(sender, e) Me.Close()
-        panel.Controls.Add(btnClose, 6, 0)
-
-        Return panel
-    End Function
+    End Sub
 
     Private Sub ChannelCheckedChanged(sender As Object, e As EventArgs)
         Dim box As CheckBox = CType(sender, CheckBox)
