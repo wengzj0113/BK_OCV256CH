@@ -10,7 +10,7 @@ if ($frmTest -notmatch 'currentTestChannels\s*=\s*runChannels\.ToList\(\)') {
     throw 'The UI result path must use the same channel snapshot as the hardware test.'
 }
 if ($frmTest -notmatch 'Select\(Function\(channelNo\) TrayChannelMapping\.ToDeviceChannel\(channelNo\)\)' -or
-    $frmTest -notmatch 'RunSparseMeasurement\(deviceChannels\)' -or
+    $frmTest -notmatch '(?:formalRunner\.)?RunSparseMeasurement\(deviceChannels\s*[,)]' -or
     $frmTest -match 'RunRetestMeasurement\(retestArray\)') {
     throw 'The main test page must map the standard channel snapshot before sparse device measurement.'
 }
