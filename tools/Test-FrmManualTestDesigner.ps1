@@ -139,6 +139,30 @@ for ($index = 0; $index -lt $expectedRows.Count; $index++) {
 
 Assert-Regex $initializeComponent '(?im)\bmatrixPanel\.ColumnCount\s*=\s*16\b' 'Designer matrixPanel must define 16 columns.'
 Assert-Regex $initializeComponent '(?im)\bmatrixPanel\.RowCount\s*=\s*16\b' 'Designer matrixPanel must define 16 rows.'
+$matrixStyleContracts = @(
+    @{
+        Dimension = 'Column'
+        Pattern = '(?im)\bmatrixPanel\.ColumnStyles\.Add\(\s*New\s+(?:System\.Windows\.Forms\.)?ColumnStyle\s*\(\s*(?:System\.Windows\.Forms\.)?SizeType\.(?<type>\w+)\s*,\s*(?<value>\d+(?:\.\d+)?(?:[FfRrDd!#])?)\s*\)\s*\)'
+    },
+    @{
+        Dimension = 'Row'
+        Pattern = '(?im)\bmatrixPanel\.RowStyles\.Add\(\s*New\s+(?:System\.Windows\.Forms\.)?RowStyle\s*\(\s*(?:System\.Windows\.Forms\.)?SizeType\.(?<type>\w+)\s*,\s*(?<value>\d+(?:\.\d+)?(?:[FfRrDd!#])?)\s*\)\s*\)'
+    }
+)
+foreach ($styleContract in $matrixStyleContracts) {
+    $styles = [System.Text.RegularExpressions.Regex]::Matches($initializeComponent, $styleContract.Pattern)
+    if ($styles.Count -ne 16) {
+        throw "Designer matrixPanel defines $($styles.Count) $($styleContract.Dimension.ToLowerInvariant()) styles; expected sixteen."
+    }
+    for ($index = 0; $index -lt $styles.Count; $index++) {
+        $styleType = $styles[$index].Groups['type'].Value
+        $styleValueText = $styles[$index].Groups['value'].Value.TrimEnd([char[]]@('F', 'f', 'R', 'r', 'D', 'd', '!', '#'))
+        $styleValue = [double]::Parse($styleValueText, [Globalization.CultureInfo]::InvariantCulture)
+        if ($styleType -ne 'Percent' -or $styleValue -ne 6.25) {
+            throw "Designer matrixPanel $($styleContract.Dimension.ToLowerInvariant()) style $($index + 1) is $styleType $styleValue; expected Percent 6.25."
+        }
+    }
+}
 
 $staticControls = @(
     @{ Name = 'commandPanel'; Type = 'FlowLayoutPanel'; Row = 0 },
@@ -299,17 +323,25 @@ if (-not $disposeMethod.Success) {
     throw 'Designer must override Dispose(disposing As Boolean).'
 }
 $disposeBody = $disposeMethod.Groups['body'].Value
-$disposingGuards = [System.Text.RegularExpressions.Regex]::Matches($disposeBody, '(?im)\bIf\s+disposing\b')
-$componentDisposeCalls = [System.Text.RegularExpressions.Regex]::Matches($disposeBody, '(?im)\bcomponents\.Dispose\s*\(\s*\)')
+$disposeTryFinally = [System.Text.RegularExpressions.Regex]::Match(
+    $disposeBody,
+    '(?ims)^\s*Try\s*(?<tryBody>.*?)^\s*Finally\s*(?<finallyBody>.*?)^\s*End\s+Try\b'
+)
+if (-not $disposeTryFinally.Success) {
+    throw 'Designer Dispose must use Try/Finally to guarantee base form disposal.'
+}
+$disposeTryBody = $disposeTryFinally.Groups['tryBody'].Value
+$disposingGuards = [System.Text.RegularExpressions.Regex]::Matches($disposeTryBody, '(?im)\bIf\s+disposing\b')
+$componentDisposeCalls = [System.Text.RegularExpressions.Regex]::Matches($disposeTryBody, '(?im)\bcomponents\.Dispose\s*\(\s*\)')
 $guardedComponentDispose = $null
 foreach ($guard in $disposingGuards) {
     $guardBodyStart = $guard.Index + $guard.Length
-    $lineEnd = $disposeBody.IndexOf("`n", $guardBodyStart)
+    $lineEnd = $disposeTryBody.IndexOf("`n", $guardBodyStart)
     if ($lineEnd -lt 0) {
-        $lineEnd = $disposeBody.Length
+        $lineEnd = $disposeTryBody.Length
     }
     $endIf = [System.Text.RegularExpressions.Regex]::Match(
-        $disposeBody.Substring($guardBodyStart),
+        $disposeTryBody.Substring($guardBodyStart),
         '(?im)^\s*End\s+If\b'
     )
     $blockEnd = if ($endIf.Success) { $guardBodyStart + $endIf.Index } else { -1 }
@@ -327,10 +359,12 @@ foreach ($guard in $disposingGuards) {
         break
     }
 }
-$baseDispose = [System.Text.RegularExpressions.Regex]::Match($disposeBody, '(?im)\bMyBase\.Dispose\s*\(\s*disposing\s*\)')
-if ($null -eq $guardedComponentDispose -or -not $baseDispose.Success -or
-    $baseDispose.Index -le $guardedComponentDispose.Index) {
-    throw 'Designer Dispose must call components.Dispose() inside the disposing guard, then call MyBase.Dispose(disposing).'
+$finallyBaseDispose = [System.Text.RegularExpressions.Regex]::Match(
+    $disposeTryFinally.Groups['finallyBody'].Value,
+    '(?im)\bMyBase\.Dispose\s*\(\s*disposing\s*\)'
+)
+if ($null -eq $guardedComponentDispose -or -not $finallyBaseDispose.Success) {
+    throw 'Designer Dispose must release components inside the disposing guard and call MyBase.Dispose(disposing) in Finally.'
 }
 
 $constructor = [System.Text.RegularExpressions.Regex]::Match(
@@ -507,6 +541,24 @@ try {
     }
     if ($matrixPanel.ColumnCount -ne 16 -or $matrixPanel.RowCount -ne 16) {
         throw "Runtime matrixPanel is $($matrixPanel.ColumnCount)x$($matrixPanel.RowCount); expected 16x16."
+    }
+    $runtimeMatrixStyles = [ordered]@{
+        Column = $matrixPanel.ColumnStyles
+        Row = $matrixPanel.RowStyles
+    }
+    foreach ($dimension in @('Column', 'Row')) {
+        $styles = $runtimeMatrixStyles[$dimension]
+        if ($styles.Count -ne 16) {
+            throw "Runtime matrixPanel has $($styles.Count) $($dimension.ToLowerInvariant()) styles; expected sixteen."
+        }
+        for ($index = 0; $index -lt $styles.Count; $index++) {
+            $style = $styles[$index]
+            $size = if ($dimension -eq 'Column') { [double]$style.Width } else { [double]$style.Height }
+            if ($style.SizeType -ne [System.Windows.Forms.SizeType]::Percent -or
+                [Math]::Abs($size - 6.25) -gt 0.0001) {
+                throw "Runtime matrixPanel $($dimension.ToLowerInvariant()) style $($index + 1) is $($style.SizeType) $size; expected Percent 6.25."
+            }
+        }
     }
     $channelBoxes = @{}
     foreach ($control in $matrixPanel.Controls) {
