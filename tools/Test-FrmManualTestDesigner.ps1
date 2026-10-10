@@ -289,7 +289,35 @@ foreach ($event in $bottomButtonEvents) {
     $eventPattern = '(?im)\bAddHandler\s+(?:Me\.)?' + [regex]::Escape($event.Button) + '\.Click\s*,\s*AddressOf\s+(?:Me\.)?' + [regex]::Escape($event.Handler) + '\b'
     Assert-Regex $initializeComponent $eventPattern "Designer must connect $($event.Button).Click to $($event.Handler)."
 }
-Assert-Regex $initializeComponent '(?im)\bAddHandler\s+(?:Me\.)?btnClose\.Click\s*,\s*Sub\s*\(' 'Designer must wire btnClose to close the form.'
+Assert-Regex $initializeComponent '(?im)\bAddHandler\s+(?:Me\.)?btnClose\.Click\s*,\s*Sub\s*\([^)]*\)[ \t]*Me\.Close\s*\(\s*\)' 'Designer must wire btnClose.Click to a lambda that calls Me.Close().'
+
+$disposeMethod = [System.Text.RegularExpressions.Regex]::Match(
+    $classBody,
+    '(?ims)^\s*Protected\s+Overrides\s+Sub\s+Dispose\s*\(\s*(?:ByVal\s+)?disposing\s+As\s+Boolean\s*\)(?<body>.*?)^\s*End\s+Sub\b'
+)
+if (-not $disposeMethod.Success) {
+    throw 'Designer must override Dispose(disposing As Boolean).'
+}
+$disposeBody = $disposeMethod.Groups['body'].Value
+$singleLineDispose = [System.Text.RegularExpressions.Regex]::IsMatch(
+    $disposeBody,
+    '(?im)\bIf\s+disposing\b[^\r\n]*\bcomponents\.Dispose\s*\(\s*\)'
+)
+$disposeGuard = [System.Text.RegularExpressions.Regex]::Match($disposeBody, '(?im)\bIf\s+disposing\b')
+$disposeCall = [System.Text.RegularExpressions.Regex]::Match($disposeBody, '(?im)\bcomponents\.Dispose\s*\(\s*\)')
+$endIfAfterGuard = $null
+if ($disposeGuard.Success) {
+    $endIfAfterGuard = [System.Text.RegularExpressions.Regex]::Match(
+        $disposeBody.Substring($disposeGuard.Index + $disposeGuard.Length),
+        '(?im)^\s*End\s+If\b'
+    )
+}
+$blockDispose = $disposeGuard.Success -and $disposeCall.Success -and $null -ne $endIfAfterGuard -and
+    $endIfAfterGuard.Success -and
+    $disposeCall.Index -lt ($disposeGuard.Index + $disposeGuard.Length + $endIfAfterGuard.Index)
+if (-not $singleLineDispose -and -not $blockDispose) {
+    throw 'Designer Dispose must call components.Dispose() inside the disposing guard.'
+}
 
 $constructor = [System.Text.RegularExpressions.Regex]::Match(
     $codeBehind,
