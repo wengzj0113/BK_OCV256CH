@@ -640,11 +640,12 @@ Public Class FrmManualTest
             Dim deviceChannel As Integer = TrayChannelMapping.ToDeviceChannel(channel)
             Dim groupText As String = If(deviceChannel <= 128, "G1", "G2 本地CH" & (deviceChannel - 128).ToString())
 
-            resultGrid.Rows.Add("CH" & channel.ToString(),
-                                groupText,
-                                voltageMv.ToString("0.0000"),
-                                resistance.ToString("0.0000"),
-                                resultText)
+            Dim rowIndex As Integer = resultGrid.Rows.Add("CH" & channel.ToString(),
+                                                         groupText,
+                                                         voltageMv.ToString("0.0000"),
+                                                         resistance.ToString("0.0000"),
+                                                         resultText)
+            resultGrid.Rows(rowIndex).Tag = deviceChannel
         Next
 
         btnExport.Enabled = resultGrid.Rows.Count > 0
@@ -687,6 +688,7 @@ Public Class FrmManualTest
             For Each column As DataGridViewColumn In resultGrid.Columns
                 headers.Add(EscapeCsvField(column.HeaderText))
             Next
+            headers.Add(EscapeCsvField("维修通道"))
             csv.AppendLine(String.Join(",", headers.ToArray()))
 
             For Each row As DataGridViewRow In resultGrid.Rows
@@ -694,6 +696,8 @@ Public Class FrmManualTest
                 For Each cell As DataGridViewCell In row.Cells
                     fields.Add(EscapeCsvField(If(cell.Value Is Nothing, String.Empty, cell.Value.ToString())))
                 Next
+                If Not TypeOf row.Tag Is Integer Then Throw New InvalidOperationException("测试结果缺少对应的设备通道号。")
+                fields.Add(CInt(row.Tag).ToString(CultureInfo.InvariantCulture))
                 csv.AppendLine(String.Join(",", fields.ToArray()))
             Next
 

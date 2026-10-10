@@ -1092,14 +1092,14 @@ exit_sub:
             If channelNo < 1 OrElse channelNo > MAX_CHANNEL Then Throw New ArgumentOutOfRangeException(NameOf(channels))
             Dim item As Bat_info = recieveData(channelNo - 1)
             If String.IsNullOrWhiteSpace(item.BatCode) Then Continue For
-            rows.Add($"{item.BatCode},{item.Result},{channelNo},{item.Resistance},{item.Voltage * 1000},{item.TestTime},{temperatures(0)},{temperatures(1)},{temperatures(2)},{temperatures(3)}")
+            rows.Add($"{item.BatCode},{item.Result},{channelNo},{item.Resistance},{item.Voltage * 1000},{item.TestTime},{temperatures(0)},{temperatures(1)},{temperatures(2)},{temperatures(3)},{TrayChannelMapping.ToDeviceChannel(channelNo)}")
         Next
         Return rows
     End Function
 
     Private Sub SaveTestDataLocalFile(recieveData() As Bat_info)
         Dim resultRows As IReadOnlyList(Of String) = FormatLocalResultRows(
-            recieveData, currentOCVNum, currentTestChannels, {t1.Text, t2.Text, t3.Text, t4.Text})
+            recieveData, currentOCVNum, currentTestChannels, {t1.Text, t2.Text, String.Empty, String.Empty})
         ' 示例托盘号
         Dim trayNum As String = txtTray.Text
 
@@ -1135,7 +1135,7 @@ exit_sub:
         ' 创建文件并写入数据
         Using writer As New StreamWriter(filePath)
             ' 写入文件头
-            writer.WriteLine("电池条码,测试结果,通道号,内阻(mΩ),电压(mV),测试时间,TA1,TA2,TA3,TA4")
+            writer.WriteLine("电池条码,测试结果,通道号,内阻(mΩ),电压(mV),测试时间,TA1,TA2,TA3,TA4,维修通道")
 
             For Each row As String In resultRows
                 writer.WriteLine(row)
@@ -1618,8 +1618,14 @@ exit_sub:
                 Dim readings As NtcTemperatureReading() = temperatureModuleClient.ReadTemperatures()
                 UpdateTemperatureReadings(readings)
                 If lastTemperatureModuleError.Length > 0 Then
-                    AppLog.Write("Temperature", "NTC temperature module communication recovered.")
+                    AppLog.Write("Temperature", "NTC temperature module recovered.")
                     lastTemperatureModuleError = String.Empty
+                End If
+            Catch ex As NtcTemperatureUnitException
+                UpdateTemperatureUnitError()
+                If Not String.Equals(lastTemperatureModuleError, ex.Message, StringComparison.Ordinal) Then
+                    AppLog.Write("Temperature", "NTC temperature module unit configuration error: " & ex.Message)
+                    lastTemperatureModuleError = ex.Message
                 End If
             Catch ex As Exception
                 If temperatureModuleClient IsNot Nothing Then
@@ -1638,26 +1644,32 @@ exit_sub:
     End Sub
 
     Private Sub UpdateTemperatureReadings(readings As NtcTemperatureReading())
-        If readings Is Nothing OrElse readings.Length <> 4 Then
+        If readings Is Nothing OrElse readings.Length <> 2 Then
             UpdateTemperatureCommunicationError()
             Return
         End If
-        Dim labels As Action(Of String)() = {AddressOf Updatet1Text, AddressOf Updatet2Text, AddressOf Updatet3Text, AddressOf Updatet4Text}
-        For index As Integer = 0 To readings.Length - 1
-            Dim displayValue As String = If(readings(index).IsValid,
-                                           readings(index).TemperatureCelsius.ToString("0.0", System.Globalization.CultureInfo.CurrentCulture),
-                                           "探头故障")
-            labels(index).Invoke(displayValue)
-        Next
-        If readings(0).IsValid Then hjwd = readings(0).TemperatureCelsius.ToString("0.0", System.Globalization.CultureInfo.CurrentCulture)
+        Updatet1Text(FormatTemperatureReading(readings(0)))
+        Updatet2Text(FormatTemperatureReading(readings(1)))
+        hjwd = If(readings(0).IsValid,
+                  readings(0).TemperatureCelsius.ToString("0.0", System.Globalization.CultureInfo.CurrentCulture),
+                  String.Empty)
         trayCode = txtTray.Text
     End Sub
+
+    Private Shared Function FormatTemperatureReading(reading As NtcTemperatureReading) As String
+        Return If(reading.IsValid,
+                  reading.TemperatureCelsius.ToString("0.0", System.Globalization.CultureInfo.CurrentCulture),
+                  "探头故障")
+    End Function
 
     Private Sub UpdateTemperatureCommunicationError()
         Updatet1Text("通信故障")
         Updatet2Text("通信故障")
-        Updatet3Text("通信故障")
-        Updatet4Text("通信故障")
+    End Sub
+
+    Private Sub UpdateTemperatureUnitError()
+        Updatet1Text("请设摄氏度")
+        Updatet2Text("请设摄氏度")
     End Sub
     ''' <summary>
     ''' jig信号监控定时器
@@ -2604,7 +2616,7 @@ exit_sub:
                                  If txtAlarm Is Nothing OrElse txtAlarm.IsDisposed Then Return
                                  Dim occurredAt As DateTime = DateTime.Now
                                  Dim eventLine As String = occurredAt.ToString("HH:mm:ss") & " " & eventText
-                                 If eventText.IndexOf("收到R150=1", StringComparison.Ordinal) >= 0 Then
+                                 If eventText.IndexOf("检测到R150=1", StringComparison.Ordinal) >= 0 Then
                                      StartAutomaticEventLog(occurredAt)
                                  End If
                                  AppendAutomaticEventLog(eventLine)

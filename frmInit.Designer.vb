@@ -153,13 +153,6 @@ Partial Class frmInit
         Me.chkAuto = New System.Windows.Forms.CheckBox()
         Me.txtMesApiAddress = New System.Windows.Forms.TextBox()
         Me.Label35 = New System.Windows.Forms.Label()
-        Me.TabPage4 = New System.Windows.Forms.TabPage()
-        Me.txtPsdGuest = New System.Windows.Forms.TextBox()
-        Me.txtPsdOper = New System.Windows.Forms.TextBox()
-        Me.txtPsdAdmin = New System.Windows.Forms.TextBox()
-        Me.Label34 = New System.Windows.Forms.Label()
-        Me.Label33 = New System.Windows.Forms.Label()
-        Me.Label32 = New System.Windows.Forms.Label()
         Me.TabScmSet = New System.Windows.Forms.TabPage()
         Me.lblScmStatus = New System.Windows.Forms.Label()
         Me.btnScmApply = New System.Windows.Forms.Button()
@@ -259,7 +252,6 @@ Partial Class frmInit
         Me.TabPage3.SuspendLayout()
         Me.GB_MesDataBase.SuspendLayout()
         Me.GroupBox7.SuspendLayout()
-        Me.TabPage4.SuspendLayout()
         Me.TabScmSet.SuspendLayout()
         Me.TabPageChannelColors.SuspendLayout()
         Me.GroupBoxChannelColors.SuspendLayout()
@@ -275,7 +267,6 @@ Partial Class frmInit
         Me.TabControl1.Controls.Add(Me.TabPage1)
         Me.TabControl1.Controls.Add(Me.TabPage2)
         Me.TabControl1.Controls.Add(Me.TabPage3)
-        Me.TabControl1.Controls.Add(Me.TabPage4)
         Me.TabControl1.Controls.Add(Me.TabScmSet)
         Me.TabControl1.Controls.Add(Me.TabPageChannelColors)
         Me.TabControl1.Controls.Add(Me.TabPageInstrumentSettings)
@@ -1605,73 +1596,6 @@ Partial Class frmInit
         Me.Label35.TabIndex = 1
         Me.Label35.Text = "MESAPI地址"
         '
-        'TabPage4
-        '
-        Me.TabPage4.BackColor = System.Drawing.Color.LightBlue
-        Me.TabPage4.Controls.Add(Me.txtPsdGuest)
-        Me.TabPage4.Controls.Add(Me.txtPsdOper)
-        Me.TabPage4.Controls.Add(Me.txtPsdAdmin)
-        Me.TabPage4.Controls.Add(Me.Label34)
-        Me.TabPage4.Controls.Add(Me.Label33)
-        Me.TabPage4.Controls.Add(Me.Label32)
-        Me.TabPage4.Location = New System.Drawing.Point(4, 24)
-        Me.TabPage4.Name = "TabPage4"
-        Me.TabPage4.Padding = New System.Windows.Forms.Padding(3)
-        Me.TabPage4.Size = New System.Drawing.Size(530, 575)
-        Me.TabPage4.TabIndex = 3
-        Me.TabPage4.Text = "用户管理"
-        '
-        'txtPsdGuest
-        '
-        Me.txtPsdGuest.Location = New System.Drawing.Point(185, 229)
-        Me.txtPsdGuest.Name = "txtPsdGuest"
-        Me.txtPsdGuest.Size = New System.Drawing.Size(100, 23)
-        Me.txtPsdGuest.TabIndex = 5
-        Me.txtPsdGuest.Text = "123"
-        '
-        'txtPsdOper
-        '
-        Me.txtPsdOper.Location = New System.Drawing.Point(185, 171)
-        Me.txtPsdOper.Name = "txtPsdOper"
-        Me.txtPsdOper.Size = New System.Drawing.Size(100, 23)
-        Me.txtPsdOper.TabIndex = 6
-        Me.txtPsdOper.Text = "123"
-        '
-        'txtPsdAdmin
-        '
-        Me.txtPsdAdmin.Location = New System.Drawing.Point(185, 113)
-        Me.txtPsdAdmin.Name = "txtPsdAdmin"
-        Me.txtPsdAdmin.Size = New System.Drawing.Size(100, 23)
-        Me.txtPsdAdmin.TabIndex = 7
-        Me.txtPsdAdmin.Text = "123"
-        '
-        'Label34
-        '
-        Me.Label34.AutoSize = True
-        Me.Label34.Location = New System.Drawing.Point(75, 232)
-        Me.Label34.Name = "Label34"
-        Me.Label34.Size = New System.Drawing.Size(91, 14)
-        Me.Label34.TabIndex = 2
-        Me.Label34.Text = "其他人员密码"
-        '
-        'Label33
-        '
-        Me.Label33.AutoSize = True
-        Me.Label33.Location = New System.Drawing.Point(87, 174)
-        Me.Label33.Name = "Label33"
-        Me.Label33.Size = New System.Drawing.Size(77, 14)
-        Me.Label33.TabIndex = 3
-        Me.Label33.Text = "操作员密码"
-        '
-        'Label32
-        '
-        Me.Label32.AutoSize = True
-        Me.Label32.Location = New System.Drawing.Point(63, 116)
-        Me.Label32.Name = "Label32"
-        Me.Label32.Size = New System.Drawing.Size(105, 14)
-        Me.Label32.TabIndex = 4
-        Me.Label32.Text = "系统管理员密码"
-        '
         'TabScmSet
         '
         Me.TabScmSet.BackColor = System.Drawing.Color.LightBlue
@@ -2562,8 +2486,6 @@ Partial Class frmInit
         Me.GB_MesDataBase.PerformLayout()
         Me.GroupBox7.ResumeLayout(False)
         Me.GroupBox7.PerformLayout()
-        Me.TabPage4.ResumeLayout(False)
-        Me.TabPage4.PerformLayout()
         Me.TabScmSet.ResumeLayout(False)
         Me.TabScmSet.PerformLayout()
         Me.TabPageChannelColors.ResumeLayout(False)
@@ -2657,13 +2579,6 @@ Partial Class frmInit
     Friend WithEvents Label30 As Label
     Friend WithEvents Label29 As Label
     Friend WithEvents Label28 As Label
-    Friend WithEvents TabPage4 As TabPage
-    Friend WithEvents txtPsdGuest As TextBox
-    Friend WithEvents txtPsdOper As TextBox
-    Friend WithEvents txtPsdAdmin As TextBox
-    Friend WithEvents Label34 As Label
-    Friend WithEvents Label33 As Label
-    Friend WithEvents Label32 As Label
     Friend WithEvents CheckBox1 As CheckBox
     Friend WithEvents txtMesApiAddress As TextBox
     Friend WithEvents Label35 As Label

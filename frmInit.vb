@@ -617,10 +617,6 @@ Public Class frmInit
         '探针的使用次数管理
         TempInitsetting.Probelifespan = txtProbelifespan.Text
         TempInitsetting.ProbeUsedCount = txtProbeUsed.Text
-        '用户管理
-        TempInitsetting.PsdOfAdmin = txtPsdAdmin.Text
-        TempInitsetting.PsdOfOper = txtPsdOper.Text
-        TempInitsetting.PsdOfGuest = txtPsdGuest.Text
         'mes 管理
         TempInitsetting.MesApiAddress = txtMesApiAddress.Text
         '校准模块阻值
@@ -823,10 +819,6 @@ Public Class frmInit
         '探针使用寿命统计
         txtProbelifespan.Text = Initsetting.Probelifespan
         txtProbeUsed.Text = Initsetting.ProbeUsedCount
-        '用户管理
-        txtPsdAdmin.Text = Initsetting.PsdOfAdmin
-        txtPsdOper.Text = Initsetting.PsdOfOper
-        txtPsdGuest.Text = Initsetting.PsdOfGuest
         '万用表的ip地址
         txt34461.Text = Initsetting.IpAddOf34461
         'MES api 地址
@@ -1157,8 +1149,13 @@ Public Class frmInit
             testAction.Invoke()
             If button IsNot Nothing Then button.Text = "连接成功"
         Catch ex As Exception
-            If button IsNot Nothing Then button.Text = "连接失败"
-            MessageBox.Show(ex.Message, deviceName & "连接失败", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+            If TypeOf ex Is NtcTemperatureUnitException Then
+                If button IsNot Nothing Then button.Text = "通信正常"
+                MessageBox.Show(ex.Message, deviceName & "参数设置", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+            Else
+                If button IsNot Nothing Then button.Text = "连接失败"
+                MessageBox.Show(ex.Message, deviceName & "连接失败", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+            End If
         Finally
             If button IsNot Nothing Then button.Enabled = True
         End Try
@@ -1314,6 +1311,17 @@ Public Class frmInit
         Using client As New NtcTemperatureModuleClient(cmb_TemPort.SelectedIndex)
             Dim readings As NtcTemperatureReading() = client.ReadTemperatures()
             If readings Is Nothing OrElse readings.Length <> 2 Then Throw New IOException("温度模块未返回前2路温度数据。")
+
+            Dim failedSensors As New List(Of String)()
+            For index As Integer = 0 To readings.Length - 1
+                If Not readings(index).IsValid Then failedSensors.Add("第" & (index + 1).ToString() & "路")
+            Next
+            If failedSensors.Count > 0 Then
+                MessageBox.Show("Modbus通信正常，但" & String.Join("、", failedSensors) & "探头异常或未连接。",
+                                "温度采集模块探头状态",
+                                MessageBoxButtons.OK,
+                                MessageBoxIcon.Warning)
+            End If
         End Using
     End Sub
     Private Sub txt_V_B_Validated(ByVal sender As Object, ByVal e As System.EventArgs) Handles txt_V_B.Validated

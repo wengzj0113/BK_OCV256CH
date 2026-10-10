@@ -32,6 +32,7 @@
 
 - `011_seed_ocv_data_sqlserver2008r2_baseline.sql` — 在 `OCV_DATA_SQLServer2008R2.sql` 成功创建表和存储过程后运行。该兼容脚本补齐导出文件不包含的 OCV0/OCV1/OCV2 阶段、等级字段及 001/002 版本记录，并在末尾执行数据库健康检查。可重复运行。
 - `012_debug_mode_result_queries_sqlserver2008r2.sql` — 在已部署的 SQL Server 2008 R2 `OCV_DATA` 上安装调试/生产结果隔离查询和 NG 来源过滤。该脚本只重建两个存储过程，不改表和业务数据；将调试模式应用版本部署到已有 2008 R2 数据库前必须运行。全新部署仍使用根目录完整安装脚本，该脚本也包含相同过程定义。
+- `013_seed_demo_trays.sql` — 在已部署 `OCV_DATA` 表结构及 `dbo.usp_SaveTrayCells` 后运行，写入 `TP001`（`BAT01001`–`BAT01256`）和 `TP002`（`BAT02001`–`BAT02256`）各 256 个通道映射。重复运行会更新这两个托盘的映射；脚本末尾会查询并显示结果。
 
 ## 调试模式查询部署
 

@@ -43,12 +43,15 @@ Public Class PlcAutomaticTestCoordinator
     Private sortingRequestRequiresNgSortingAtCapture As Boolean
     Private trayPreparationInProgress As Boolean
     Private manualTrayCodePending As Boolean
+    Private manualTrayCodeGeneration As Integer
     Private nextTrayScanRetryAtUtc As DateTime = DateTime.MinValue
     Private trayConfirmationPending As Boolean
     Private r160WriteInProgress As Boolean
     Private r161WriteInProgress As Boolean
     Private testPrerequisiteWaitingReported As Boolean
+    Private testTrayConfirmationWaitingReported As Boolean
     Private sortingRequestWaitingReported As Boolean
+    Private trayRequestBlockedReason As String = String.Empty
     Private pollTimer As Timer
     Private pollBusy As Integer
     Private stopped As Boolean
@@ -233,6 +236,7 @@ Public Class PlcAutomaticTestCoordinator
         If retryTestCompletion Then SendTestCompletionSignal()
 
         Dim canPrepareTray As Boolean
+        Dim trayRequestWaitMessage As String = String.Empty
         SyncLock stateLock
             canPrepareTray = trayRequestPending AndAlso Not trayPreparationInProgress AndAlso
                              Not manualTrayCodePending AndAlso String.IsNullOrWhiteSpace(cycle.TrayCode) AndAlso
@@ -241,13 +245,31 @@ Public Class PlcAutomaticTestCoordinator
                 trayRequestPending = False
                 trayPreparationInProgress = True
                 nextTrayScanRetryAtUtc = DateTime.MinValue
+                trayRequestBlockedReason = String.Empty
+            ElseIf trayRequestPending Then
+                Dim blockedReason As String
+                If trayPreparationInProgress Then
+                    blockedReason = "扫码流程正在处理中"
+                ElseIf manualTrayCodePending Then
+                    blockedReason = "等待手工输入托盘码"
+                ElseIf Not String.IsNullOrWhiteSpace(cycle.TrayCode) Then
+                    blockedReason = "当前托盘状态尚未释放，托盘码=" & cycle.TrayCode
+                ElseIf DateTime.UtcNow < nextTrayScanRetryAtUtc Then
+                    blockedReason = "等待扫码重试时间"
+                Else
+                    blockedReason = "扫码条件尚未满足"
+                End If
+                If Not String.Equals(trayRequestBlockedReason, blockedReason, StringComparison.Ordinal) Then
+                    trayRequestBlockedReason = blockedReason
+                    trayRequestWaitMessage = "R150请求已保留，暂未触发扫码：" & blockedReason
+                End If
             End If
         End SyncLock
+        If trayRequestWaitMessage.Length > 0 Then ReportAutomaticEventSafely(trayRequestWaitMessage)
 
         If canPrepareTray Then
             Try
-                If Not IsRequestGenerationCurrent(pollGeneration) Then Return
-                BeginTrayCodeRead()
+                BeginTrayCodeRead(pollGeneration)
             Catch ex As Exception
                 EnterFault(ex)
             Finally
@@ -264,9 +286,16 @@ Public Class PlcAutomaticTestCoordinator
         If confirmTray Then ConfirmTrayCodeWithPlc()
 
         Dim startTest As Boolean
+        Dim waitForTrayConfirmation As Boolean
         SyncLock stateLock
             startTest = testRequestPending AndAlso Not cycle.TestStarted AndAlso cycle.TrayConfirmed
+            waitForTrayConfirmation = testRequestPending AndAlso Not cycle.TrayConfirmed AndAlso
+                                      Not testTrayConfirmationWaitingReported
+            If waitForTrayConfirmation Then testTrayConfirmationWaitingReported = True
         End SyncLock
+        If waitForTrayConfirmation Then
+            ReportAutomaticEventSafely("R151测试请求已暂存，等待托盘码写入R160并确认")
+        End If
         If startTest Then
             Dim prerequisitesReady As Boolean = False
             Try
@@ -280,6 +309,7 @@ Public Class PlcAutomaticTestCoordinator
                     If testRequestPending AndAlso Not cycle.TestStarted AndAlso cycle.TrayConfirmed Then
                         testRequestPending = False
                         testPrerequisiteWaitingReported = False
+                        testTrayConfirmationWaitingReported = False
                         cycle.TestStarted = True
                     Else
                         startTest = False
@@ -354,9 +384,11 @@ Public Class PlcAutomaticTestCoordinator
     End Function
 
     Public Sub RequestStopCurrentCycle()
+        Dim cancelledTrayRequest As Boolean
         SyncLock stateLock
             If stopped Then Return
             requestGeneration += 1
+            cancelledTrayRequest = trayRequestPending OrElse trayPreparationInProgress OrElse manualTrayCodePending
             trayRequestPending = False
             testRequestPending = False
             sortingRequestPending = False
@@ -367,10 +399,15 @@ Public Class PlcAutomaticTestCoordinator
             nextTrayScanRetryAtUtc = DateTime.MinValue
             trayConfirmationPending = False
             testPrerequisiteWaitingReported = False
+            testTrayConfirmationWaitingReported = False
             sortingRequestWaitingReported = False
+            trayRequestBlockedReason = String.Empty
             cycle.Reset()
             currentState = PlcAutomaticTestState.Idle
         End SyncLock
+        If cancelledTrayRequest Then
+            ReportAutomaticEventSafely("停止操作已取消当前R150扫码请求；如PLC仍保持R150=1，需先复位为0再重新置1")
+        End If
         ReportAutomaticEventSafely("自动流程已复位，等待新托盘")
         host.ReportAutomaticStatus("测试已停止，等待托盘进入")
     End Sub
@@ -395,49 +432,74 @@ Public Class PlcAutomaticTestCoordinator
         End If
     End Sub
 
-    Private Sub BeginTrayCodeRead()
+    Private Sub BeginTrayCodeRead(ByVal expectedGeneration As Integer)
+        If Not IsRequestGenerationCurrent(expectedGeneration) Then
+            ReportAutomaticEventSafely("R150扫码请求在启动前被流程停止/复位取消")
+            Return
+        End If
         MoveTo(PlcAutomaticTestState.ReadingTrayCode, "收到R150，触发扫码并读取托盘码")
         ReportAutomaticEventSafely("托盘到位，开始扫码")
+        If Not IsRequestGenerationCurrent(expectedGeneration) Then
+            ReportAutomaticEventSafely("流程已停止/复位，未触发本次扫码")
+            Return
+        End If
         Dim trayCode As String
         Try
             scanner.TriggerScan()
             trayCode = scanner.ReadTrayCode(1500)
         Catch ex As Exception
+            If Not IsRequestGenerationCurrent(expectedGeneration) Then
+                ReportAutomaticEventSafely("扫码期间流程已停止/复位，本次扫码失败结果已丢弃")
+                Return
+            End If
             ReportAutomaticEventSafely("托盘扫码失败：" & ex.Message & "，请手工输入托盘码或取消后自动重试")
-            PromptManualTrayCode("扫码失败：" & ex.Message)
+            PromptManualTrayCode("扫码失败：" & ex.Message, expectedGeneration)
             Return
         End Try
-        If Not host.ValidateTrayCode(trayCode) Then
-            ReportAutomaticEventSafely("未读取到有效托盘码，请手工输入托盘码或取消后自动重试")
-            PromptManualTrayCode("未识别到托盘码或托盘码长度不符合设置。")
+        If Not IsRequestGenerationCurrent(expectedGeneration) Then
+            ReportAutomaticEventSafely("扫码期间流程已停止/复位，本次扫码结果已丢弃")
             Return
         End If
+        If Not host.ValidateTrayCode(trayCode) Then
+            If Not IsRequestGenerationCurrent(expectedGeneration) Then Return
+            ReportAutomaticEventSafely("未读取到有效托盘码，请手工输入托盘码或取消后自动重试")
+            PromptManualTrayCode("未识别到托盘码或托盘码长度不符合设置。", expectedGeneration)
+            Return
+        End If
+        If Not IsRequestGenerationCurrent(expectedGeneration) Then Return
         ReportAutomaticEventSafely("扫码成功，托盘码：" & trayCode.Trim())
-        AcceptTrayCode(trayCode)
+        AcceptTrayCode(trayCode, expectedGeneration)
     End Sub
 
     Private Sub AcceptManualTrayCode(ByVal trayCode As String)
         If stopped OrElse Not manualTrayCodePending Then Return
+        Dim manualGeneration As Integer
+        SyncLock stateLock
+            manualGeneration = manualTrayCodeGeneration
+        End SyncLock
         If Not host.ValidateTrayCode(trayCode) Then
-            PromptManualTrayCode("手工输入的托盘码为空或长度不符合设置，请重新输入。")
+            PromptManualTrayCode("手工输入的托盘码为空或长度不符合设置，请重新输入。", manualGeneration)
             Return
         End If
         SyncLock stateLock
+            If stopped OrElse requestGeneration <> manualGeneration OrElse Not manualTrayCodePending Then Return
             manualTrayCodePending = False
+            trayRequestBlockedReason = String.Empty
             nextTrayScanRetryAtUtc = DateTime.MinValue
         End SyncLock
         Try
             ReportAutomaticEventSafely("手工输入托盘码已确认")
-            AcceptTrayCode(trayCode)
+            AcceptTrayCode(trayCode, manualGeneration)
         Catch ex As Exception
             EnterFault(ex)
         End Try
     End Sub
 
-    Private Sub PromptManualTrayCode(ByVal reason As String)
-        If stopped Then Return
+    Private Sub PromptManualTrayCode(ByVal reason As String, ByVal expectedGeneration As Integer)
         SyncLock stateLock
+            If stopped OrElse requestGeneration <> expectedGeneration Then Return
             manualTrayCodePending = True
+            manualTrayCodeGeneration = expectedGeneration
         End SyncLock
         MoveTo(PlcAutomaticTestState.WaitingManualTrayCode, reason & "请手工输入托盘码。")
         host.RequestManualTrayCode(AddressOf AcceptManualTrayCode, AddressOf CancelManualTrayCode)
@@ -447,6 +509,7 @@ Public Class PlcAutomaticTestCoordinator
         If stopped Then Return
         SyncLock stateLock
             manualTrayCodePending = False
+            trayRequestBlockedReason = String.Empty
             If String.IsNullOrWhiteSpace(cycle.TrayCode) Then
                 trayRequestPending = True
                 nextTrayScanRetryAtUtc = DateTime.UtcNow.AddSeconds(2)
@@ -456,13 +519,26 @@ Public Class PlcAutomaticTestCoordinator
         MoveTo(PlcAutomaticTestState.WaitingTrayScanRetry, "手工输入已取消，约2秒后自动重新扫码")
     End Sub
 
-    Private Sub AcceptTrayCode(ByVal trayCode As String)
+    Private Sub AcceptTrayCode(ByVal trayCode As String, ByVal expectedGeneration As Integer)
+        If Not IsRequestGenerationCurrent(expectedGeneration) Then
+            ReportAutomaticEventSafely("托盘码确认前流程已停止/复位，已丢弃本次托盘码")
+            Return
+        End If
         host.SetTrayCode(trayCode)
         host.PrepareAutomaticTray(trayCode)
+        Dim requestCancelled As Boolean
         SyncLock stateLock
-            cycle.TrayCode = trayCode.Trim()
-            trayConfirmationPending = True
+            If stopped OrElse requestGeneration <> expectedGeneration Then
+                requestCancelled = True
+            Else
+                cycle.TrayCode = trayCode.Trim()
+                trayConfirmationPending = True
+            End If
         End SyncLock
+        If requestCancelled Then
+            ReportAutomaticEventSafely("托盘准备期间流程已停止/复位，未向PLC确认本托盘")
+            Return
+        End If
         ConfirmTrayCodeWithPlc()
     End Sub
 
@@ -774,9 +850,11 @@ Public Class PlcAutomaticTestCoordinator
                 sortingRequestRequiresNgSortingAtCapture = False
                 trayPreparationInProgress = False
                 manualTrayCodePending = False
+                trayRequestBlockedReason = String.Empty
                 nextTrayScanRetryAtUtc = DateTime.MinValue
                 trayConfirmationPending = False
                 testPrerequisiteWaitingReported = False
+                testTrayConfirmationWaitingReported = False
                 cycle.Reset()
             End SyncLock
             ReportAutomaticEventSafely("自动测试已手动停止，本托盘流程已复位，等待新托盘")
