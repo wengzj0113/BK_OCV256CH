@@ -236,7 +236,7 @@ $testHost = [HandoffHost]::new()
 $scanner = [HandoffScanner]::new()
 $coordinator = New-Coordinator $plc $scanner $testHost
 Start-TestCycle $coordinator $plc
-if ($coordinator.State.ToString() -ne 'WaitingR152' -or $plc.R160Writes -ne 1 -or
+if ($coordinator.State.ToString() -ne 'Idle' -or -not $coordinator.IsCycleOccupied -or $plc.R160Writes -ne 1 -or
     $plc.R161Writes -ne 1 -or $plc.R152Reads -eq 0 -or $plc.GradeWrites.Count -ne 0 -or
     $plc.R162Writes -ne 0 -or $testHost.SaveCalls -ne 1) {
     throw 'R161 must follow saved test results; R152 must remain independently polled while waiting for NG handoff.'
@@ -245,7 +245,7 @@ $plc.R152 = $false
 $readsBeforeR152 = $plc.R151Reads
 Invoke-Poll $coordinator
 if ($plc.GradeWrites.Count -ne 0 -or $plc.R162Writes -ne 0 -or
-    $plc.R151Reads -ne ($readsBeforeR152 + 1) -or $coordinator.State.ToString() -ne 'WaitingR152') {
+    $plc.R151Reads -ne ($readsBeforeR152 + 1) -or $coordinator.State.ToString() -ne 'Idle' -or -not $coordinator.IsCycleOccupied) {
     throw 'R152=0 must leave NG grades/R162 untouched while R150/R151/R152 continue independent polling.'
 }
 $plc.R152 = $true
@@ -315,7 +315,7 @@ $nonSortingHost.Sorting = $false
 $nonSortingHost.NoNg = $true
 $nonSortingCoordinator = New-Coordinator $nonSortingPlc ([HandoffScanner]::new()) $nonSortingHost
 Start-TestCycle $nonSortingCoordinator $nonSortingPlc
-if ($nonSortingCoordinator.State.ToString() -ne 'WaitingR152' -or
+if ($nonSortingCoordinator.State.ToString() -ne 'Idle' -or
     $nonSortingPlc.R161Writes -ne 1 -or $nonSortingPlc.R152Reads -eq 0 -or
     $nonSortingPlc.GradeWrites.Count -ne 0 -or $nonSortingPlc.R162Writes -ne 0) {
     throw 'The coordinator must independently keep polling R152 after R161, even when the stage has no NG grades.'

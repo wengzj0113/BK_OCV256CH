@@ -30,6 +30,8 @@ End Enum
 
 Public Class AutomaticTestCycle
     Public Property TrayCode As String
+    Public Property IsManualCycle As Boolean
+    Public Property MeasurementChannels As IReadOnlyList(Of Integer) = New List(Of Integer)().AsReadOnly()
     Public Property NeedNgRetest As Boolean
     Public Property RequiresNgSorting As Boolean
     Public Property MaxRetestRounds As Integer
@@ -44,6 +46,8 @@ Public Class AutomaticTestCycle
 
     Public Sub Reset()
         TrayCode = String.Empty
+        IsManualCycle = False
+        MeasurementChannels = New List(Of Integer)().AsReadOnly()
         NeedNgRetest = False
         RequiresNgSorting = False
         MaxRetestRounds = 0

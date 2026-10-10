@@ -11,7 +11,7 @@ Imports MpFByteArrDLL
 Imports File = System.IO.File
 Imports Timer = System.Timers.Timer
 Public Class frmTest
-    Implements IAutomaticTestHost
+    Implements IAutomaticTestHost, IManualTestHost
     Dim PaintFlag As Boolean
     Dim objOLECommamd As OleDb.OleDbCommand
     Dim intNumber As Short
@@ -517,30 +517,17 @@ Public Class frmTest
             Return
         End If
         If isRuning Then Return
-        '复位NG标志
-        haveNgPoint = False
-        '初始化复测数组
-        ' ReDim retestArray(63)
-        'frmTest_Resize1(）
-        'Pic_Bat.Refresh()
-        Sleep(1000)
-        'frmInput.FreshBat2（2）
-        If (alarmStatus = True) Then
-            MessageBox.Show("目前处于报警状态，请先复位报警！", "提示", MessageBoxButtons.OK)
-            Exit Sub
+        If plcAutomaticCoordinator Is Nothing Then
+            MessageBox.Show("手动 PLC 测试周期未就绪，请检查 PLC 串口模式和连接。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+            Return
         End If
-        If SelectedChannelNumbers Is Nothing OrElse SelectedChannelNumbers.Count = 0 Then
-            MessageBox.Show("请先选择至少一个待测试通道！", "提示", MessageBoxButtons.OK)
-            Exit Sub
-        End If
-        chk_Test.Enabled = False
         Try
-            PrepareTrayForTest(txtTray.Text, False)
-            If Not GetSignalTrayStatus() Then Throw New InvalidOperationException("托盘未压合或 PLC 状态不可用。")
-            If CheckCom_SCM() <> 1 OrElse CheckCom_3561(True) <> 1 OrElse CheckCom_34461() <> 0 Then
-                Throw New InvalidOperationException("测试设备通信检查未通过。")
+            Dim selectedChannelSnapshot As Integer() = If(SelectedChannelNumbers, New List(Of Integer)()).ToArray()
+            If Not plcAutomaticCoordinator.RequestManualCycle(txtTray.Text, selectedChannelSnapshot) Then
+                MessageBox.Show("当前已有测试周期，不能重复启动。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information)
             End If
-            Call StarTest(1)
+        Catch ex As OperationCanceledException
+            SetTestStatus("已取消本次手动测试启动。")
         Catch ex As Exception
             MessageBox.Show("测试前准备失败：" & ex.Message, "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning)
         Finally
@@ -556,7 +543,9 @@ Public Class frmTest
                              Optional ByVal automaticMode As Boolean = False,
                              Optional ByVal automaticCompleted As Action(Of TestPassResult) = Nothing,
                              Optional ByVal automaticFailed As Action(Of Exception) = Nothing,
-                             Optional ByVal automaticChannels As IEnumerable(Of Integer) = Nothing)
+                             Optional ByVal automaticChannels As IEnumerable(Of Integer) = Nothing,
+                             Optional ByVal manualCyclePass As Boolean = False,
+                             Optional ByVal trayCodeSnapshot As String = Nothing)
         StarTest = 0
         Dim automaticFailure As Exception = Nothing
         Dim automaticResult As TestPassResult = Nothing
@@ -629,7 +618,7 @@ Public Class frmTest
         firstCellNumToTest = runChannels.Min()
         lastCellNumToTest = runChannels.Max()
         totalCellNumToTest = runChannels.Count
-        strTrayNo = Trim(txtTray.Text)
+        strTrayNo = If(manualCyclePass, If(trayCodeSnapshot, String.Empty).Trim(), Trim(txtTray.Text))
         Ftest = New Collection
         Stest = New Collection
         Ttest = New Collection
@@ -653,7 +642,7 @@ Public Class frmTest
 
         Else
             Dim result2 As DialogResult
-            If testType = 1 AndAlso automaticMode AndAlso strTrayNo = lastPublishedAutomaticTrayCode Then
+            If testType = 1 AndAlso automaticMode AndAlso Not manualCyclePass AndAlso strTrayNo = lastPublishedAutomaticTrayCode Then
                 automaticFailure = New InvalidOperationException("自动流程检测到重复托盘码：" & strTrayNo)
                 GoTo exit_sub
             End If
@@ -813,7 +802,7 @@ Public Class frmTest
                 If Not ocvTestTaskId.HasValue Then Throw New InvalidOperationException("OCV_DATA 测试任务号不存在。")
                 CompleteOcvDataTestTaskStrict(ocvTestTaskId.Value, "Completed", Nothing)
                 testTaskStatusFinalized = True
-                BusinessLogService.Write("操作", "成功", "测试结果保存完成", Trim(txtTray.Text), "测试结果已保存到 OCV_DATA 和本地文件。", String.Format("测试类型={0}；OCV_DATA任务号={1}；通道数={2}", If(testType = 0, "NG复测", "正式测试"), ocvTestTaskId.Value, GetSelectedStandardChannels(testType).Count), "测试结果保存")
+                BusinessLogService.Write("操作", "成功", "测试结果保存完成", strTrayNo, "测试结果已保存到 OCV_DATA 和本地文件。", String.Format("测试类型={0}；OCV_DATA任务号={1}；通道数={2}", If(testType = 0, "NG复测", "正式测试"), ocvTestTaskId.Value, GetSelectedStandardChannels(testType).Count), "测试结果保存")
             End If
             If Not automaticMode Then
                 '自动流程统一延迟到最终复测结束；手动流程完成本地保存后再提交 MES。
@@ -844,9 +833,9 @@ Public Class frmTest
         Catch ex As Exception
             FailTestProgress("结果保存失败：" & ex.Message)
             If Not automaticMode Then
-                BusinessLogService.Write("操作", "失败", "测试结果保存失败", Trim(txtTray.Text), "测试结果未能完整保存。", ex.ToString(), "测试结果保存")
+                BusinessLogService.Write("操作", "失败", "测试结果保存失败", strTrayNo, "测试结果未能完整保存。", ex.ToString(), "测试结果保存")
             Else
-                BusinessLogService.Write("操作", "失败", "自动测试结果处理失败", Trim(txtTray.Text), "本轮测量结果处理失败。", ex.ToString(), "测试结果保存")
+                BusinessLogService.Write("操作", "失败", "自动测试结果处理失败", strTrayNo, "本轮测量结果处理失败。", ex.ToString(), "测试结果保存")
             End If
             automaticFailure = ex
             If Not automaticMode Then MsgBox("OCV 测量或数据上传出现异常: " & ex.Message, vbOKOnly, "错误")
@@ -898,7 +887,8 @@ exit_sub:
 
     End Function
 
-    Private Function CreateOcvDataTestTask(ByVal testType As Integer) As Long?
+    Private Function CreateOcvDataTestTask(ByVal testType As Integer,
+                                           Optional ByVal trayCodeOverride As String = Nothing) As Long?
         Dim authenticatedUserName As String = AuthorizationService.CurrentUserName
         If String.IsNullOrWhiteSpace(authenticatedUserName) Then
             Throw New InvalidOperationException("当前未登录，无法创建测试任务。")
@@ -907,9 +897,9 @@ exit_sub:
         Dim service As New OcvDataService()
         Dim channels As List(Of Integer) = GetSelectedStandardChannels(testType)
         Dim request As New OcvCreateTestTaskRequest With {
-            .TaskCode = BuildOcvDataTaskCode(testType),
-            .IdempotencyKey = BuildOcvDataIdempotencyKey(testType),
-            .TrayCode = Trim(txtTray.Text),
+            .TaskCode = BuildOcvDataTaskCode(testType, trayCodeOverride),
+            .IdempotencyKey = BuildOcvDataIdempotencyKey(testType, trayCodeOverride),
+            .TrayCode = If(trayCodeOverride Is Nothing, Trim(txtTray.Text), trayCodeOverride.Trim()),
             .OcvStageCode = GetOcvStageCode(),
             .TestType = If(activeTrayDebugMode, "Debug", If(testType = 0, "Retest", "Formal")),
             .SelectedChannelsJson = BuildChannelJson(channels),
@@ -1032,19 +1022,21 @@ exit_sub:
         End Select
     End Function
 
-    Private Function BuildOcvDataTaskCode(ByVal testType As Integer) As String
+    Private Function BuildOcvDataTaskCode(ByVal testType As Integer,
+                                          Optional ByVal trayCodeOverride As String = Nothing) As String
         Dim taskType As String = If(activeTrayDebugMode, "DEBUG", If(testType = 0, "RETEST", "FORMAL"))
         Return String.Format("{0}-{1}-{2}-{3:yyyyMMddHHmmssfff}",
-                             Trim(txtTray.Text),
+                             If(trayCodeOverride Is Nothing, Trim(txtTray.Text), trayCodeOverride.Trim()),
                              GetOcvStageCode(),
                              taskType,
                              DateTime.Now)
     End Function
 
-    Private Function BuildOcvDataIdempotencyKey(ByVal testType As Integer) As String
+    Private Function BuildOcvDataIdempotencyKey(ByVal testType As Integer,
+                                                 Optional ByVal trayCodeOverride As String = Nothing) As String
         Dim taskType As String = If(activeTrayDebugMode, "DEBUG", If(testType = 0, "RETEST", "FORMAL"))
         Return String.Format("{0}|{1}|{2}|{3:yyyyMMddHHmmssfff}",
-                             Trim(txtTray.Text),
+                             If(trayCodeOverride Is Nothing, Trim(txtTray.Text), trayCodeOverride.Trim()),
                              GetOcvStageCode(),
                              taskType,
                              DateTime.Now)
@@ -1097,11 +1089,12 @@ exit_sub:
         Return rows
     End Function
 
-    Private Sub SaveTestDataLocalFile(recieveData() As Bat_info)
+    Private Sub SaveTestDataLocalFile(recieveData() As Bat_info,
+                                      Optional ByVal trayCodeOverride As String = Nothing)
         Dim resultRows As IReadOnlyList(Of String) = FormatLocalResultRows(
             recieveData, currentOCVNum, currentTestChannels, {t1.Text, t2.Text, String.Empty, String.Empty})
         ' 示例托盘号
-        Dim trayNum As String = txtTray.Text
+        Dim trayNum As String = If(trayCodeOverride Is Nothing, txtTray.Text, trayCodeOverride.Trim())
 
         ' 获取当前日期并生成文件夹路径
         Dim currentDate As String = DateTime.Now.ToString("yyyy-MM-dd")
@@ -1442,10 +1435,10 @@ exit_sub:
     End Sub
     Private Sub btnStop_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles btnStop.Click
         If blstop OrElse shutdownPrepared Then Return
-        Dim automaticFlowActive As Boolean = plcAutomaticModeActive AndAlso plcAutomaticCoordinator IsNot Nothing
-        If Not isRuning AndAlso Not automaticFlowActive Then Return
+        Dim cycleActive As Boolean = plcAutomaticCoordinator IsNot Nothing AndAlso plcAutomaticCoordinator.IsCycleOccupied
+        If Not isRuning AndAlso Not cycleActive Then Return
 
-        ReportAutomaticEvent("收到停止测试请求，正在停止设备并复位")
+        ReportAutomaticEvent("收到停止测试请求，正在停止当前测试周期")
         If isRuning Then
             blstop = True
             UpdateTestModeVisuals()
@@ -1453,8 +1446,8 @@ exit_sub:
             Return
         End If
 
-        '自动流程可能正等待PLC请求，即使测量线程未运行也必须允许复位。
-        plcAutomaticCoordinator.RequestStopCurrentCycle()
+        '自动或手动周期都可能正在等待 PLC 请求，测量线程未运行时也需要通过协调器复位。
+        If plcAutomaticCoordinator IsNot Nothing Then plcAutomaticCoordinator.RequestStopCurrentCycle()
         ClearIncompleteTestResults(Enumerable.Range(1, MAX_CHANNEL))
         haveNgPoint = False
         currentTestChannels = Nothing
@@ -1491,23 +1484,27 @@ exit_sub:
         End Try
     End Sub
 
-    Private Function PrepareTrayForTest(ByVal requestedTrayCode As String, ByVal automaticMode As Boolean) As TrayTestPlan
+    Private Function PrepareTrayForTest(ByVal requestedTrayCode As String,
+                                        ByVal automaticMode As Boolean,
+                                        Optional ByVal selectedChannels As IEnumerable(Of Integer) = Nothing) As TrayTestPlan
         Dim normalizedCode As String = If(requestedTrayCode, String.Empty).Trim()
         If Not ValidateTrayCode(normalizedCode) Then Throw New InvalidOperationException("托盘码为空或长度不符合设置。")
+        Dim channelsForPreparation As IEnumerable(Of Integer) = selectedChannels
+        If channelsForPreparation Is Nothing Then channelsForPreparation = SelectedChannelNumbers
         activeTrayPlan = Nothing
         activeTrayDebugMode = chk_Test.Checked
         For index As Integer = 0 To MAX_CHANNEL - 1
             RecieveData(index).BatCode = String.Empty
         Next
         If activeTrayDebugMode Then
-            Return CreateDebugTrayPlan(automaticMode)
+            Return CreateDebugTrayPlan(automaticMode, channelsForPreparation)
         End If
 
         Dim trayCells As DataTable
         Using service As New OcvDataService()
             trayCells = service.GetTrayCellsByTrayCode(normalizedCode)
         End Using
-        Dim plan As TrayTestPlan = TrayTestPreparation.Prepare(trayCells, SelectedChannelNumbers, automaticMode)
+        Dim plan As TrayTestPlan = TrayTestPreparation.Prepare(trayCells, channelsForPreparation, automaticMode)
         For Each item As KeyValuePair(Of Integer, String) In plan.BatteryCodes
             RecieveData(item.Key - 1).BatCode = item.Value
         Next
@@ -1516,12 +1513,15 @@ exit_sub:
         Return plan
     End Function
 
-    Private Function CreateDebugTrayPlan(ByVal automaticMode As Boolean) As TrayTestPlan
+    Private Function CreateDebugTrayPlan(ByVal automaticMode As Boolean,
+                                         Optional ByVal selectedChannels As IEnumerable(Of Integer) = Nothing) As TrayTestPlan
         Dim measurementChannels As List(Of Integer)
         If automaticMode Then
             measurementChannels = Enumerable.Range(1, MAX_CHANNEL).ToList()
         Else
-            measurementChannels = If(SelectedChannelNumbers, New List(Of Integer)()).
+            Dim channelsForPlan As IEnumerable(Of Integer) = selectedChannels
+            If channelsForPlan Is Nothing Then channelsForPlan = SelectedChannelNumbers
+            measurementChannels = If(channelsForPlan, Enumerable.Empty(Of Integer)()).
                 Distinct().
                 OrderBy(Function(channel) channel).
                 ToList()
@@ -1545,7 +1545,9 @@ exit_sub:
         Dim coordinatorState As PlcAutomaticTestState = If(plcAutomaticCoordinator Is Nothing,
                                                             PlcAutomaticTestState.Idle,
                                                             plcAutomaticCoordinator.State)
+        Dim cycleOccupied As Boolean = plcAutomaticCoordinator IsNot Nothing AndAlso plcAutomaticCoordinator.IsCycleOccupied
         If isRuning OrElse automaticTestPassInProgress OrElse
+           (cycleOccupied AndAlso coordinatorState <> PlcAutomaticTestState.WaitingTrayPreparationRecovery) OrElse
            (coordinatorState <> PlcAutomaticTestState.Idle AndAlso
             coordinatorState <> PlcAutomaticTestState.Fault AndAlso
             coordinatorState <> PlcAutomaticTestState.WaitingTrayPreparationRecovery) Then
@@ -2225,7 +2227,7 @@ exit_sub:
         End Try
     End Sub
 
-    Private Sub StopPlcAutomaticTest()
+    Private Sub StopPlcTestCoordinator()
         plcAutomaticModeActive = False
         If plcAutomaticCoordinator IsNot Nothing Then
             Try
@@ -2245,6 +2247,7 @@ exit_sub:
         Get
             If shutdownPrepared OrElse isRuning OrElse automaticTestPassInProgress Then Return False
             If plcAutomaticCoordinator Is Nothing Then Return True
+            If plcAutomaticCoordinator.IsCycleOccupied Then Return False
             If plcAutomaticCoordinator.State <> PlcAutomaticTestState.Idle AndAlso
                plcAutomaticCoordinator.State <> PlcAutomaticTestState.Fault Then Return False
             Return Not plcAutomaticModeActive OrElse plcAutomaticCoordinator.IsPausedAtCycleBoundary
@@ -2312,7 +2315,7 @@ exit_sub:
 
         Dim plcConnectedAfterApply As Boolean = plcConnected
         If restartAutomaticClients Then
-            StopPlcAutomaticTest()
+            StopPlcTestCoordinator()
             If Initsetting.PLCMode = 1 Then
                 plcConnectedAfterApply = (CheckPlc() = 1)
                 SetTestStatus("PLC TCP 已重新连接；自动ASCII测试流程需要切换到串口PLC模式。")
@@ -2321,11 +2324,10 @@ exit_sub:
                 plcConnectedAfterApply = plcAutomaticModeActive AndAlso plcAutomaticCoordinator IsNot Nothing
             End If
         ElseIf restartManualPlc Then
+            StopPlcTestCoordinator()
             If Initsetting.PLCMode = 1 Then
                 plcConnectedAfterApply = (CheckPlc() = 1)
             Else
-                If TypeOf plcAutomationClient Is IDisposable Then DirectCast(plcAutomationClient, IDisposable).Dispose()
-                plcAutomationClient = Nothing
                 StartManualPlcConnection()
                 plcConnectedAfterApply = plcAutomationClient IsNot Nothing AndAlso plcAutomationClient.IsOpen
             End If
@@ -2361,9 +2363,17 @@ exit_sub:
         plcConnected = False
         If TypeOf plcAutomationClient Is IDisposable Then DirectCast(plcAutomationClient, IDisposable).Dispose()
         plcAutomationClient = New PlcAutomationClient(Initsetting)
-        plcAutomationClient.Open()
+        trayScannerClient = Nothing
+        plcAutomaticCoordinator = New PlcAutomaticTestCoordinator(plcAutomationClient, Nothing, Me)
+        plcAutomaticModeActive = False
+        Try
+            plcAutomaticCoordinator.StartManual()
+        Catch
+            StopPlcTestCoordinator()
+            Throw
+        End Try
         plcConnected = plcAutomationClient.IsOpen
-        SetTestStatus("手动 PLC 串口已连接，等待托盘压合")
+        SetTestStatus("手动 PLC 串口已连接，输入托盘码并选择通道后可启动测试")
     End Sub
 
     Private Function BuildAutomaticPassResult(ByVal channels As IEnumerable(Of Integer)) As TestPassResult
@@ -2412,6 +2422,43 @@ exit_sub:
                              End Sub, True)
         Return enabled
     End Function
+
+    Public Function IsManualModeEnabled() As Boolean Implements IManualTestHost.IsManualModeEnabled
+        Dim enabled As Boolean = False
+        ExecuteAutomaticOnUi(Sub()
+                                 enabled = Not shutdownPrepared AndAlso Not initializationApplyInProgress AndAlso
+                                           chkManualTest IsNot Nothing AndAlso chkManualTest.Checked AndAlso
+                                           chkAutoTest IsNot Nothing AndAlso Not chkAutoTest.Checked AndAlso
+                                           Not plcAutomaticModeActive
+                             End Sub, True)
+        Return enabled
+    End Function
+
+    Public Sub EnsureManualTestReady() Implements IManualTestHost.EnsureManualTestReady
+        ExecuteAutomaticOnUi(Sub()
+                                 If Not IsManualModeEnabled() Then Throw New InvalidOperationException("主测试页当前不在手动模式。")
+                                 If Not AuthorizationService.IsAuthenticated() Then Throw New InvalidOperationException("请先登录后再启动手动测试。")
+                                 If alarmStatus Then Throw New InvalidOperationException("目前处于报警状态，请先复位报警。")
+                                 If isRuning OrElse automaticTestPassInProgress Then Throw New InvalidOperationException("当前已有测量任务正在运行。")
+                                 If Initsetting.PLCMode <> 0 Then Throw New InvalidOperationException("当前 PLC TCP 模式没有已定义的 R160 映射；手动周期需要 PLC ASCII 串口模式。")
+                                 If plcAutomationClient Is Nothing OrElse Not plcAutomationClient.IsOpen Then Throw New InvalidOperationException("手动 PLC ASCII 串口未连接。")
+                                 If CheckCom_SCM() <> 1 Then Throw New InvalidOperationException("中位机通信检查未通过。")
+                                 If CheckCom_3561(True) <> 1 Then Throw New InvalidOperationException("3561 仪表通信检查未通过。")
+                                 If CheckCom_34461() <> 0 Then Throw New InvalidOperationException("34461 仪表通信检查未通过。")
+                             End Sub, True)
+    End Sub
+
+    Public Sub PrepareManualTray(ByVal trayCodeValue As String,
+                                 ByVal channels As IReadOnlyList(Of Integer)) Implements IManualTestHost.PrepareManualTray
+        ExecuteAutomaticOnUi(Sub()
+                                 Dim normalizedTrayCode As String = If(trayCodeValue, String.Empty).Trim()
+                                 If String.Equals(normalizedTrayCode, lastTrayNo, StringComparison.Ordinal) Then
+                                     Dim repeatDecision As DialogResult = MessageBox.Show("托盘号与上次相同，是否继续执行程序？", "提示", MessageBoxButtons.OKCancel, MessageBoxIcon.Question)
+                                     If repeatDecision = DialogResult.Cancel Then Throw New OperationCanceledException("操作员取消了重复托盘测试。")
+                                 End If
+                                 PrepareTrayForTest(normalizedTrayCode, False, channels)
+                             End Sub, True)
+    End Sub
 
     Public Function CanStartAutomaticTest() As Boolean Implements IAutomaticTestHost.CanStartAutomaticTest
         Dim ready As Boolean = False
@@ -2475,6 +2522,32 @@ exit_sub:
         ExecuteAutomaticOnUi(Sub()
                                  PrepareTrayForTest(trayCodeValue, True)
                              End Sub, True)
+    End Sub
+
+    Public Sub StartManualInitialPass(ByVal trayCodeValue As String,
+                                      ByVal channels As IReadOnlyList(Of Integer),
+                                      ByVal canStart As Func(Of Boolean),
+                                      ByVal completed As Action(Of TestPassResult),
+                                      ByVal failed As Action(Of Exception)) Implements IManualTestHost.StartManualInitialPass
+        ExecuteAutomaticOnUi(Sub()
+                                 Try
+                                     If canStart Is Nothing OrElse Not canStart() Then Return
+                                     If activeTrayPlan Is Nothing Then Throw New InvalidOperationException("托盘准备未完成。")
+                                     Dim snapshot As List(Of Integer) = channels.ToList()
+                                     If Not activeTrayPlan.MeasurementChannels.SequenceEqual(snapshot) Then
+                                         Throw New InvalidOperationException("手动测试通道快照与托盘准备结果不一致。")
+                                     End If
+                                     If Not ValidateTrayCode(trayCodeValue) Then Throw New InvalidOperationException("当前测试周期托盘码无效。")
+                                     txtTray.Text = trayCodeValue.Trim()
+                                     lastTrayNo = trayCodeValue.Trim()
+                                     haveNgPoint = False
+                                     automaticTestPassInProgress = True
+                                     StarTest(1, True, completed, failed, channels, True, trayCodeValue)
+                                 Catch ex As Exception
+                                     automaticTestPassInProgress = False
+                                     If failed IsNot Nothing Then failed(ex)
+                                 End Try
+                             End Sub)
     End Sub
 
     Public Sub RequestManualTrayCode(ByVal accepted As Action(Of String), ByVal cancelled As Action) Implements IAutomaticTestHost.RequestManualTrayCode
@@ -2567,15 +2640,20 @@ exit_sub:
     Public Function PublishFinalCycle(ByVal cycle As AutomaticTestCycle) As Boolean Implements IAutomaticTestHost.PublishFinalCycle
         If cycle Is Nothing OrElse activeTrayPlan Is Nothing Then Return False
 
-        Dim resultChannels As List(Of Integer) = activeTrayPlan.OccupiedChannels.ToList()
+        Dim resultChannels As List(Of Integer) = If(cycle.IsManualCycle,
+                                                     cycle.MeasurementChannels.ToList(),
+                                                     activeTrayPlan.OccupiedChannels.ToList())
+        If resultChannels.Count = 0 OrElse Not resultChannels.SequenceEqual(activeTrayPlan.OccupiedChannels.OrderBy(Function(channel) channel)) Then
+            Throw New InvalidOperationException("最终结果通道与已准备的托盘通道不一致。")
+        End If
         Dim previousTestChannels As List(Of Integer) = currentTestChannels
         Dim ocvTestTaskId As Long? = Nothing
         Try
             '自动流程的初测和复测只产生内存中的最终结果；此处统一创建并完成唯一的最终 OCV_DATA 任务。
             currentTestChannels = resultChannels
-            ocvTestTaskId = CreateOcvDataTestTask(1)
+            ocvTestTaskId = CreateOcvDataTestTask(1, cycle.TrayCode)
             SaveOcvDataTestResults(ocvTestTaskId, 1)
-            SaveTestDataLocalFile(RecieveData)
+            SaveTestDataLocalFile(RecieveData, cycle.TrayCode)
             CompleteOcvDataTestTaskStrict(ocvTestTaskId.Value, "Completed", Nothing)
             BusinessLogService.Write("操作", "成功", "测试结果保存完成", cycle.TrayCode, "自动测试最终结果已保存到 OCV_DATA 和本地文件。", String.Format("OCV_DATA任务号={0}；通道数={1}；复测轮数={2}", ocvTestTaskId.Value, resultChannels.Count, cycle.CurrentRetestRound), "测试结果保存")
         Catch ex As Exception
@@ -2586,7 +2664,7 @@ exit_sub:
             currentTestChannels = previousTestChannels
         End Try
 
-        lastPublishedAutomaticTrayCode = cycle.TrayCode
+        If Not cycle.IsManualCycle Then lastPublishedAutomaticTrayCode = cycle.TrayCode
         If Not activeTrayDebugMode AndAlso FrmMesTask.chkResultDataUploadAssembly.Checked Then
             Try
                 Dim finalMes As New ResultDataUploadAssembly(FrmMesTask.listBoxOutput)
@@ -3222,9 +3300,7 @@ exit_sub:
         End If
 
         If isRuning OrElse automaticTestPassInProgress OrElse
-           (plcAutomaticCoordinator IsNot Nothing AndAlso
-            plcAutomaticCoordinator.State <> PlcAutomaticTestState.Idle AndAlso
-            plcAutomaticCoordinator.State <> PlcAutomaticTestState.Fault) Then
+           (plcAutomaticCoordinator IsNot Nothing AndAlso plcAutomaticCoordinator.IsCycleOccupied) Then
             SetTestMode(plcAutomaticModeActive)
             SetTestStatus("测试周期进行中，不能切换模式")
             Return
@@ -3245,10 +3321,10 @@ exit_sub:
             modeChangeInProgress = False
             UpdateTestModeVisuals()
             If _isLoaded AndAlso Not shutdownPrepared Then
+                StopPlcTestCoordinator()
                 If chkAutoTest.Checked Then
                     StartPlcAutomaticTest()
                 Else
-                    StopPlcAutomaticTest()
                     Try
                         StartManualPlcConnection()
                     Catch ex As Exception
@@ -3276,21 +3352,18 @@ exit_sub:
         If chkAutoTest Is Nothing OrElse chkManualTest Is Nothing Then Return
         UiTheme.ApplyToggleStateStyle(chkAutoTest, chkAutoTest.Checked)
         UiTheme.ApplyToggleStateStyle(chkManualTest, chkManualTest.Checked)
+        Dim cycleOccupied As Boolean = plcAutomaticCoordinator IsNot Nothing AndAlso plcAutomaticCoordinator.IsCycleOccupied
+        Dim cycleBusy As Boolean = isRuning OrElse automaticTestPassInProgress OrElse cycleOccupied
         If btnStop IsNot Nothing Then
-            Dim automaticFlowActive As Boolean = plcAutomaticModeActive AndAlso plcAutomaticCoordinator IsNot Nothing
-            btnStop.Enabled = (isRuning OrElse automaticFlowActive) AndAlso Not blstop AndAlso Not shutdownPrepared
+            btnStop.Enabled = cycleBusy AndAlso Not blstop AndAlso Not shutdownPrepared
         End If
         If chk_Test IsNot Nothing Then
-            Dim plcCycleRunning As Boolean = plcAutomaticCoordinator IsNot Nothing AndAlso
-                plcAutomaticCoordinator.State <> PlcAutomaticTestState.Idle AndAlso
-                plcAutomaticCoordinator.State <> PlcAutomaticTestState.Fault AndAlso
-                plcAutomaticCoordinator.State <> PlcAutomaticTestState.WaitingTrayPreparationRecovery
-            chk_Test.Enabled = Not isRuning AndAlso Not automaticTestPassInProgress AndAlso
-                Not plcCycleRunning AndAlso Not initializationApplyInProgress
+            chk_Test.Enabled = Not cycleBusy AndAlso Not initializationApplyInProgress
         End If
-        If CmdStart IsNot Nothing Then CmdStart.Enabled = chkManualTest.Checked AndAlso Not isRuning AndAlso Not initializationApplyInProgress
-        If btnGetBarcode IsNot Nothing Then btnGetBarcode.Enabled = chkManualTest.Checked AndAlso Not isRuning AndAlso Not initializationApplyInProgress
-        If txtTray IsNot Nothing Then txtTray.ReadOnly = chkAutoTest.Checked
+        If CmdStart IsNot Nothing Then CmdStart.Enabled = chkManualTest.Checked AndAlso Not cycleBusy AndAlso Not initializationApplyInProgress
+        If btnGetBarcode IsNot Nothing Then btnGetBarcode.Enabled = chkManualTest.Checked AndAlso Not cycleBusy AndAlso Not initializationApplyInProgress
+        If txtTray IsNot Nothing Then txtTray.ReadOnly = chkAutoTest.Checked OrElse cycleBusy
+        SetSelectionControlsEnabled(Not cycleBusy)
     End Sub
 
     Private Sub ConfigureStationControls()

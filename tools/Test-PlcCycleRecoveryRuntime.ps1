@@ -86,7 +86,7 @@ $plc.R151 = $true
 [void]$poll.Invoke($coordinator, @($null))
 if ($coordinator.State.ToString() -ne 'WaitingR161Ack') { throw "Expected pending R161; got $($coordinator.State)" }
 [void]$poll.Invoke($coordinator, @($null))
-if ($coordinator.State.ToString() -ne 'WaitingR152') { throw 'R161 retry did not complete before waiting for sorting.' }
+if ($coordinator.State.ToString() -ne 'Idle' -or -not $coordinator.IsCycleOccupied) { throw 'R161 retry did not release the tray while retaining its pending NG handoff.' }
 if ($fakeHost.PrepareCalls -ne 1 -or $fakeHost.InitialCalls -ne 1 -or $fakeHost.RetestCalls -ne 1 -or $fakeHost.PublishCalls -ne 1 -or $plc.CompletionWrites -ne 2) {
     throw 'The retry repeated tray preparation, measurement, retest, or publication.'
 }
@@ -109,16 +109,16 @@ if ($stillNgCoordinator.State.ToString() -ne 'WaitingR161Ack' -or
     throw 'An NG that remained NG after retest was sent before test-complete acknowledgement.'
 }
 [void]$poll.Invoke($stillNgCoordinator, @($null))
-if ($stillNgCoordinator.State.ToString() -ne 'WaitingR152' -or
+if ($stillNgCoordinator.State.ToString() -ne 'Idle' -or -not $stillNgCoordinator.IsCycleOccupied -or
     $stillNgPlc.GradeWrites.Count -ne 0 -or $stillNgPlc.CompletionWrites -ne 2) {
     throw 'R161 retry did not advance to the R152 sorting gate.'
 }
 $stillNgPlc.R152 = $true
 [void]$poll.Invoke($stillNgCoordinator, @($null))
 if ($stillNgCoordinator.State.ToString() -ne 'Idle' -or
-    $stillNgPlc.GradeWrites.Count -ne 1 -or $stillNgPlc.GradeWrites[0] -ne '1:2:1001' -or
+    $stillNgPlc.GradeWrites.Count -ne 1 -or $stillNgPlc.GradeWrites[0] -ne '1:2:01001' -or
     $stillNgPlc.SortingCompletionWrites -ne 1) {
-    throw 'The final NG after retest did not write grade 2 and finish with R162.'
+    throw "The final NG after retest did not write grade 2 and finish with R162. State=$($stillNgCoordinator.State); Grades=$($stillNgPlc.GradeWrites -join ','); R162=$($stillNgPlc.SortingCompletionWrites); R161=$($stillNgPlc.CompletionWrites)."
 }
 $invalidScanner = [FakeScanner]::new()
 $invalidScanner.Code = ''

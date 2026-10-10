@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>software</RootNamespace>
+    <StartupObject>software.Program</StartupObject>
+    <OptionStrict>On</OptionStrict>
+    <OptionExplicit>On</OptionExplicit>
+    <OptionInfer>On</OptionInfer>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\..\PlcAutomaticTestCoordinator.vb" Link="PlcAutomaticTestCoordinator.vb" />
+    <Compile Include="..\..\PlcAutomaticTestState.vb" Link="PlcAutomaticTestState.vb" />
+  </ItemGroup>
+</Project>

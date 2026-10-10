@@ -20,6 +20,17 @@ Public Interface IAutomaticTestHost
     Sub ReportAutomaticEvent(ByVal message As String)
 End Interface
 
+Public Interface IManualTestHost
+    Function IsManualModeEnabled() As Boolean
+    Sub EnsureManualTestReady()
+    Sub PrepareManualTray(ByVal trayCode As String, ByVal channels As IReadOnlyList(Of Integer))
+    Sub StartManualInitialPass(ByVal trayCode As String,
+                               ByVal channels As IReadOnlyList(Of Integer),
+                               ByVal canStart As Func(Of Boolean),
+                               ByVal completed As Action(Of TestPassResult),
+                               ByVal failed As Action(Of Exception))
+End Interface
+
 Public Class PlcAutomaticTestCoordinator
     Implements IDisposable
 
@@ -29,6 +40,8 @@ Public Class PlcAutomaticTestCoordinator
     Private ReadOnly stateLock As New Object()
     Private ReadOnly lastReportedRegisterValues As New Dictionary(Of String, Boolean)(StringComparer.Ordinal)
     Private ReadOnly cycle As New AutomaticTestCycle()
+    Private manualPolling As Boolean
+    Private manualCycleRequestInProgress As Boolean
     'OCV0 has one completed-result handoff in flight while the next tray may be scanned.
     Private pendingNgSelection As PendingNgSelection
     'Accept a high input once. PLC low re-arms the next request; the first
@@ -66,7 +79,6 @@ Public Class PlcAutomaticTestCoordinator
                    ByVal scannerClient As ITrayScannerClient,
                    ByVal testHost As IAutomaticTestHost)
         If plcClient Is Nothing Then Throw New ArgumentNullException(NameOf(plcClient))
-        If scannerClient Is Nothing Then Throw New ArgumentNullException(NameOf(scannerClient))
         If testHost Is Nothing Then Throw New ArgumentNullException(NameOf(testHost))
         plc = plcClient
         scanner = scannerClient
@@ -77,6 +89,14 @@ Public Class PlcAutomaticTestCoordinator
         Get
             SyncLock stateLock
                 Return currentState
+            End SyncLock
+        End Get
+    End Property
+
+    Public ReadOnly Property IsCycleOccupied As Boolean
+        Get
+            SyncLock stateLock
+                Return IsCycleOccupiedLocked()
             End SyncLock
         End Get
     End Property
@@ -109,6 +129,8 @@ Public Class PlcAutomaticTestCoordinator
         SyncLock stateLock
             If stopped Then Throw New ObjectDisposedException(NameOf(PlcAutomaticTestCoordinator))
             If pollTimer IsNot Nothing Then Return
+            If scanner Is Nothing Then Throw New InvalidOperationException("自动测试需要扫码器客户端。")
+            manualPolling = False
             plc.Open()
             scanner.Open()
             pollTimer = New Timer(AddressOf Poll, Nothing, 1000, 1000)
@@ -117,9 +139,22 @@ Public Class PlcAutomaticTestCoordinator
         ReportAutomaticEventSafely("自动流程启动")
     End Sub
 
+    Public Sub StartManual()
+        SyncLock stateLock
+            If stopped Then Throw New ObjectDisposedException(NameOf(PlcAutomaticTestCoordinator))
+            If pollTimer IsNot Nothing Then Return
+            manualPolling = True
+            plc.Open()
+            pollTimer = New Timer(AddressOf Poll, Nothing, 1000, 1000)
+        End SyncLock
+        host.ReportAutomaticStatus("手动测试 PLC 周期已就绪，等待操作员启动")
+    End Sub
+
     Public Sub [Stop]()
         SyncLock stateLock
             stopped = True
+            manualPolling = False
+            manualCycleRequestInProgress = False
             boundaryPauseCallback = Nothing
             Interlocked.Exchange(pauseAtBoundaryState, 0)
             If pollTimer IsNot Nothing Then
@@ -129,16 +164,89 @@ Public Class PlcAutomaticTestCoordinator
             currentState = PlcAutomaticTestState.Fault
         End SyncLock
         Try
-            scanner.Close()
+            If scanner IsNot Nothing Then scanner.Close()
         Finally
             plc.Close()
         End Try
     End Sub
 
+    Public Function RequestManualCycle(ByVal trayCode As String,
+                                       ByVal selectedChannels As IEnumerable(Of Integer)) As Boolean
+        Dim manualHost As IManualTestHost = TryCast(host, IManualTestHost)
+        If manualHost Is Nothing Then Throw New InvalidOperationException("当前测试宿主不支持手动 PLC 测试周期。")
+        If Not manualPolling OrElse Not manualHost.IsManualModeEnabled() Then
+            Throw New InvalidOperationException("请先切换到主测试页手动模式。")
+        End If
+
+        Dim normalizedTrayCode As String = If(trayCode, String.Empty).Trim()
+        If Not host.ValidateTrayCode(normalizedTrayCode) Then
+            Throw New InvalidOperationException("托盘码为空或长度不符合设置。")
+        End If
+
+        Dim requestedChannels As List(Of Integer) = If(selectedChannels, Enumerable.Empty(Of Integer)()).ToList()
+        If requestedChannels.Count = 0 Then Throw New InvalidOperationException("请先选择至少一个待测试通道。")
+        If requestedChannels.Any(Function(channel) channel < 1 OrElse channel > 256) Then
+            Throw New InvalidOperationException("所选通道超出有效范围 1–256。")
+        End If
+        If requestedChannels.Distinct().Count() <> requestedChannels.Count Then
+            Throw New InvalidOperationException("所选通道包含重复通道。")
+        End If
+        Dim channelSnapshot As IReadOnlyList(Of Integer) = Array.AsReadOnly(requestedChannels.OrderBy(Function(channel) channel).ToArray())
+
+        Dim manualGeneration As Integer
+        SyncLock stateLock
+            If stopped Then Throw New ObjectDisposedException(NameOf(PlcAutomaticTestCoordinator))
+            If manualCycleRequestInProgress OrElse IsCycleOccupiedLocked() OrElse currentState <> PlcAutomaticTestState.Idle Then Return False
+            manualCycleRequestInProgress = True
+            manualGeneration = requestGeneration
+        End SyncLock
+
+        Try
+            manualHost.EnsureManualTestReady()
+            host.SetTrayCode(normalizedTrayCode)
+            manualHost.PrepareManualTray(normalizedTrayCode, channelSnapshot)
+
+            SyncLock stateLock
+                If stopped OrElse requestGeneration <> manualGeneration Then
+                    manualCycleRequestInProgress = False
+                    Return False
+                End If
+                cycle.TrayCode = normalizedTrayCode
+                cycle.IsManualCycle = True
+                cycle.MeasurementChannels = channelSnapshot
+                trayConfirmationPending = True
+                trayPreparationRecoveryCode = String.Empty
+                trayPreparationRetryPending = False
+                manualCycleRequestInProgress = False
+            End SyncLock
+            MoveTo(PlcAutomaticTestState.PreparingTest, "手动托盘准备完成，等待 R160 确认")
+            ReportAutomaticEventSafely("手动测试启动请求已接受，托盘码和通道集合已冻结")
+            Return True
+        Catch
+            SyncLock stateLock
+                manualCycleRequestInProgress = False
+                If String.IsNullOrWhiteSpace(cycle.TrayCode) AndAlso Not stopped Then currentState = PlcAutomaticTestState.Idle
+            End SyncLock
+            Throw
+        End Try
+    End Function
+
+    Private Function IsCycleOccupiedLocked() As Boolean
+        Return manualCycleRequestInProgress OrElse
+               trayRequestPending OrElse testRequestPending OrElse sortingRequestPending OrElse
+               trayPreparationInProgress OrElse trayConfirmationPending OrElse r160WriteInProgress OrElse
+               r161WriteInProgress OrElse Not String.IsNullOrWhiteSpace(cycle.TrayCode) OrElse
+               cycle.TestStarted OrElse cycle.FinalResultPublished OrElse pendingNgSelection IsNot Nothing
+    End Function
+
     Private Sub Poll(ByVal state As Object)
         If Interlocked.Exchange(pollBusy, 1) = 1 Then Return
         Try
-            If stopped OrElse Not host.IsAutomaticModeEnabled() Then Return
+            If stopped Then Return
+            Dim automaticModeEnabled As Boolean = host.IsAutomaticModeEnabled()
+            Dim manualHost As IManualTestHost = TryCast(host, IManualTestHost)
+            Dim manualModeEnabled As Boolean = manualPolling AndAlso manualHost IsNot Nothing AndAlso manualHost.IsManualModeEnabled()
+            If Not automaticModeEnabled AndAlso Not manualModeEnabled Then Return
             If Volatile.Read(pauseAtBoundaryState) = 2 Then Return
             If Volatile.Read(pauseAtBoundaryState) = 1 AndAlso IsAtSafeCycleBoundary() Then Return
             Dim pollGeneration As Integer
@@ -148,11 +256,13 @@ Public Class PlcAutomaticTestCoordinator
             Dim r150ReadSucceeded As Boolean
             Dim r151ReadSucceeded As Boolean
             Dim r152ReadSucceeded As Boolean
-            Dim r150High As Boolean = ReadRegisterSignal("R150", AddressOf plc.ReadR150, r150ReadSucceeded)
+            Dim r150High As Boolean
+            If automaticModeEnabled Then r150High = ReadRegisterSignal("R150", AddressOf plc.ReadR150, r150ReadSucceeded)
             Dim r151High As Boolean = ReadRegisterSignal("R151", AddressOf plc.ReadR151, r151ReadSucceeded)
             Dim r152High As Boolean = ReadRegisterSignal("R152", AddressOf plc.ReadR152, r152ReadSucceeded)
             Dim r150Accepted As Boolean
             Dim r151Accepted As Boolean
+            Dim r151Ignored As Boolean
             Dim r152Accepted As Boolean
             Dim trayPreparationRecoveryReleased As Boolean
 
@@ -160,6 +270,8 @@ Public Class PlcAutomaticTestCoordinator
             SyncLock stateLock
                 pollRequestsAccepted = (pollGeneration = requestGeneration)
                 If pollRequestsAccepted Then
+                    Dim canAcceptR151 As Boolean = automaticModeEnabled OrElse
+                                                   (manualModeEnabled AndAlso cycle.IsManualCycle AndAlso cycle.TrayConfirmed)
                     If r150ReadSucceeded AndAlso Not r150High Then
                         r150RequestConsumed = False
                         If currentState = PlcAutomaticTestState.WaitingTrayPreparationRecovery Then
@@ -180,8 +292,12 @@ Public Class PlcAutomaticTestCoordinator
                     End If
                     If r151ReadSucceeded AndAlso r151High AndAlso Not r151RequestConsumed Then
                         r151RequestConsumed = True
-                        testRequestPending = True
-                        r151Accepted = True
+                        If canAcceptR151 Then
+                            testRequestPending = True
+                            r151Accepted = True
+                        ElseIf manualModeEnabled Then
+                            r151Ignored = True
+                        End If
                     End If
                     If r152ReadSucceeded AndAlso r152High AndAlso Not r152RequestConsumed Then
                         r152RequestConsumed = True
@@ -197,6 +313,7 @@ Public Class PlcAutomaticTestCoordinator
             If pollRequestsAccepted Then
                 If r150Accepted Then ReportAutomaticEventSafely("检测到R150=1，托盘扫码请求已记录")
                 If r151Accepted Then ReportAutomaticEventSafely("检测到R151=1，测试请求已记录")
+                If r151Ignored Then ReportAutomaticEventSafely("手动测试的R160尚未确认，忽略本次R151请求；请在R160确认后重新触发R151")
                 If r152Accepted Then ReportAutomaticEventSafely("检测到R152=1，NG分选请求已记录")
             End If
             If trayPreparationRecoveryReleased Then
@@ -325,8 +442,10 @@ Public Class PlcAutomaticTestCoordinator
 
         Dim startTest As Boolean
         Dim waitForTrayConfirmation As Boolean
+        Dim manualCycle As Boolean
         SyncLock stateLock
             startTest = testRequestPending AndAlso Not cycle.TestStarted AndAlso cycle.TrayConfirmed
+            manualCycle = cycle.IsManualCycle
             waitForTrayConfirmation = testRequestPending AndAlso Not cycle.TrayConfirmed AndAlso
                                       Not testTrayConfirmationWaitingReported
             If waitForTrayConfirmation Then testTrayConfirmationWaitingReported = True
@@ -336,9 +455,18 @@ Public Class PlcAutomaticTestCoordinator
         End If
         If startTest Then
             Dim prerequisitesReady As Boolean = False
+            Dim prerequisiteFailure As String = String.Empty
             Try
-                prerequisitesReady = host.CanStartAutomaticTest()
+                If manualCycle Then
+                    Dim manualHost As IManualTestHost = TryCast(host, IManualTestHost)
+                    If manualHost Is Nothing Then Throw New InvalidOperationException("手动测试宿主不可用。")
+                    manualHost.EnsureManualTestReady()
+                    prerequisitesReady = True
+                Else
+                    prerequisitesReady = host.CanStartAutomaticTest()
+                End If
             Catch ex As Exception
+                prerequisiteFailure = ex.Message
                 Debug.WriteLine("PLC automatic test prerequisite check failed: " & ex.Message)
             End Try
 
@@ -362,7 +490,10 @@ Public Class PlcAutomaticTestCoordinator
                 End If
             ElseIf Not testPrerequisiteWaitingReported Then
                 testPrerequisiteWaitingReported = True
-                ReportAutomaticEventSafely("R151测试请求已暂存，等待测试前置条件满足")
+                Dim waitingMessage As String = "R151测试请求已暂存，等待测试前置条件满足"
+                If manualCycle AndAlso prerequisiteFailure.Length > 0 Then waitingMessage &= "：" & prerequisiteFailure
+                ReportAutomaticEventSafely(waitingMessage)
+                If manualCycle AndAlso prerequisiteFailure.Length > 0 Then host.ReportAutomaticStatus(waitingMessage)
             End If
         End If
 
@@ -426,6 +557,7 @@ Public Class PlcAutomaticTestCoordinator
         SyncLock stateLock
             If stopped Then Return
             requestGeneration += 1
+            manualCycleRequestInProgress = False
             cancelledTrayRequest = trayRequestPending OrElse trayPreparationInProgress OrElse manualTrayCodePending
             trayRequestPending = False
             testRequestPending = False
@@ -650,10 +782,26 @@ Public Class PlcAutomaticTestCoordinator
     End Sub
 
     Private Sub BeginInitialTest()
+        Dim isManualCycle As Boolean
+        Dim measurementChannels As IReadOnlyList(Of Integer)
+        Dim trayCodeSnapshot As String
+        Dim initialGeneration As Integer
         SyncLock stateLock
-            cycle.NeedNgRetest = host.GetNeedNgRetest()
-            cycle.RequiresNgSorting = host.RequiresNgSorting()
-            cycle.MaxRetestRounds = Math.Max(0, host.GetRetestRoundCount())
+            If stopped OrElse Not cycle.TestStarted OrElse Not cycle.TrayConfirmed OrElse String.IsNullOrWhiteSpace(cycle.TrayCode) Then Return
+            isManualCycle = cycle.IsManualCycle
+            measurementChannels = cycle.MeasurementChannels
+            trayCodeSnapshot = cycle.TrayCode
+            initialGeneration = requestGeneration
+        End SyncLock
+
+        Dim needNgRetest As Boolean = host.GetNeedNgRetest()
+        Dim requiresNgSorting As Boolean = host.RequiresNgSorting()
+        Dim maxRetestRounds As Integer = Math.Max(0, host.GetRetestRoundCount())
+        SyncLock stateLock
+            If Not IsCurrentTestCycleLocked(initialGeneration, trayCodeSnapshot, isManualCycle, measurementChannels) Then Return
+            cycle.NeedNgRetest = needNgRetest
+            cycle.RequiresNgSorting = requiresNgSorting
+            cycle.MaxRetestRounds = maxRetestRounds
             cycle.CurrentRetestRound = 0
             cycle.CurrentNgChannels.Clear()
             cycle.NgGradesWrittenChannels.Clear()
@@ -662,11 +810,70 @@ Public Class PlcAutomaticTestCoordinator
             cycle.R161Written = False
         End SyncLock
 
-        MoveTo(PlcAutomaticTestState.PreparingTest, "R151已到位，开始测试准备")
-        ReportAutomaticEventSafely("收到R151=1，开始256通道初次测试")
-        MoveTo(PlcAutomaticTestState.InitialTesting, "开始256通道初次测试")
-        host.StartInitialPass(AddressOf InitialPassCompleted, AddressOf TestPassFailed)
+        If isManualCycle Then
+            If Not TryMoveToCurrentManualCycle(initialGeneration, trayCodeSnapshot, measurementChannels,
+                                               PlcAutomaticTestState.PreparingTest, "R151已到位，开始测试准备") Then Return
+        Else
+            MoveTo(PlcAutomaticTestState.PreparingTest, "R151已到位，开始测试准备")
+        End If
+        Dim initialPassDescription As String = If(isManualCycle, "手选通道初次测试", "256通道初次测试")
+        ReportAutomaticEventSafely(If(isManualCycle, "收到R151=1，开始手动通道初次测试", "收到R151=1，开始256通道初次测试"))
+        If isManualCycle Then
+            If Not TryMoveToCurrentManualCycle(initialGeneration, trayCodeSnapshot, measurementChannels,
+                                               PlcAutomaticTestState.InitialTesting, "开始" & initialPassDescription) Then Return
+        Else
+            MoveTo(PlcAutomaticTestState.InitialTesting, "开始" & initialPassDescription)
+        End If
+        If isManualCycle Then
+            Dim manualHost As IManualTestHost = TryCast(host, IManualTestHost)
+            If manualHost Is Nothing Then Throw New InvalidOperationException("手动测试宿主不可用。")
+            Dim canStart As Func(Of Boolean) = Function() IsCurrentTestCycle(initialGeneration, trayCodeSnapshot, True, measurementChannels)
+            Dim completed As Action(Of TestPassResult) =
+                Sub(result)
+                    If IsCurrentTestCycle(initialGeneration, trayCodeSnapshot, True, measurementChannels) Then InitialPassCompleted(result)
+                End Sub
+            Dim failed As Action(Of Exception) =
+                Sub(ex)
+                    If IsCurrentTestCycle(initialGeneration, trayCodeSnapshot, True, measurementChannels) Then TestPassFailed(ex)
+                End Sub
+            manualHost.StartManualInitialPass(trayCodeSnapshot, measurementChannels, canStart, completed, failed)
+        Else
+            host.StartInitialPass(AddressOf InitialPassCompleted, AddressOf TestPassFailed)
+        End If
     End Sub
+
+    Private Function TryMoveToCurrentManualCycle(ByVal expectedGeneration As Integer,
+                                                 ByVal expectedTrayCode As String,
+                                                 ByVal expectedChannels As IReadOnlyList(Of Integer),
+                                                 ByVal nextState As PlcAutomaticTestState,
+                                                 ByVal message As String) As Boolean
+        SyncLock stateLock
+            If Not IsCurrentTestCycleLocked(expectedGeneration, expectedTrayCode, True, expectedChannels) Then Return False
+            currentState = nextState
+        End SyncLock
+        host.ReportAutomaticStatus(message)
+        Return True
+    End Function
+
+    Private Function IsCurrentTestCycle(ByVal expectedGeneration As Integer,
+                                        ByVal expectedTrayCode As String,
+                                        ByVal expectedManualCycle As Boolean,
+                                        ByVal expectedChannels As IReadOnlyList(Of Integer)) As Boolean
+        SyncLock stateLock
+            Return IsCurrentTestCycleLocked(expectedGeneration, expectedTrayCode, expectedManualCycle, expectedChannels)
+        End SyncLock
+    End Function
+
+    Private Function IsCurrentTestCycleLocked(ByVal expectedGeneration As Integer,
+                                              ByVal expectedTrayCode As String,
+                                              ByVal expectedManualCycle As Boolean,
+                                              ByVal expectedChannels As IReadOnlyList(Of Integer)) As Boolean
+        Return Not stopped AndAlso requestGeneration = expectedGeneration AndAlso
+               cycle.TestStarted AndAlso cycle.TrayConfirmed AndAlso
+               cycle.IsManualCycle = expectedManualCycle AndAlso
+               String.Equals(cycle.TrayCode, expectedTrayCode, StringComparison.Ordinal) AndAlso
+               expectedChannels IsNot Nothing AndAlso cycle.MeasurementChannels.SequenceEqual(expectedChannels)
+    End Function
 
     Private Sub InitialPassCompleted(ByVal result As TestPassResult)
         If result Is Nothing OrElse Not result.Completed Then
