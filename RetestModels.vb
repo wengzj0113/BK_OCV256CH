@@ -1,6 +1,7 @@
 Imports System
 
 Public Class NgRetestSource
+    Public Property SourceTestResultId As Long
     Public Property BatteryCode As String
     Public Property TrayCode As String
     Public Property ChannelNo As Integer
@@ -21,6 +22,7 @@ End Class
 Public Class NgRetestSaveRequest
     Public Property Source As NgRetestSource
     Public Property Measurement As RetestMeasurement
+    Public Property RetestOperationId As Guid
     Public Property OverwriteOriginal As Boolean
     Public Property OperatorName As String
     Public Property MeterPort As String

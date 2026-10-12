@@ -276,6 +276,45 @@ BEGIN
 END
 GO
 
+IF OBJECT_ID(N'dbo.OCV_RETEST_DATA', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.OCV_RETEST_DATA
+    (
+        Id bigint IDENTITY(1,1) NOT NULL CONSTRAINT PK_OCV_RETEST_DATA PRIMARY KEY,
+        BatteryCode nvarchar(100) NOT NULL,
+        TrayCode nvarchar(100) NULL,
+        ChannelNo smallint NULL,
+        TrayPosition nvarchar(20) NULL,
+        SourceTestResultId bigint NULL,
+        OriginalVoltage real NOT NULL,
+        OriginalResistance real NOT NULL,
+        OriginalResult nvarchar(10) NOT NULL,
+        RetestVoltage real NOT NULL,
+        RetestResistance real NOT NULL,
+        RetestResult nvarchar(10) NOT NULL,
+        RetestTime datetime2(7) NOT NULL,
+        OverwriteOriginal bit NOT NULL,
+        RetestOperationId uniqueidentifier NULL,
+        OperatorName nvarchar(100) NULL,
+        MeterPort nvarchar(20) NULL
+    );
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_OCV_RETEST_DATA_BatteryCode_Time' AND object_id = OBJECT_ID(N'dbo.OCV_RETEST_DATA'))
+BEGIN
+    CREATE INDEX IX_OCV_RETEST_DATA_BatteryCode_Time ON dbo.OCV_RETEST_DATA(BatteryCode, RetestTime DESC);
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'UX_OCV_RETEST_DATA_RetestOperationId' AND object_id = OBJECT_ID(N'dbo.OCV_RETEST_DATA'))
+BEGIN
+    CREATE UNIQUE INDEX UX_OCV_RETEST_DATA_RetestOperationId
+        ON dbo.OCV_RETEST_DATA(RetestOperationId)
+        WHERE RetestOperationId IS NOT NULL;
+END
+GO
+
 IF OBJECT_ID(N'dbo.RetestTask', N'U') IS NULL
 BEGIN
     CREATE TABLE dbo.RetestTask

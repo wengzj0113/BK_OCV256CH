@@ -14,8 +14,8 @@
 ## 业务部署运行顺序(必须按顺序执行)
 
 1. `000_init_database.sql` — 创建 OCV_DATA 数据库,设置兼容级别(150 = SQL Server 2019)、恢复模式(SIMPLE)、启用 Query Store。需要 sysadmin 权限。幂等,已存在则跳过 CREATE DATABASE。
-2. `001_create_ocv_data_schema.sql` — 创建所有表、索引、约束、视图、用户定义表类型(17 张表 + 1 视图 + 2 UDDT)、种子数据(OcvStage / GradeSelectableField)。幂等,缺失对象才创建。
-3. `002_create_core_procedures.sql` — 创建所有存储过程(`usp_RegisterTray` / `usp_CreateTestTask` / `usp_SaveTestResults` / `usp_CompleteTestTask` / `usp_GetActiveCalibrationValues` / `usp_SaveChannelCalibration` / `usp_EnqueueUpload` / `usp_GetPendingUploads` / `usp_MarkUploadSent` / `usp_MarkUploadFailed` / `usp_SaveMesUploadLog` / `usp_GetTrayListByDate` / `usp_GetTrayLatestStageResults` / `usp_GetNgRetestSourceByBatteryCode` / `usp_CheckDatabaseHealth` / `usp_GetSchemaVersion` 等)。幂等,使用 `CREATE OR ALTER`。
+2. `001_create_ocv_data_schema.sql` — 创建所有表、索引、约束、视图、用户定义表类型(18 张表 + 1 视图 + 2 UDDT)、种子数据(OcvStage / GradeSelectableField)。幂等,缺失对象才创建。
+3. `002_create_core_procedures.sql` — 创建所有存储过程(`usp_RegisterTray` / `usp_CreateTestTask` / `usp_SaveTestResults` / `usp_CompleteTestTask` / `usp_GetActiveCalibrationValues` / `usp_SaveChannelCalibration` / `usp_EnqueueUpload` / `usp_GetPendingUploads` / `usp_MarkUploadSent` / `usp_MarkUploadFailed` / `usp_SaveMesUploadLog` / `usp_GetTrayListByDate` / `usp_GetTrayLatestStageResults` / `usp_GetNgRetestSourceByBatteryCode` / `usp_SaveNgRetest` / `usp_CheckDatabaseHealth` / `usp_GetSchemaVersion` 等)。幂等,使用 `CREATE OR ALTER`。
 
 ## 业务数据迁移(R2-15,旧 CWSQL → 新 OCV_DATA)
 
@@ -33,6 +33,7 @@
 - `011_seed_ocv_data_sqlserver2008r2_baseline.sql` — 在 `OCV_DATA_SQLServer2008R2.sql` 成功创建表和存储过程后运行。该兼容脚本补齐导出文件不包含的 OCV0/OCV1/OCV2 阶段、等级字段及 001/002 版本记录，并在末尾执行数据库健康检查。可重复运行。
 - `012_debug_mode_result_queries_sqlserver2008r2.sql` — 在已部署的 SQL Server 2008 R2 `OCV_DATA` 上安装调试/生产结果隔离查询和 NG 来源过滤。该脚本只重建两个存储过程，不改表和业务数据；将调试模式应用版本部署到已有 2008 R2 数据库前必须运行。全新部署仍使用根目录完整安装脚本，该脚本也包含相同过程定义。
 - `013_seed_demo_trays.sql` — 在已部署 `OCV_DATA` 表结构及 `dbo.usp_SaveTrayCells` 后运行，写入 `TP001`（`BAT01001`–`BAT01256`）和 `TP002`（`BAT02001`–`BAT02256`）各 256 个通道映射。重复运行会更新这两个托盘的映射；脚本末尾会查询并显示结果。
+- `014_ng_retest_source_identity.sql` — 在既有 `OCV_DATA` 上部署并列 NG 复测版本前运行；SQL Server 2008 R2 及更高版本可用。脚本幂等补齐 `OCV_RETEST_DATA` 的来源/操作 ID、唯一操作索引以及 NG 来源查询和保存过程。新装库通过 001/002（现代 SQL Server）或根目录完整安装脚本（SQL Server 2008 R2）得到相同定义。
 
 ## 调试模式查询部署
 

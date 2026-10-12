@@ -18,8 +18,9 @@ Public Class NgRetestDataService
                 command.CommandTimeout = 10
                 command.Parameters.Add("@BatteryCode", SqlDbType.NVarChar, 100).Value = batteryCode.Trim()
                 Using reader As SqlDataReader = command.ExecuteReader()
-                    If Not reader.Read() Then Throw New InvalidOperationException("未找到该电池的NG历史记录。")
+                    If Not reader.Read() Then Return Nothing
                     Dim source As New NgRetestSource() With {
+                        .SourceTestResultId = Convert.ToInt64(reader("TestResultId")),
                         .BatteryCode = ReadString(reader, "BatteryCode"),
                         .TrayCode = ReadString(reader, "TrayCode"),
                         .ChannelNo = ReadInt(reader, "ChannelNo"),
@@ -43,6 +44,9 @@ Public Class NgRetestDataService
         If request Is Nothing OrElse request.Source Is Nothing OrElse request.Measurement Is Nothing Then
             Throw New ArgumentNullException(NameOf(request))
         End If
+        If request.RetestOperationId = Guid.Empty Then
+            Throw New ArgumentException("复测保存请求缺少操作 ID。", NameOf(request))
+        End If
 
         Using connection As New SqlConnection(connectionString)
             connection.Open()
@@ -63,6 +67,8 @@ Public Class NgRetestDataService
                 command.Parameters.Add("@OverwriteOriginal", SqlDbType.Bit).Value = request.OverwriteOriginal
                 command.Parameters.Add("@OperatorName", SqlDbType.NVarChar, 100).Value = If(request.OperatorName, String.Empty)
                 command.Parameters.Add("@MeterPort", SqlDbType.NVarChar, 20).Value = If(request.MeterPort, String.Empty)
+                command.Parameters.Add("@SourceTestResultId", SqlDbType.BigInt).Value = request.Source.SourceTestResultId
+                command.Parameters.Add("@RetestOperationId", SqlDbType.UniqueIdentifier).Value = request.RetestOperationId
                 command.ExecuteNonQuery()
             End Using
         End Using

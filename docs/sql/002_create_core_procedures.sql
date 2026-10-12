@@ -460,20 +460,122 @@ BEGIN
     SET NOCOUNT ON;
 
     SELECT TOP (1)
-        BatteryCode,
-        TrayCode,
-        ChannelNo,
-        VoltageVolt AS OriginalVoltage,
-        FinalResistanceMilliohm AS OriginalResistance,
-        CASE WHEN IsNg = 1 THEN N'NG' ELSE N'OK' END AS OriginalResult,
-        ResultCreatedAt AS OriginalTestTime,
-        (CONVERT(nvarchar(10), COALESCE(RowNo, ((ChannelNo - 1) / 16) + 1)) + N'-' +
-         CONVERT(nvarchar(10), COALESCE(ColNo, ((ChannelNo - 1) % 16) + 1))) AS TrayPosition
-    FROM dbo.vw_CellTestSummary
-    WHERE BatteryCode = @BatteryCode
-      AND IsNg = 1
-      AND TestType <> N'Debug'
-    ORDER BY ResultCreatedAt DESC;
+        tr.TestResultId,
+        COALESCE(tr.BatteryCode, tc.BatteryCode) AS BatteryCode,
+        t.TrayCode,
+        tr.ChannelNo,
+        tr.VoltageVolt AS OriginalVoltage,
+        tr.FinalResistanceMilliohm AS OriginalResistance,
+        CASE WHEN tr.IsNg = 1 THEN N'NG' ELSE N'OK' END AS OriginalResult,
+        tr.CreatedAt AS OriginalTestTime,
+        CONVERT(nvarchar(10), COALESCE(tc.RowNo, ((tr.ChannelNo - 1) / 16) + 1)) + N'-' +
+            CONVERT(nvarchar(10), COALESCE(tc.ColNo, ((tr.ChannelNo - 1) % 16) + 1)) AS TrayPosition
+    FROM dbo.TestResult tr
+    INNER JOIN dbo.TestTask tt ON tt.TestTaskId = tr.TestTaskId
+    INNER JOIN dbo.Tray t ON t.TrayId = tr.TrayId
+    LEFT JOIN dbo.TrayCell tc
+        ON tc.TrayId = tr.TrayId
+       AND tc.ChannelNo = tr.ChannelNo
+       AND tc.IsActive = 1
+    WHERE COALESCE(tr.BatteryCode, tc.BatteryCode) = @BatteryCode
+      AND tr.IsNg = 1
+      AND tt.TestType <> N'Debug'
+    ORDER BY tr.CreatedAt DESC, tr.TestResultId DESC;
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.usp_SaveNgRetest
+    @BatteryCode nvarchar(100),
+    @TrayCode nvarchar(100),
+    @ChannelNo smallint,
+    @TrayPosition nvarchar(20),
+    @OriginalVoltage real,
+    @OriginalResistance real,
+    @OriginalResult nvarchar(10),
+    @RetestVoltage real,
+    @RetestResistance real,
+    @RetestResult nvarchar(10),
+    @RetestTime datetime2,
+    @OverwriteOriginal bit,
+    @OperatorName nvarchar(100),
+    @MeterPort nvarchar(20),
+    @SourceTestResultId bigint = NULL,
+    @RetestOperationId uniqueidentifier = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        IF @RetestOperationId IS NOT NULL AND EXISTS
+        (
+            SELECT 1
+            FROM dbo.OCV_RETEST_DATA WITH (UPDLOCK, HOLDLOCK)
+            WHERE RetestOperationId = @RetestOperationId
+        )
+        BEGIN
+            COMMIT TRANSACTION;
+            RETURN;
+        END
+
+        IF @OverwriteOriginal = 1
+        BEGIN
+            IF @SourceTestResultId IS NULL
+                RAISERROR(N'SourceTestResultId is required when overwriting the original result.', 16, 1);
+
+            UPDATE tr
+            SET VoltageVolt = @RetestVoltage,
+                RawResistanceMilliohm = @RetestResistance,
+                FinalResistanceMilliohm = @RetestResistance,
+                IsNg = CASE WHEN @RetestResult = N'NG' THEN 1 ELSE 0 END,
+                UpdatedAt = sysdatetime(),
+                ResultSource = N'NgRetest'
+            FROM dbo.TestResult tr
+            INNER JOIN dbo.Tray t ON t.TrayId = tr.TrayId
+            LEFT JOIN dbo.TrayCell tc
+                ON tc.TrayId = tr.TrayId
+               AND tc.ChannelNo = tr.ChannelNo
+               AND tc.IsActive = 1
+            WHERE tr.TestResultId = @SourceTestResultId
+              AND tr.IsNg = 1
+              AND COALESCE(tr.BatteryCode, tc.BatteryCode) = @BatteryCode
+              AND t.TrayCode = @TrayCode
+              AND tr.ChannelNo = @ChannelNo;
+
+            IF @@ROWCOUNT <> 1
+                RAISERROR(N'The queried NG source result changed or no longer matches the barcode, tray, and channel.', 16, 1);
+        END
+
+        INSERT dbo.OCV_RETEST_DATA
+        (
+            BatteryCode, TrayCode, ChannelNo, TrayPosition, SourceTestResultId,
+            OriginalVoltage, OriginalResistance, OriginalResult,
+            RetestVoltage, RetestResistance, RetestResult, RetestTime,
+            OverwriteOriginal, RetestOperationId, OperatorName, MeterPort
+        )
+        VALUES
+        (
+            @BatteryCode, @TrayCode, @ChannelNo, @TrayPosition, @SourceTestResultId,
+            @OriginalVoltage, @OriginalResistance, @OriginalResult,
+            @RetestVoltage, @RetestResistance, @RetestResult, @RetestTime,
+            @OverwriteOriginal, @RetestOperationId, @OperatorName, @MeterPort
+        );
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+
+        DECLARE @ErrorMessage nvarchar(4000);
+        DECLARE @ErrorSeverity int;
+        DECLARE @ErrorState int;
+        SELECT @ErrorMessage = ERROR_MESSAGE(),
+               @ErrorSeverity = ERROR_SEVERITY(),
+               @ErrorState = ERROR_STATE();
+        RAISERROR(N'%s', @ErrorSeverity, @ErrorState, @ErrorMessage);
+    END CATCH
 END
 GO
 
