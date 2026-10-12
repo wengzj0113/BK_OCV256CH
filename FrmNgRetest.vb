@@ -326,7 +326,7 @@ Public Class FrmNgRetest
         Catch ex As Exception
             lblRetestStatus.Text = "保存失败，测量值已保留；请重试保存。"
             WriteOperationLog("失败", "保存NG复测", request.Source.BatteryCode, "NG复测结果未确认保存。", ex.Message)
-            MessageBox.Show(ex.Message & Environment.NewLine & "复测值已保留；点击“重试保存”不会重新采集。", "NG复测保存失败", MessageBoxButtons.OK, MessageBoxIcon.Error)
+            MessageBox.Show(ex.Message & Environment.NewLine & "复测值已保留，请点击重试保存，避免重复采集。", "NG复测保存失败", MessageBoxButtons.OK, MessageBoxIcon.Error)
         End Try
     End Function
 
