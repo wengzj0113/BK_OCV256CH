@@ -402,7 +402,7 @@ Public Class FrmNgRetest
 
     Private Sub UpdateActionState()
         If chkOverwrite Is Nothing OrElse chkDebugMode Is Nothing OrElse btnRetest Is Nothing OrElse btnRetrySave Is Nothing Then Return
-        chkOverwrite.Enabled = Not isBusy AndAlso pendingSaveRequest Is Nothing AndAlso lookupState = NgRetestLookupState.Found
+        chkOverwrite.Enabled = Not isBusy AndAlso pendingSaveRequest Is Nothing
         chkDebugMode.Enabled = Not isBusy AndAlso pendingSaveRequest Is Nothing AndAlso lookupState = NgRetestLookupState.NotFound
         btnRetest.Enabled = Not isBusy AndAlso CanMeasure()
         btnRetrySave.Enabled = Not isBusy AndAlso pendingSaveRequest IsNot Nothing
