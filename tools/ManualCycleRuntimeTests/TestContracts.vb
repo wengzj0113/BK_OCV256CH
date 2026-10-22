@@ -7,10 +7,11 @@ Public Interface IPlcAutomationClient
     Function ReadR150() As Boolean
     Function ReadR151() As Boolean
     Function ReadR152() As Boolean
+    Function ReadX1F() As Boolean
     Sub WriteR160()
     Sub WriteR161()
     Sub WriteR162()
-    Sub WriteNgSelection(ByVal channel As Integer)
+    Sub WriteNgSelection(ByVal channel As Integer, Optional ByVal responseReceived As System.Action(Of String) = Nothing)
 End Interface
 
 Public Interface ITrayScannerClient

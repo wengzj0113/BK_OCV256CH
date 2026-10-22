@@ -2,6 +2,7 @@ Friend Class FormalTestRunner
     Private ReadOnly middleMachine As SerialMiddleMachineClient
     Private ReadOnly channelPlanService As TestChannelPlanService
     Private ReadOnly resultMapper As TwoPassResultMapper
+    Private ReadOnly applyResultsOnUi As Action(Of Action)
 
     Public Sub New()
         Me.New(New SerialMiddleMachineClient(Com_SCM), New TestChannelPlanService(), New TwoPassResultMapper())
@@ -13,7 +14,8 @@ Friend Class FormalTestRunner
 
     Public Sub New(middleMachineClient As SerialMiddleMachineClient,
                    planService As TestChannelPlanService,
-                   mapper As TwoPassResultMapper)
+                   mapper As TwoPassResultMapper,
+                   Optional applyResultsOnUi As Action(Of Action) = Nothing)
         If middleMachineClient Is Nothing Then
             Throw New ArgumentNullException("middleMachineClient")
         End If
@@ -27,40 +29,47 @@ Friend Class FormalTestRunner
         middleMachine = middleMachineClient
         channelPlanService = planService
         resultMapper = mapper
+        Me.applyResultsOnUi = applyResultsOnUi
     End Sub
 
     Public Function RunRangeMeasurement(startChannel As Integer,
                                         endChannel As Integer,
-                                        Optional timeoutMs As Integer = 300000) As TestChannelSelection
+                                        Optional timeoutMs As Integer = 300000,
+                                        Optional calibrationSnapshot As CalibrationSnapshot = Nothing) As TestChannelSelection
         Dim selection As TestChannelSelection = channelPlanService.BuildRangeSelection(startChannel, endChannel)
-        RunTwoPassMeasurement(selection, timeoutMs)
+        RunTwoPassMeasurement(selection, timeoutMs, calibrationSnapshot:=calibrationSnapshot)
         Return selection
     End Function
 
     Public Function RunSparseMeasurement(channelNumbers As IEnumerable(Of Integer),
                                          Optional timeoutMs As Integer = 300000,
                                          Optional operationName As String = "正式测试",
-                                         Optional cancellationRequested As Func(Of Boolean) = Nothing) As TestChannelSelection
+                                         Optional cancellationRequested As Func(Of Boolean) = Nothing,
+                                         Optional calibrationSnapshot As CalibrationSnapshot = Nothing) As TestChannelSelection
         Dim selection As TestChannelSelection = channelPlanService.BuildSparseSelection(channelNumbers)
-        RunTwoPassMeasurement(selection, timeoutMs, operationName, cancellationRequested)
+        RunTwoPassMeasurement(selection, timeoutMs, operationName, cancellationRequested, calibrationSnapshot)
         Return selection
     End Function
 
     Public Function RunRetestMeasurement(retestFlags As Int16(),
-                                         Optional timeoutMs As Integer = 300000) As TestChannelSelection
+                                         Optional timeoutMs As Integer = 300000,
+                                         Optional calibrationSnapshot As CalibrationSnapshot = Nothing) As TestChannelSelection
         Dim selection As TestChannelSelection = channelPlanService.BuildRetestSelection(retestFlags)
-        RunTwoPassMeasurement(selection, timeoutMs)
+        RunTwoPassMeasurement(selection, timeoutMs, calibrationSnapshot:=calibrationSnapshot)
         Return selection
     End Function
 
     Public Sub RunTwoPassMeasurement(selection As TestChannelSelection,
                                      Optional timeoutMs As Integer = 300000,
                                      Optional operationName As String = "正式测试",
-                                     Optional cancellationRequested As Func(Of Boolean) = Nothing)
+                                     Optional cancellationRequested As Func(Of Boolean) = Nothing,
+                                     Optional calibrationSnapshot As CalibrationSnapshot = Nothing)
         If selection Is Nothing Then
             Throw New ArgumentNullException("selection")
         End If
 
+        Dim runCalibrationSnapshot As CalibrationSnapshot =
+            If(calibrationSnapshot, CalibrationService.SharedInstance.CurrentSnapshot)
         Dim hiokiVoltages As List(Of Single) = Nothing
         Dim hiokiResistances As List(Of Single) = Nothing
         Dim dmmVoltages As List(Of Single) = Nothing
@@ -75,6 +84,8 @@ Friend Class FormalTestRunner
             BusinessLogService.Write("操作", "成功", operationName & "开始", operationName, "已开始" & operationName & "。", testPlanDescription, "测试控制")
             Dim rateProfile As InstrumentRateProfile = InstrumentRateProfile.FromSettingName(Initsetting.ComRateMode)
             SerialMiddleMachineClient.LogMessage("Formal test start: " & testPlanDescription)
+            SerialMiddleMachineClient.LogMessage("Calibration snapshot=" & runCalibrationSnapshot.Fingerprint &
+                                                 ", source=" & runCalibrationSnapshot.SourceDescription)
             SerialMiddleMachineClient.LogMessage("Acquisition rate profile=" & rateProfile.SettingName &
                                                  ", controllerSpeed=" & rateProfile.ControllerSpeedValue.ToString() &
                                                  ", main 3562=" & If(String.IsNullOrWhiteSpace(Initsetting.Main3562SampleRate), "EXF", Initsetting.Main3562SampleRate) &
@@ -109,7 +120,17 @@ Friend Class FormalTestRunner
                 Throw New InvalidOperationException("34461 cached data read failed.")
             End If
 
-            resultMapper.Apply(selection, hiokiResistances, dmmVoltages, calibrateValueArray, RecieveData)
+            If cancellationRequested IsNot Nothing AndAlso cancellationRequested() Then
+                Throw New OperationCanceledException("测试已由操作员停止。")
+            End If
+            Dim applyResults As Action = Sub()
+                                             resultMapper.Apply(selection, hiokiResistances, dmmVoltages, runCalibrationSnapshot, RecieveData)
+                                         End Sub
+            If applyResultsOnUi Is Nothing Then
+                applyResults()
+            Else
+                applyResultsOnUi(applyResults)
+            End If
             SerialMiddleMachineClient.LogMessage("Formal test completed: " & SerialMiddleMachineClient.DescribePlan(selection.ToMiddleMachinePlan()))
             BusinessLogService.Write("操作", "成功", operationName & "测量完成", operationName, operationName & "测量阶段已完成。", testPlanDescription, "测试控制")
         Catch ex As Exception

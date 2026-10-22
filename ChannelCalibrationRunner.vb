@@ -1,9 +1,11 @@
 Public Class ChannelCalibrationResult
     Public Property ChannelIndex0 As Integer
+    Public Property DeviceChannel As Integer
     Public Property MeasuredResistance As Double
     Public Property StandardResistance As Double
     Public Property Compensation As Double
     Public Property Success As Boolean
+    Public Property Skipped As Boolean
     Public Property Message As String
     Public Property CalibratedAt As DateTime
 End Class
@@ -26,7 +28,9 @@ Public Class ChannelCalibrationRunner
         }
 
         Try
+            result.DeviceChannel = TrayChannelMapping.ToDeviceChannel(channelIndex0 + 1)
             Dim plan As MiddleMachineChannelPlan = BuildChannelPlan(New List(Of Integer) From {channelIndex0})
+            Prepare3562ForCalibration(plan.ExecutionOrder.Count)
             GetMiddleMachineClient().RunPlan(plan, MiddleMachineTimeoutMs)
 
             Dim voltages As List(Of Single) = Nothing
@@ -37,8 +41,13 @@ Public Class ChannelCalibrationRunner
             End If
 
             result.MeasuredResistance = resistances(0)
+            If IsMissingResistance(result.MeasuredResistance) Then
+                result.Skipped = True
+                result.Message = "实测值为10000 mΩ占位值，未测到有效内阻；已跳过本通道并保留原补偿值。"
+                Return result
+            End If
+
             result.Compensation = service.CalculateCompensation(standardResistance, result.MeasuredResistance)
-            service.SetGlobalValue(channelIndex0, result.Compensation)
             result.Success = True
             result.Message = "Calibration completed."
         Catch ex As Exception
@@ -58,6 +67,7 @@ Public Class ChannelCalibrationRunner
 
         Try
             Dim plan As MiddleMachineChannelPlan = BuildChannelPlan(channelIndexes0)
+            Prepare3562ForCalibration(plan.ExecutionOrder.Count)
             GetMiddleMachineClient().RunPlan(plan, MiddleMachineTimeoutMs)
 
             Dim voltages As List(Of Single) = Nothing
@@ -69,19 +79,29 @@ Public Class ChannelCalibrationRunner
 
             Dim results As New List(Of ChannelCalibrationResult)()
             For i As Integer = 0 To plan.ExecutionOrder.Count - 1
-                Dim channelIndex0 As Integer = plan.ExecutionOrder(i) - 1
+                Dim deviceChannel As Integer = plan.ExecutionOrder(i)
+                Dim channelIndex0 As Integer = TrayChannelMapping.ToStandardChannel(deviceChannel) - 1
                 Dim measuredResistance As Double = resistances(i)
-                Dim compensation As Double = service.CalculateCompensation(standardResistance, measuredResistance)
-                service.SetGlobalValue(channelIndex0, compensation)
-                results.Add(New ChannelCalibrationResult With {
+                Dim result As New ChannelCalibrationResult With {
                     .ChannelIndex0 = channelIndex0,
+                    .DeviceChannel = deviceChannel,
                     .MeasuredResistance = measuredResistance,
                     .StandardResistance = standardResistance,
-                    .Compensation = compensation,
-                    .Success = True,
-                    .Message = "Calibration completed.",
                     .CalibratedAt = DateTime.Now
-                })
+                }
+
+                If IsMissingResistance(measuredResistance) Then
+                    result.Skipped = True
+                    result.Message = "实测值为10000 mΩ占位值，未测到有效内阻；已跳过本通道并保留原补偿值。"
+                    results.Add(result)
+                    Continue For
+                End If
+
+                Dim compensation As Double = service.CalculateCompensation(standardResistance, measuredResistance)
+                result.Compensation = compensation
+                result.Success = True
+                result.Message = "Calibration completed."
+                results.Add(result)
             Next
 
             Return results
@@ -118,10 +138,11 @@ Public Class ChannelCalibrationRunner
     Private Function BuildChannelPlan(channelIndexes0 As IList(Of Integer)) As MiddleMachineChannelPlan
         Dim physicalChannels As New List(Of Integer)()
         For Each channelIndex0 As Integer In channelIndexes0
-            Dim physicalChannel As Integer = channelIndex0 + 1
-            If physicalChannel < 1 OrElse physicalChannel > CalibrationService.ChannelCount Then
+            Dim standardChannel As Integer = channelIndex0 + 1
+            If standardChannel < 1 OrElse standardChannel > CalibrationService.ChannelCount Then
                 Throw New ArgumentOutOfRangeException("channelIndexes0")
             End If
+            Dim physicalChannel As Integer = TrayChannelMapping.ToDeviceChannel(standardChannel)
             physicalChannels.Add(physicalChannel)
         Next
         physicalChannels.Sort()
@@ -137,4 +158,18 @@ Public Class ChannelCalibrationRunner
         Next
         Return plan
     End Function
+
+    Private Shared Function IsMissingResistance(measuredResistance As Double) As Boolean
+        Return InstrumentCacheParser.NormalizeResistanceMilliohm(measuredResistance) =
+               InstrumentCacheParser.InvalidResistanceMilliohm
+    End Function
+
+    Private Shared Sub Prepare3562ForCalibration(expectedCount As Integer)
+        SerialMiddleMachineClient.LogMessage("Calibration 3562 acquisition preparation: expectedCount=" & expectedCount.ToString())
+        ResetCachedData_3562()
+        ClearCachedData_3562()
+        If PrepareCachedData_3562(expectedCount) <> 0 Then
+            Throw New InvalidOperationException("校准前3562未能进入外触发缓存采集状态，请检查主3562的连接和配置。")
+        End If
+    End Sub
 End Class

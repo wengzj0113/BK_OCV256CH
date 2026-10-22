@@ -21,11 +21,12 @@ Assert-True ($form.Contains('plcAutomaticCoordinator.StartManual()')) 'manual mo
 Assert-True ($form.Contains('StartManualInitialPass')) 'manual cycle must have a coordinator callback for the initial pass'
 Assert-True ($form.Contains('IsCycleOccupied')) 'the coordinator cycle lock must drive main-page controls'
 Assert-True ($coordinator.Contains('If automaticModeEnabled Then r150High = ReadRegisterSignal')) 'manual PLC polling must skip R150 reads'
-Assert-True ($coordinator.Contains('If automaticModeEnabled Then r151High = ReadRegisterSignal')) 'manual PLC polling must not wait on R151'
+Assert-True ($coordinator.Contains('If pollR151 Then r151High = ReadRegisterSignal')) 'manual and automatic cycles must use PLC R151 to start measurement'
 Assert-True ($coordinator.Contains('manualHost.StartManualInitialPass(trayCodeSnapshot, measurementChannels, canStart')) 'manual initial measurement must consume the frozen tray and channel snapshots and recheck cycle authorization'
 
 $confirm = [regex]::Match($coordinator, '(?ms)^\s*Private Sub ConfirmTrayCodeWithPlc\(\).*?^\s*End Sub')
-Assert-True ($confirm.Success -and $confirm.Value -match 'If manualCycle Then\s+testRequestPending = True') 'a successful manual R160 ACK must queue the initial test directly'
+Assert-True ($confirm.Success -and $confirm.Value -notmatch 'testRequestPending = True') 'sending R160 must not directly queue a measurement'
+Assert-True ($confirm.Value.Contains('PlcAutomaticTestState.WaitingFixturePressed')) 'R160 send must transition to waiting for PLC tray arrival'
 $manualReady = [regex]::Match($form, '(?ms)^\s*Public Sub EnsureManualTestReady\(\).*?^\s*End Sub')
 $manualPrepare = [regex]::Match($form, '(?ms)^\s*Public Sub PrepareManualTray\(.*?^\s*End Sub')
 Assert-True ($manualReady.Success -and $manualPrepare.Success) 'manual preflight and tray preparation adapters must exist'

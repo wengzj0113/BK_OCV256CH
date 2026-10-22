@@ -52,7 +52,7 @@
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <PlatformTarget>AnyCPU</PlatformTarget>
+    <PlatformTarget>x86</PlatformTarget>
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <DefineDebug>true</DefineDebug>
@@ -63,7 +63,7 @@
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|Any CPU' ">
-    <PlatformTarget>AnyCPU</PlatformTarget>
+    <PlatformTarget>x86</PlatformTarget>
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <DefineDebug>true</DefineDebug>
@@ -86,7 +86,7 @@
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <PlatformTarget>AnyCPU</PlatformTarget>
+    <PlatformTarget>x86</PlatformTarget>
     <DebugType>pdbonly</DebugType>
     <DefineDebug>false</DefineDebug>
     <DefineTrace>true</DefineTrace>
@@ -98,7 +98,7 @@
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|Any CPU' ">
-    <PlatformTarget>AnyCPU</PlatformTarget>
+    <PlatformTarget>x86</PlatformTarget>
     <DebugType>pdbonly</DebugType>
     <DefineDebug>false</DefineDebug>
     <DefineTrace>true</DefineTrace>
@@ -150,6 +150,7 @@
     </Compile>
     <Compile Include="PlcAutomationProtocol.vb" />
     <Compile Include="PlcAutomationClient.vb" />
+    <Compile Include="AutomaticEventLogWriter.vb" />
     <Compile Include="TrayScannerClient.vb" />
     <Compile Include="PlcAutomaticTestState.vb" />
     <Compile Include="PlcAutomaticTestCoordinator.vb" />
@@ -374,6 +375,7 @@
   <ItemGroup>
     <Compile Include="AlarmUpload.vb" />
     <Compile Include="CalibrationService.vb" />
+    <Compile Include="CalibrationSnapshot.vb" />
     <Compile Include="EngineerProcessSettingsPolicy.vb" />
     <Compile Include="TestStandardProfile.vb" />
     <Compile Include="ChannelCalibrationRunner.vb" />
@@ -408,6 +410,11 @@
     </Compile>
     <Compile Include="FrmManualTest.vb">
       <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="ManualTestWorkbookWriter.vb" />
+    <Compile Include="ManualTestData.vb" />
+    <Compile Include="ManualTestExecution.vb">
+      <DependentUpon>FrmManualTest.vb</DependentUpon>
     </Compile>
     <Compile Include="FrmManualTest.Designer.vb">
       <DependentUpon>FrmManualTest.vb</DependentUpon>
@@ -595,6 +602,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="FrmLoginNew.resx">
       <DependentUpon>FrmLoginNew.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="FrmManualTest.resx">
+      <DependentUpon>FrmManualTest.vb</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="FrmMesTask.resx">
       <DependentUpon>FrmMesTask.vb</DependentUpon>

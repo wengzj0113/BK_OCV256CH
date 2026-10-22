@@ -37,7 +37,7 @@ Public Class BottomStatusControl
         Dim normalized As String = If(value, String.Empty)
         If normalized.Contains("未连接") OrElse normalized.Contains("断开") OrElse normalized.Contains("异常") Then
             label.ForeColor = Color.FromArgb(255, 112, 112)
-        ElseIf normalized.Contains("检测") OrElse normalized.Contains("连接中") Then
+        ElseIf normalized.Contains("检测") OrElse normalized.Contains("连接中") OrElse normalized.Contains("待响应") Then
             label.ForeColor = Color.FromArgb(255, 204, 92)
         Else
             label.ForeColor = Color.FromArgb(54, 205, 125)

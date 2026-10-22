@@ -41,11 +41,19 @@ $data.SetValue($sixteenthCell, 15)
 $calibration = [double[]]::new(256)
 $calibration[0] = 0.5
 $calibration[240] = 2.0
+$snapshotType = $assembly.GetType('software.CalibrationSnapshot', $true)
+$snapshotArgs = New-Object object[] 5
+$snapshotArgs[0] = $calibration
+$snapshotArgs[1] = [Array]::CreateInstance($assembly.GetType('software.CalibrationValueSource', $true), 256)
+$snapshotArgs[2] = 'mapping regression'
+$snapshotArgs[3] = ''
+$snapshotArgs[4] = $false
+$snapshot = $snapshotType.GetConstructors([Reflection.BindingFlags]'Instance,Public,NonPublic')[0].Invoke($snapshotArgs)
 $arguments = New-Object object[] 5
 $arguments[0] = $selection
 $arguments[1] = [single[]]@(5.0, 6.0)
 $arguments[2] = [single[]]@(3.1, 3.6)
-$arguments[3] = $calibration
+$arguments[3] = $snapshot
 $arguments[4] = $data
 $mapperType.GetMethod('Apply').Invoke($mapper, $arguments) | Out-Null
 

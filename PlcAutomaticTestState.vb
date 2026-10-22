@@ -41,6 +41,7 @@ Public Class AutomaticTestCycle
     Public Property FinalResultPublished As Boolean
     Public Property NgGradesWritten As Boolean
     Public Property R161Written As Boolean
+    '兼容既有字段名：只代表本机已完成托盘准备并发送R160；托盘到位仍须等R151=1。
     Public Property TrayConfirmed As Boolean
     Public Property TestStarted As Boolean
 

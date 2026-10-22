@@ -31,18 +31,34 @@ Public Interface IManualTestHost
                                ByVal failed As Action(Of Exception))
 End Interface
 
+Public Interface IPreparedTrayChannelsProvider
+    Function GetPreparedTrayMeasurementChannels() As IReadOnlyList(Of Integer)
+End Interface
+
+Public Interface IPlcSmokeMonitorHost
+    Sub ReportPlcSmokeInput(ByVal inputHigh As Boolean, ByVal observedAtUtc As DateTime)
+    Sub ReportPlcSmokeInputReadFailure(ByVal message As String, ByVal observedAtUtc As DateTime)
+End Interface
+
 Public Class PlcAutomaticTestCoordinator
     Implements IDisposable
 
     Private ReadOnly plc As IPlcAutomationClient
     Private ReadOnly scanner As ITrayScannerClient
     Private ReadOnly host As IAutomaticTestHost
+    Private ReadOnly connectionStatusChanged As Action(Of String)
+    Private lastConnectionStatus As String = String.Empty
     Private ReadOnly stateLock As New Object()
     Private ReadOnly lastReportedRegisterValues As New Dictionary(Of String, Boolean)(StringComparer.Ordinal)
+    Private ReadOnly consecutiveRegisterReadFailures As New Dictionary(Of String, Integer)(StringComparer.Ordinal)
+    Private Const RegisterReadFailureSummaryInterval As Integer = 10
+    Private Const SmokeInputPollIntervalMs As Integer = 2000
+    Private lastSmokeInputPollAtUtc As DateTime = DateTime.MinValue
+    Private lastSmokeInputReadSucceeded As Boolean
     Private ReadOnly cycle As New AutomaticTestCycle()
     Private manualPolling As Boolean
     Private manualCycleRequestInProgress As Boolean
-    'OCV0 has one completed-result handoff in flight while the next tray may be scanned.
+    'OCV0 can keep one completed-result handoff pending while the next tray cycle proceeds.
     Private pendingNgSelection As PendingNgSelection
     'Accept a high input once. PLC low re-arms the next request; the first
     'observed value may already be high, so no prior low sample is required.
@@ -77,12 +93,14 @@ Public Class PlcAutomaticTestCoordinator
 
     Public Sub New(ByVal plcClient As IPlcAutomationClient,
                    ByVal scannerClient As ITrayScannerClient,
-                   ByVal testHost As IAutomaticTestHost)
+                   ByVal testHost As IAutomaticTestHost,
+                   Optional ByVal statusChanged As Action(Of String) = Nothing)
         If plcClient Is Nothing Then Throw New ArgumentNullException(NameOf(plcClient))
         If testHost Is Nothing Then Throw New ArgumentNullException(NameOf(testHost))
         plc = plcClient
         scanner = scannerClient
         host = testHost
+        connectionStatusChanged = statusChanged
     End Sub
 
     Public ReadOnly Property State As PlcAutomaticTestState
@@ -136,6 +154,7 @@ Public Class PlcAutomaticTestCoordinator
             pollTimer = New Timer(AddressOf Poll, Nothing, 1000, 1000)
         End SyncLock
         host.ReportAutomaticStatus("PLC自动流程已启动")
+        ReportConnectionStatus("串口已开，待响应")
         ReportAutomaticEventSafely("自动流程启动")
     End Sub
 
@@ -148,6 +167,7 @@ Public Class PlcAutomaticTestCoordinator
             pollTimer = New Timer(AddressOf Poll, Nothing, 1000, 1000)
         End SyncLock
         host.ReportAutomaticStatus("手动测试 PLC 周期已就绪，等待操作员启动")
+        ReportConnectionStatus("串口已开，待响应")
         ReportAutomaticEventSafely("手动测试流程已启动，等待主页面启动测试")
     End Sub
 
@@ -168,6 +188,7 @@ Public Class PlcAutomaticTestCoordinator
             If scanner IsNot Nothing Then scanner.Close()
         Finally
             plc.Close()
+            ReportConnectionStatus("未连接")
         End Try
     End Sub
 
@@ -192,7 +213,7 @@ Public Class PlcAutomaticTestCoordinator
         If requestedChannels.Distinct().Count() <> requestedChannels.Count Then
             Throw New InvalidOperationException("所选通道包含重复通道。")
         End If
-        Dim channelSnapshot As IReadOnlyList(Of Integer) = Array.AsReadOnly(requestedChannels.OrderBy(Function(channel) channel).ToArray())
+        Dim requestedChannelSnapshot As IReadOnlyList(Of Integer) = Array.AsReadOnly(requestedChannels.OrderBy(Function(channel) channel).ToArray())
 
         Dim manualGeneration As Integer
         SyncLock stateLock
@@ -205,7 +226,23 @@ Public Class PlcAutomaticTestCoordinator
         Try
             manualHost.EnsureManualTestReady()
             host.SetTrayCode(normalizedTrayCode)
-            manualHost.PrepareManualTray(normalizedTrayCode, channelSnapshot)
+            manualHost.PrepareManualTray(normalizedTrayCode, requestedChannelSnapshot)
+            Dim preparedChannelProvider As IPreparedTrayChannelsProvider = TryCast(host, IPreparedTrayChannelsProvider)
+            Dim preparedChannels As IReadOnlyList(Of Integer)
+            If preparedChannelProvider Is Nothing Then
+                preparedChannels = requestedChannelSnapshot
+            Else
+                preparedChannels = preparedChannelProvider.GetPreparedTrayMeasurementChannels()
+            End If
+            If preparedChannels Is Nothing OrElse preparedChannels.Count = 0 Then
+                Throw New NoTestableTrayChannelsException("所选通道没有有效电芯码。")
+            End If
+            Dim requestedChannelSet As New HashSet(Of Integer)(requestedChannelSnapshot)
+            If preparedChannels.Any(Function(channel) Not requestedChannelSet.Contains(channel)) Then
+                Throw New InvalidOperationException("手动托盘准备返回了未选择的通道。")
+            End If
+            Dim channelSnapshot As IReadOnlyList(Of Integer) = Array.AsReadOnly(
+                preparedChannels.Distinct().OrderBy(Function(channel) channel).ToArray())
 
             SyncLock stateLock
                 If stopped OrElse requestGeneration <> manualGeneration Then
@@ -220,8 +257,8 @@ Public Class PlcAutomaticTestCoordinator
                 trayPreparationRetryPending = False
                 manualCycleRequestInProgress = False
             End SyncLock
-            MoveTo(PlcAutomaticTestState.PreparingTest, "手动托盘准备完成，等待 R160 确认")
-            ReportAutomaticEventSafely("手动测试启动请求已接受，托盘码和通道集合已冻结")
+            MoveTo(PlcAutomaticTestState.PreparingTest, "手动托盘准备完成，等待发送 R160=1")
+            ReportAutomaticEventSafely(String.Format("手动测试启动请求已接受，托盘码和{0}个有效通道已冻结", channelSnapshot.Count))
             Return True
         Catch
             SyncLock stateLock
@@ -233,16 +270,19 @@ Public Class PlcAutomaticTestCoordinator
     End Function
 
     Private Function IsCycleOccupiedLocked() As Boolean
+        'A pending NG handoff is independent of the active tray cycle and remains tracked until R162 completes it.
         Return manualCycleRequestInProgress OrElse
                trayRequestPending OrElse testRequestPending OrElse sortingRequestPending OrElse
                trayPreparationInProgress OrElse trayConfirmationPending OrElse r160WriteInProgress OrElse
                r161WriteInProgress OrElse Not String.IsNullOrWhiteSpace(cycle.TrayCode) OrElse
-               cycle.TestStarted OrElse cycle.FinalResultPublished OrElse pendingNgSelection IsNot Nothing
+               cycle.TestStarted OrElse cycle.FinalResultPublished
     End Function
 
     Private Sub Poll(ByVal state As Object)
         If Interlocked.Exchange(pollBusy, 1) = 1 Then Return
         Try
+            If stopped Then Return
+            Dim smokeReadSucceeded As Boolean = PollSmokeInputIfDue()
             If stopped Then Return
             Dim automaticModeEnabled As Boolean = host.IsAutomaticModeEnabled()
             Dim manualHost As IManualTestHost = TryCast(host, IManualTestHost)
@@ -259,9 +299,19 @@ Public Class PlcAutomaticTestCoordinator
             Dim r152ReadSucceeded As Boolean
             Dim r150High As Boolean
             If automaticModeEnabled Then r150High = ReadRegisterSignal("R150", AddressOf plc.ReadR150, r150ReadSucceeded)
+            Dim pollR151 As Boolean
+            SyncLock stateLock
+                pollR151 = automaticModeEnabled OrElse
+                           (manualModeEnabled AndAlso cycle.IsManualCycle AndAlso cycle.TrayConfirmed)
+            End SyncLock
             Dim r151High As Boolean
-            If automaticModeEnabled Then r151High = ReadRegisterSignal("R151", AddressOf plc.ReadR151, r151ReadSucceeded)
+            If pollR151 Then r151High = ReadRegisterSignal("R151", AddressOf plc.ReadR151, r151ReadSucceeded)
             Dim r152High As Boolean = ReadRegisterSignal("R152", AddressOf plc.ReadR152, r152ReadSucceeded)
+            If stopped Then Return
+            Dim allReadsSucceeded As Boolean = smokeReadSucceeded AndAlso r152ReadSucceeded AndAlso
+                (Not automaticModeEnabled OrElse r150ReadSucceeded) AndAlso
+                (Not pollR151 OrElse r151ReadSucceeded)
+            ReportConnectionStatus(If(allReadsSucceeded, "通信正常", "响应异常"))
             Dim r150Accepted As Boolean
             Dim r151Accepted As Boolean
             Dim r152Accepted As Boolean
@@ -271,7 +321,8 @@ Public Class PlcAutomaticTestCoordinator
             SyncLock stateLock
                 pollRequestsAccepted = (pollGeneration = requestGeneration)
                 If pollRequestsAccepted Then
-                    Dim canAcceptR151 As Boolean = automaticModeEnabled
+                    Dim canAcceptR151 As Boolean = automaticModeEnabled OrElse
+                        (manualModeEnabled AndAlso cycle.IsManualCycle AndAlso cycle.TrayConfirmed)
                     If r150ReadSucceeded AndAlso Not r150High Then
                         r150RequestConsumed = False
                         If currentState = PlcAutomaticTestState.WaitingTrayPreparationRecovery Then
@@ -326,6 +377,33 @@ Public Class PlcAutomaticTestCoordinator
             TryCompleteBoundaryPause()
         End Try
     End Sub
+
+    Private Function PollSmokeInputIfDue() As Boolean
+        Dim nowUtc As DateTime = DateTime.UtcNow
+        SyncLock stateLock
+            If lastSmokeInputPollAtUtc <> DateTime.MinValue AndAlso
+               (nowUtc - lastSmokeInputPollAtUtc).TotalMilliseconds < SmokeInputPollIntervalMs Then
+                Return lastSmokeInputReadSucceeded
+            End If
+            lastSmokeInputPollAtUtc = nowUtc
+        End SyncLock
+
+        Dim readSucceeded As Boolean
+        Dim inputHigh As Boolean = ReadRegisterSignal("X1F", AddressOf plc.ReadX1F, readSucceeded)
+        Dim observedAtUtc As DateTime = DateTime.UtcNow
+        SyncLock stateLock
+            lastSmokeInputReadSucceeded = readSucceeded
+        End SyncLock
+        Dim smokeHost As IPlcSmokeMonitorHost = TryCast(host, IPlcSmokeMonitorHost)
+        If smokeHost Is Nothing Then Return readSucceeded
+
+        If readSucceeded Then
+            smokeHost.ReportPlcSmokeInput(inputHigh, observedAtUtc)
+        Else
+            smokeHost.ReportPlcSmokeInputReadFailure("PLC烟感输入 X1F 读取失败。", observedAtUtc)
+        End If
+        Return readSucceeded
+    End Function
 
     Private Function CaptureR152TestStateLocked() As PlcR152TestState
         If pendingNgSelection IsNot Nothing Then Return PlcR152TestState.TestCompleted
@@ -448,7 +526,7 @@ Public Class PlcAutomaticTestCoordinator
             If waitForTrayConfirmation Then testTrayConfirmationWaitingReported = True
         End SyncLock
         If waitForTrayConfirmation Then
-            ReportAutomaticEventSafely("R151测试请求已暂存，等待托盘码写入R160并确认")
+            ReportAutomaticEventSafely("R151测试请求已暂存，等待托盘码准备完成并发送R160=1")
         End If
         If startTest Then
             Dim prerequisitesReady As Boolean = False
@@ -579,7 +657,7 @@ Public Class PlcAutomaticTestCoordinator
         If cancelledTrayRequest Then
             ReportAutomaticEventSafely("停止操作已取消当前R150扫码请求；如PLC仍保持R150=1，需先复位为0再重新置1")
         End If
-        ReportAutomaticEventSafely("自动流程已复位，等待新托盘")
+        ReportAutomaticEventSafely(If(manualPolling, "手动流程已复位，等待主页面启动测试", "自动流程已复位，等待新托盘"))
         host.ReportAutomaticStatus("测试已停止，等待托盘进入")
     End Sub
 
@@ -702,8 +780,27 @@ Public Class PlcAutomaticTestCoordinator
         If Not IsRequestGenerationCurrent(expectedGeneration) Then Return
         Dim normalizedTrayCode As String = If(trayCode, String.Empty).Trim()
         host.SetTrayCode(normalizedTrayCode)
+        Dim measurementChannels As IReadOnlyList(Of Integer) = Nothing
+        Dim channelSnapshot As IReadOnlyList(Of Integer) = Nothing
         Try
             host.PrepareAutomaticTray(normalizedTrayCode)
+            Dim preparedChannelProvider As IPreparedTrayChannelsProvider = TryCast(host, IPreparedTrayChannelsProvider)
+            If preparedChannelProvider Is Nothing Then
+                measurementChannels = Array.AsReadOnly(Enumerable.Range(1, 256).ToArray())
+            Else
+                measurementChannels = preparedChannelProvider.GetPreparedTrayMeasurementChannels()
+            End If
+            If measurementChannels Is Nothing OrElse measurementChannels.Count = 0 Then
+                Throw New NoTestableTrayChannelsException("本托盘没有有效电芯码。")
+            End If
+            If measurementChannels.Any(Function(channel) channel < 1 OrElse channel > 256) Then
+                Throw New InvalidOperationException("自动托盘准备返回了超出范围的通道。")
+            End If
+            Dim sortedChannels As Integer() = measurementChannels.Distinct().OrderBy(Function(channel) channel).ToArray()
+            If sortedChannels.Length <> measurementChannels.Count Then
+                Throw New InvalidOperationException("自动托盘准备返回了重复通道。")
+            End If
+            channelSnapshot = Array.AsReadOnly(sortedChannels)
         Catch ex As Exception
             Dim preparationRequestCancelled As Boolean
             SyncLock stateLock
@@ -719,8 +816,13 @@ Public Class PlcAutomaticTestCoordinator
                 ReportAutomaticEventSafely("托盘准备期间流程已停止/复位，未向PLC确认本托盘")
                 Return
             End If
-            ReportAutomaticEventSafely("托盘准备失败，托盘码已保留，R160未写入；请开启调试模式后重试：" & ex.Message)
-            host.ReportAutomaticStatus("托盘准备失败，已保留当前托盘码；开启调试模式后自动重试")
+            If TypeOf ex Is NoTestableTrayChannelsException Then
+                ReportAutomaticEventSafely("托盘没有可测电芯，本次测试未启动且未发送R160：" & ex.Message)
+                host.ReportAutomaticStatus("托盘没有可测电芯，测试未启动")
+            Else
+                ReportAutomaticEventSafely("托盘准备失败，托盘码已保留，R160未写入；请开启调试模式后重试：" & ex.Message)
+                host.ReportAutomaticStatus("托盘准备失败，已保留当前托盘码；开启调试模式后自动重试")
+            End If
             Return
         End Try
         Dim requestCancelled As Boolean
@@ -729,6 +831,7 @@ Public Class PlcAutomaticTestCoordinator
                 requestCancelled = True
             Else
                 cycle.TrayCode = normalizedTrayCode
+                cycle.MeasurementChannels = channelSnapshot
                 trayConfirmationPending = True
                 trayPreparationRecoveryCode = String.Empty
                 trayPreparationRetryPending = False
@@ -754,46 +857,51 @@ Public Class PlcAutomaticTestCoordinator
 
     Private Sub ConfirmTrayCodeWithPlc()
         Dim manualCycle As Boolean
+        Dim writeGeneration As Integer
         SyncLock stateLock
-            If Not trayConfirmationPending OrElse cycle.TrayConfirmed OrElse r160WriteInProgress Then Return
+            If stopped OrElse Not trayConfirmationPending OrElse cycle.TrayConfirmed OrElse r160WriteInProgress Then Return
             r160WriteInProgress = True
             manualCycle = cycle.IsManualCycle
+            writeGeneration = requestGeneration
         End SyncLock
         Try
             ReportAutomaticEventSafely("上位机准备写入PLC寄存器 R160=1")
             plc.WriteR160()
+            SyncLock stateLock
+                If stopped OrElse requestGeneration <> writeGeneration Then Return
+                trayConfirmationPending = False
+                '只表示本机已发送R160，不表示PLC已回复或托盘已到位。
+                cycle.TrayConfirmed = True
+                trayRequestPending = False
+                manualTrayCodePending = False
+                nextTrayScanRetryAtUtc = DateTime.MinValue
+                If manualCycle Then
+                    r151RequestConsumed = False
+                    testRequestPending = False
+                    testPrerequisiteWaitingReported = False
+                    testTrayConfirmationWaitingReported = False
+                End If
+                currentState = PlcAutomaticTestState.WaitingFixturePressed
+            End SyncLock
         Catch ex As Exception
-            ReportAutomaticEventSafely("上位机写入PLC寄存器 R160=1失败：" & ex.Message)
-            Dim retryState As PlcAutomaticTestState = If(manualCycle, PlcAutomaticTestState.PreparingTest, PlcAutomaticTestState.WaitingR150Reset)
+            SyncLock stateLock
+                If stopped OrElse requestGeneration <> writeGeneration Then Return
+                currentState = If(manualCycle, PlcAutomaticTestState.PreparingTest, PlcAutomaticTestState.WaitingR150Reset)
+            End SyncLock
+            ReportAutomaticEventSafely("上位机发送PLC寄存器 R160=1失败：" & ex.Message)
             Dim retryMessage As String = If(manualCycle,
-                                           "手动托盘码尚未得到R160确认，将重试：" & ex.Message,
-                                           "PLC寄存器 R160写入未确认，将重试：" & ex.Message)
-            MoveTo(retryState, retryMessage)
+                                           "手动托盘码的R160通知发送失败，将重试：" & ex.Message,
+                                           "PLC寄存器 R160通知发送失败，将重试：" & ex.Message)
+            host.ReportAutomaticStatus(retryMessage)
             Return
         Finally
             SyncLock stateLock
                 r160WriteInProgress = False
             End SyncLock
         End Try
-        SyncLock stateLock
-            trayConfirmationPending = False
-            cycle.TrayConfirmed = True
-            trayRequestPending = False
-            manualTrayCodePending = False
-            nextTrayScanRetryAtUtc = DateTime.MinValue
-            If manualCycle Then
-                testRequestPending = True
-                testPrerequisiteWaitingReported = False
-                testTrayConfirmationWaitingReported = False
-            End If
-        End SyncLock
-        If manualCycle Then
-            ReportAutomaticEventSafely("手动托盘码已确认，PLC寄存器 R160=1（已确认），开始手选通道测试")
-            MoveTo(PlcAutomaticTestState.PreparingTest, "R160=1已确认，开始手选通道测试")
-        Else
-            ReportAutomaticEventSafely("托盘码已确认，PLC寄存器 R160=1（已确认）")
-            MoveTo(PlcAutomaticTestState.WaitingFixturePressed, "托盘准备完成，等待独立的R151测试请求")
-        End If
+        If Not IsRequestGenerationCurrent(writeGeneration) Then Return
+        ReportAutomaticEventSafely("PLC寄存器 R160=1已发送，等待PLC托盘到位信号 R151=1")
+        host.ReportAutomaticStatus("托盘码通知已发送，等待PLC托盘到位 R151=1")
     End Sub
 
     Private Sub BeginInitialTest()
@@ -827,14 +935,14 @@ Public Class PlcAutomaticTestCoordinator
 
         If isManualCycle Then
             If Not TryMoveToCurrentManualCycle(initialGeneration, trayCodeSnapshot, measurementChannels,
-                                               PlcAutomaticTestState.PreparingTest, "手动启动已确认，开始测试准备") Then Return
+                                               PlcAutomaticTestState.PreparingTest, "R151已到位，开始手选通道测试准备") Then Return
         Else
             MoveTo(PlcAutomaticTestState.PreparingTest, "R151已到位，开始测试准备")
         End If
-        Dim initialPassDescription As String = If(isManualCycle, "手选通道初次测试", "256通道初次测试")
-        ReportAutomaticEventSafely(If(isManualCycle,
-                                      "R160=1已确认，开始手选通道初次测试",
-                                      "收到R151=1，开始256通道初次测试"))
+        Dim initialPassDescription As String = If(isManualCycle,
+                                                  String.Format("手选{0}个有效通道初次测试", measurementChannels.Count),
+                                                  String.Format("{0}个有效通道初次测试", measurementChannels.Count))
+        ReportAutomaticEventSafely("收到R151=1，开始" & initialPassDescription)
         If isManualCycle Then
             If Not TryMoveToCurrentManualCycle(initialGeneration, trayCodeSnapshot, measurementChannels,
                                                PlcAutomaticTestState.InitialTesting, "开始" & initialPassDescription) Then Return
@@ -982,17 +1090,23 @@ Public Class PlcAutomaticTestCoordinator
                 If ngChannels.Count > 0 Then
                     ReportAutomaticEventSafely(String.Format("上位机开始写入PLC NG档位，共{0}个点位", ngChannels.Count))
                 End If
-                For Each channel As Integer In ngChannels
-                    Dim alreadyWritten As Boolean
-                    SyncLock stateLock
-                        alreadyWritten = selection.WrittenChannels.Contains(channel)
-                    End SyncLock
-                    If alreadyWritten Then Continue For
+                Dim channelsToWrite As List(Of Integer)
+                SyncLock stateLock
+                    channelsToWrite = ngChannels.Where(Function(item) Not selection.WrittenChannels.Contains(item)).ToList()
+                End SyncLock
+                For channelIndex As Integer = 0 To channelsToWrite.Count - 1
+                    Dim channel As Integer = channelsToWrite(channelIndex)
 
                     Dim dtAddress As Integer = 1000 + channel
                     Try
                         ReportAutomaticEventSafely(String.Format("上位机准备写入PLC寄存器 DT{0}=2", dtAddress))
-                        plc.WriteNgSelection(channel)
+                        Dim ngFrame As String = PlcAutomationProtocol.BuildNgSelectionFrame(channel)
+                        Dim ngFrameForLog As String = ngFrame.Replace(ControlChars.Cr, "<CR>").Replace(ControlChars.Lf, "<LF>")
+                        ReportAutomaticEventSafely("PLC串口发送NG档位ASCII帧：" & ngFrameForLog)
+                        plc.WriteNgSelection(channel, Sub(response As String)
+                                                          Dim responseForLog As String = response.Replace(ControlChars.Cr, "<CR>").Replace(ControlChars.Lf, "<LF>").Replace(ControlChars.NullChar, "<NUL>")
+                                                          ReportAutomaticEventSafely("PLC串口收到NG档位回传ASCII帧：" & responseForLog)
+                                                      End Sub)
                     Catch ex As Exception
                         ReportAutomaticEventSafely(String.Format("上位机写入PLC寄存器 DT{0}=2失败：{1}", dtAddress, ex.Message))
                         Throw
@@ -1001,6 +1115,7 @@ Public Class PlcAutomaticTestCoordinator
                         selection.WrittenChannels.Add(channel)
                     End SyncLock
                     ReportAutomaticEventSafely(String.Format("NG档位已写入PLC：DT{0}=2", dtAddress))
+                    If channelIndex < channelsToWrite.Count - 1 Then Thread.Sleep(50)
                 Next
                 SyncLock stateLock
                     selection.GradesWritten = True
@@ -1132,7 +1247,7 @@ Public Class PlcAutomaticTestCoordinator
                 sortingRequestRequiresNgSortingAtCapture = False
                 sortingRequestWaitingReported = False
             End If
-            waitForR151 = cycle.TrayConfirmed AndAlso Not cycle.TestStarted AndAlso Not cycle.IsManualCycle
+            waitForR151 = cycle.TrayConfirmed AndAlso Not cycle.TestStarted
         End SyncLock
 
         ReportAutomaticEventSafely("测试未启动，R152分选请求已跳过，PLC寄存器 R162=1（已确认）")
@@ -1197,23 +1312,56 @@ Public Class PlcAutomaticTestCoordinator
         Try
             signalValue = readSignal()
         Catch ex As Exception
-            ReportAutomaticEventSafely("PLC寄存器 " & registerName & " 读取失败：" & ex.Message)
+            Dim consecutiveFailures As Integer
+            Dim shouldReportFailure As Boolean
+            SyncLock stateLock
+                consecutiveRegisterReadFailures.TryGetValue(registerName, consecutiveFailures)
+                consecutiveFailures += 1
+                consecutiveRegisterReadFailures(registerName) = consecutiveFailures
+                shouldReportFailure = consecutiveFailures = 1 OrElse consecutiveFailures Mod RegisterReadFailureSummaryInterval = 0
+            End SyncLock
+
+            If shouldReportFailure Then
+                Dim failureSummary As String = If(consecutiveFailures = 1,
+                                                  String.Empty,
+                                                  String.Format("（连续失败 {0} 次）", consecutiveFailures))
+                ReportAutomaticEventSafely("PLC信号 " & registerName & " 读取失败：" & ex.Message & failureSummary)
+            End If
             Return False
         End Try
         readSucceeded = True
 
         Dim hasPreviousValue As Boolean
         Dim previousValue As Boolean
+        Dim recoveredFailures As Integer
         SyncLock stateLock
             hasPreviousValue = lastReportedRegisterValues.TryGetValue(registerName, previousValue)
             lastReportedRegisterValues(registerName) = signalValue
+            consecutiveRegisterReadFailures.TryGetValue(registerName, recoveredFailures)
+            If recoveredFailures > 0 Then consecutiveRegisterReadFailures.Remove(registerName)
         End SyncLock
 
+        If recoveredFailures > 0 Then
+            ReportAutomaticEventSafely(String.Format("PLC寄存器 {0} 通信恢复，之前连续失败 {1} 次", registerName, recoveredFailures))
+        End If
         If host.IsDebugModeEnabled() OrElse Not hasPreviousValue OrElse previousValue <> signalValue Then
             ReportAutomaticEventSafely(String.Format("PLC寄存器 {0}={1}", registerName, If(signalValue, "1", "0")))
         End If
         Return signalValue
     End Function
+
+    Private Sub ReportConnectionStatus(ByVal status As String)
+        If connectionStatusChanged Is Nothing Then Return
+        SyncLock stateLock
+            If lastConnectionStatus = status Then Return
+            lastConnectionStatus = status
+        End SyncLock
+        Try
+            connectionStatusChanged(status)
+        Catch
+            'Status display must not interrupt PLC polling or shutdown.
+        End Try
+    End Sub
 
     Private Sub ReportAutomaticEventSafely(ByVal message As String)
         Try

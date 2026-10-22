@@ -264,12 +264,42 @@ BEGIN
 END
 GO
 
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'UX_TestResult_Task_Channel' AND object_id = OBJECT_ID(N'dbo.TestResult'))
+IF OBJECT_ID(N'dbo.CellOcvSummary', N'U') IS NULL
 BEGIN
-    CREATE UNIQUE INDEX UX_TestResult_Task_Channel ON dbo.TestResult(TestTaskId, ChannelNo);
+    CREATE TABLE dbo.CellOcvSummary
+    (
+        BatteryCode nvarchar(100) NOT NULL CONSTRAINT PK_CellOcvSummary PRIMARY KEY,
+        Vol0 decimal(18,9) NULL,
+        Vol1 decimal(18,9) NULL,
+        Vol2 decimal(18,9) NULL,
+        Res0 decimal(18,6) NULL,
+        Res1 decimal(18,6) NULL,
+        Res2 decimal(18,6) NULL,
+        Time0 datetime2(3) NULL,
+        Time1 datetime2(3) NULL,
+        Time2 datetime2(3) NULL,
+        K1 decimal(18,9) NULL,
+        K2 decimal(18,9) NULL,
+        TrayCode nvarchar(100) NULL,
+        ChannelNo smallint NULL,
+        CreatedAt datetime2(0) NOT NULL CONSTRAINT DF_CellOcvSummary_CreatedAt DEFAULT (sysdatetime()),
+        UpdatedAt datetime2(3) NULL,
+        RowVersion rowversion NOT NULL
+    );
 END
 GO
 
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_CellOcvSummary_TrayCode_ChannelNo' AND object_id = OBJECT_ID(N'dbo.CellOcvSummary'))
+    CREATE INDEX IX_CellOcvSummary_TrayCode_ChannelNo ON dbo.CellOcvSummary(TrayCode, ChannelNo);
+GO
+
+IF EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.TestResult') AND name = N'UX_TestResult_Task_Channel')
+    DROP INDEX UX_TestResult_Task_Channel ON dbo.TestResult;
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.TestResult') AND name = N'IX_TestResult_Task_Channel')
+    CREATE INDEX IX_TestResult_Task_Channel ON dbo.TestResult(TestTaskId, ChannelNo);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.TestResult') AND name = N'IX_TestResult_BatteryCode')
+    CREATE INDEX IX_TestResult_BatteryCode ON dbo.TestResult(BatteryCode);
+GO
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_TestResult_TrayStageChannel' AND object_id = OBJECT_ID(N'dbo.TestResult'))
 BEGIN
     CREATE INDEX IX_TestResult_TrayStageChannel ON dbo.TestResult(TrayId, OcvStageId, ChannelNo, CreatedAt DESC);
@@ -291,6 +321,11 @@ BEGIN
         OriginalResult nvarchar(10) NOT NULL,
         RetestVoltage real NOT NULL,
         RetestResistance real NOT NULL,
+        RetestRawResistanceMilliohm decimal(18,6) NOT NULL,
+        CalibrationValueMilliohm decimal(18,6) NOT NULL,
+        RetestFinalResistanceMilliohm decimal(18,6) NOT NULL,
+        CalibrationSnapshotFingerprint char(64) NULL,
+        CalibrationSnapshotSource nvarchar(200) NULL,
         RetestResult nvarchar(10) NOT NULL,
         RetestTime datetime2(7) NOT NULL,
         OverwriteOriginal bit NOT NULL,

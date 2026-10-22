@@ -11,7 +11,7 @@ Imports MpFByteArrDLL
 Imports File = System.IO.File
 Imports Timer = System.Timers.Timer
 Public Class frmTest
-    Implements IAutomaticTestHost, IManualTestHost
+    Implements IAutomaticTestHost, IManualTestHost, IPreparedTrayChannelsProvider, IPlcSmokeMonitorHost
     Dim PaintFlag As Boolean
     Dim objOLECommamd As OleDb.OleDbCommand
     Dim intNumber As Short
@@ -35,6 +35,19 @@ Public Class frmTest
     Private timer3PollBusy As Integer
     Private temperaturePollBusy As Integer
     Private lastTemperatureModuleError As String = String.Empty
+    Private lastNtcReadings As NtcTemperatureReading()
+    Private lastNtcReadingsAtUtc As DateTime = DateTime.MinValue
+    Private temperatureAlarmLatched As Boolean
+    Private temperatureAlarmRequiresUnavailableSensors As Boolean
+    Private ioAlarmLatched As Boolean
+    Private smokeAlarmLatched As Boolean
+    Private smokeSignalReadFailed As Boolean
+    Private lastSmokeInputObservedAtUtc As DateTime = DateTime.MinValue
+    Private Const SmokeAlarmIsActiveLow As Boolean = False
+    Private alarmCylinderReleaseState As Integer
+    Private resetFailureLatched As Boolean
+    Private resetInProgress As Boolean
+    Private ReadOnly pendingResetChannelsToClear As New List(Of Integer)()
     '窗体是否已加载完成（用于屏蔽 Resize 期间重绘，避免初始化阶段空引用）
     Private _isLoaded As Boolean = False
     Private shutdownPrepared As Boolean = False
@@ -58,14 +71,37 @@ Public Class frmTest
     Dim logDirectory As String = AppLog.LogDirectory
     Dim logFilePath As String = Path.Combine(logDirectory, "Run.log")
     Private ReadOnly testProgressState As New TestProgressState()
+    Private ReadOnly automaticEventLogWriter As New AutomaticEventLogWriter()
+    Private plcRuntimeStatusGeneration As Integer
     Private testProgressDialog As frmTestProgress
     Private plcAutomationClient As IPlcAutomationClient
     Private trayScannerClient As ITrayScannerClient
     Private plcAutomaticCoordinator As PlcAutomaticTestCoordinator
     Private automaticTestPassInProgress As Boolean
+    Private manualNgRetestCancellation As System.Threading.CancellationTokenSource
+    Private Const ManualNgFixturePressTimeoutMs As Integer = 30000
     Private activeTrayPlan As TrayTestPlan
     Private activeTrayDebugMode As Boolean
+    Private pendingTraySkipNotice As String = String.Empty
     Private lastPublishedAutomaticTrayCode As String = String.Empty
+    Private calibrationLoadError As String = String.Empty
+
+    Private Function IsStopRequested() As Boolean
+        Return System.Threading.Volatile.Read(blstop)
+    End Function
+
+    Private Sub SetStopRequested(value As Boolean)
+        System.Threading.Volatile.Write(blstop, value)
+    End Sub
+
+    Private Sub CancelPendingManualNgRetest()
+        Dim cancellation As System.Threading.CancellationTokenSource = manualNgRetestCancellation
+        If cancellation Is Nothing Then Return
+        Try
+            cancellation.Cancel()
+        Catch ex As ObjectDisposedException
+        End Try
+    End Sub
 
     Public ReadOnly Property CurrentAlarmValue As Integer
         Get
@@ -124,13 +160,21 @@ Public Class frmTest
         StartupTiming.Mark("frmTest-channel-combo")
         '读取校准值数组
         StartupTiming.Mark("frmTest-calibration-begin")
-        Call CalibrateOperate()
+        Try
+            Dim snapshot As CalibrationSnapshot = CalibrationService.SharedInstance.LoadSnapshot()
+            calibrationLoadError = String.Empty
+            SetTestStatus("校准补偿已载入：" & snapshot.SourceDescription &
+                          If(snapshot.UncalibratedChannelCount > 0,
+                             "；未校准通道 " & snapshot.UncalibratedChannelCount.ToString() & " 个",
+                             String.Empty) &
+                          If(String.IsNullOrWhiteSpace(CalibrationService.SharedInstance.LastCacheWriteWarning),
+                             String.Empty,
+                             "；" & CalibrationService.SharedInstance.LastCacheWriteWarning))
+        Catch ex As Exception
+            calibrationLoadError = ex.Message
+            SetTestStatus("校准补偿载入失败，已禁止测试：" & ex.Message)
+        End Try
         StartupTiming.Mark("frmTest-calibration")
-        '初始化校准值数组
-        ReDim calibrateValueArray(255)
-        For i As Integer = 0 To MAX_CHANNEL - 1
-            calibrateValueArray(i) = 0
-        Next
         '**********************************
         '****************************
         '刷新界面
@@ -150,7 +194,7 @@ Public Class frmTest
         fixtureClose = False
         '获取分选条件项目到g_objCN
         btnStop.Enabled = False
-        CmdStart.Enabled = True
+        CmdStart.Enabled = CalibrationService.HasCurrentSnapshot
         UpdateTestModeVisuals()
         smokeAlarm1.BackColor = Color.Green
         smokeAlarm2.BackColor = Color.Green
@@ -166,6 +210,7 @@ Public Class frmTest
         StartupTiming.Mark("frmTest-load-end")
         '布局稳定后强制左侧滚动区回到顶部,保证首屏从工位选择/托盘信息开始
         Me.BeginInvoke(New MethodInvoker(AddressOf ResetLeftPanelScroll))
+        StartTemperaturePolling()
     End Sub
 
     Private Sub frmTest_Paint(ByVal sender As Object, ByVal e As PaintEventArgs) Handles MyBase.Paint
@@ -199,11 +244,17 @@ Public Class frmTest
                                                       End Sub)
 
         '新系统不再轮询控制板的 JIG/IO 状态。
-        temperatureTimer.Interval = 5000
-        temperatureTimer.Start()
         Timer4.Start()
 
         StartupTiming.Mark("frmTest-deferred-complete")
+    End Sub
+
+    Private Sub StartTemperaturePolling()
+        If shutdownPrepared OrElse ApplicationShuttingDown OrElse IsDisposed Then Return
+
+        temperatureTimer.Interval = 5000
+        temperatureTimer.Start()
+        AppLog.Write("Temperature", "NTC polling timer started: COM" & (Initsetting.TemperatureComPort + 1).ToString() & ", interval=5000 ms.")
     End Sub
 
     Private Sub InitializeLeftPanelButtonStyles()
@@ -211,10 +262,7 @@ Public Class frmTest
         UiTheme.ApplyButtonStyle(CmdStart, UiTheme.ButtonRole.Primary)
         UiTheme.ApplyButtonStyle(btnStop, UiTheme.ButtonRole.Danger)
         UiTheme.ApplyButtonStyle(btnNGTest, UiTheme.ButtonRole.Warning)
-        UiTheme.ApplyButtonStyle(btnTrayState, UiTheme.ButtonRole.Neutral)
-        UiTheme.ApplyButtonStyle(btnOpen, UiTheme.ButtonRole.Neutral)
-        UiTheme.ApplyButtonStyle(btnClose, UiTheme.ButtonRole.Neutral)
-        UiTheme.ApplyButtonStyle(Button2, UiTheme.ButtonRole.Danger)
+        UiTheme.ApplyButtonStyle(btnReset, UiTheme.ButtonRole.Danger)
     End Sub
 
     Private Sub InitializeAutomaticTestControls()
@@ -280,6 +328,7 @@ Public Class frmTest
             button.Enabled = enabled
         Next
         channelGrid.Enabled = enabled
+        If enabled Then channelGrid.RefreshHoverDetailsAtCursor()
     End Sub
 
     Public Function GetSignalTrayStatus() As Boolean
@@ -512,6 +561,14 @@ Public Class frmTest
     End Function
     Private Sub CmdStart_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles CmdStart.Click
         If Not AuthorizationService.RequireAuthenticatedUser(Me) Then Return
+        If resetInProgress Then
+            MessageBox.Show("设备正在复位，请复位完成后再启动测试。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information)
+            Return
+        End If
+        If alarmStatus Then
+            MessageBox.Show("目前处于报警锁定状态，请先确认报警源正常并完成复位。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+            Return
+        End If
         If chkAutoTest.Checked OrElse plcAutomaticModeActive Then
             MessageBox.Show("自动模式由 PLC 启动，请先切换到手动模式。", "提示", MessageBoxButtons.OK)
             Return
@@ -528,6 +585,9 @@ Public Class frmTest
             End If
         Catch ex As OperationCanceledException
             SetTestStatus("已取消本次手动测试启动。")
+        Catch ex As NoTestableTrayChannelsException
+            ReportAutomaticEvent("手动测试未启动，未发送R160：" & ex.Message)
+            SetTestStatus("手动托盘没有可测电芯，测试未启动")
         Catch ex As Exception
             MessageBox.Show("测试前准备失败：" & ex.Message, "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning)
         Finally
@@ -549,6 +609,11 @@ Public Class frmTest
         StarTest = 0
         Dim automaticFailure As Exception = Nothing
         Dim automaticResult As TestPassResult = Nothing
+        Dim runCalibrationSnapshot As CalibrationSnapshot = Nothing
+        If resetInProgress Then
+            automaticFailure = New InvalidOperationException("设备正在复位，当前测试启动已取消。")
+            GoTo exit_sub
+        End If
         If Not AuthorizationService.IsAuthenticated() Then
             If automaticMode Then
                 automaticFailure = New InvalidOperationException("自动测试要求先完成用户登录。")
@@ -557,6 +622,30 @@ Public Class frmTest
             AuthorizationService.RequireAuthenticatedUser(Me)
             Return StarTest
         End If
+        If CalibrationService.IsCalibrationAcquisitionInProgress OrElse CalibrationService.IsBarcodeRetestInProgress Then
+            automaticFailure = New InvalidOperationException("通道校准或扫码复测正在采集，当前不能启动测试。")
+            If Not automaticMode Then
+                MessageBox.Show(automaticFailure.Message, "校准采集忙", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                Return StarTest
+            End If
+            GoTo exit_sub
+        End If
+        Try
+            If CalibrationService.HasCurrentSnapshot Then
+                runCalibrationSnapshot = CalibrationService.SharedInstance.CurrentSnapshot
+            Else
+                runCalibrationSnapshot = CalibrationService.SharedInstance.LoadSnapshot()
+            End If
+            calibrationLoadError = String.Empty
+        Catch ex As Exception
+            calibrationLoadError = ex.Message
+            automaticFailure = New InvalidOperationException("校准补偿值不可用，已阻止测试：" & ex.Message, ex)
+            If Not automaticMode Then
+                MessageBox.Show(automaticFailure.Message, "校准值不可用", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                Return StarTest
+            End If
+            GoTo exit_sub
+        End Try
         Dim runChannels As New List(Of Integer)()
         If testType = 0 Then
             If retestArray IsNot Nothing Then
@@ -596,9 +685,10 @@ Public Class frmTest
         Dim Buffer_SCM(5) As Byte
         Dim Buffer_Re(5) As Byte
         Dim mesUP As New ResultDataUploadAssembly(FrmMesTask.listBoxOutput)
-        '清空报警信息
-        txtAlarm.Text = ""
-        txtAlarm.Refresh()
+        If pendingTraySkipNotice.Length > 0 Then
+            Dim skippedEventLine As String = DateTime.Now.ToString("HH:mm:ss") & " " & pendingTraySkipNotice
+            PrependEventLogLine(skippedEventLine)
+        End If
         'frmTest_Resize1(）
         Pic_Bat.Refresh()
         Sleep(100)
@@ -607,7 +697,7 @@ Public Class frmTest
         frmMDI.txtTesting.Text = ""
         frmMDI.Refresh()
         '设定为测试状态
-        blstop = False
+        SetStopRequested(False)
         isRuning = True
         UpdateTestModeVisuals()
         SetSelectionControlsEnabled(False)
@@ -628,6 +718,9 @@ Public Class frmTest
             For I = 0 To MAX_CHANNEL - 1
                 RecieveData(I).Voltage = 0
                 RecieveData(I).Resistance = 0
+                RecieveData(I).RawResistanceMilliohm = 0
+                RecieveData(I).CalibrationValueMilliohm = 0
+                RecieveData(I).FinalResistanceMilliohm = 0
                 RecieveData(I).TestTime = Now
             Next
         End If
@@ -700,15 +793,13 @@ Public Class frmTest
         frmMDI.txtTesting.Text = "测试中......"
         Sleep(100)
         frmMDI.Refresh()
-        '暂时不允许控制托盘
-        btnOpen.Enabled = False
-        btnTrayState.Enabled = False
-        btnClose.Enabled = False
+
         '本次测试必须从当前计划重新生成通道选择，不能沿用上一次 Runner 的结果。
         lastTestSelection = Nothing
         currentTestChannels = runChannels.ToList()
         MarkSelectedChannelsTesting()
         Dim ocvTestTaskId As Long? = Nothing
+        Dim stageTestTime As DateTime? = Nothing
         Dim testTaskStatusFinalized As Boolean = False
         Try
             If Not automaticMode Then
@@ -727,12 +818,31 @@ Public Class frmTest
         '************** 正式测试：中位机只负责通道计划和 START，仪表缓存完成后统一回填 *********************
         Try
             PublishTestProgress(TestProgressStage.Testing, "正在执行通道测试，请勿操作...", 25)
-            Dim formalRunner As New FormalTestRunner()
-            lastTestSelection = formalRunner.RunSparseMeasurement(deviceChannels,
-                                                                    cancellationRequested:=Function() blstop)
+            Dim formalRunner As New FormalTestRunner(
+                New SerialMiddleMachineClient(Com_SCM),
+                New TestChannelPlanService(),
+                New TwoPassResultMapper(),
+                Sub(applyAction)
+                    If Me.InvokeRequired Then
+                        Me.Invoke(applyAction)
+                    Else
+                        applyAction()
+                    End If
+                End Sub)
+            Dim measurementTask As System.Threading.Tasks.Task(Of TestChannelSelection) =
+                System.Threading.Tasks.Task.Run(Function() formalRunner.RunSparseMeasurement(deviceChannels,
+                                                                                               cancellationRequested:=Function() IsStopRequested(),
+                                                                                               calibrationSnapshot:=runCalibrationSnapshot))
+            While Not measurementTask.IsCompleted
+                Application.DoEvents()
+                System.Threading.Thread.Sleep(25)
+            End While
+            lastTestSelection = measurementTask.GetAwaiter().GetResult()
+            stageTestTime = DateTime.Now
+            If IsStopRequested() Then Throw New OperationCanceledException("测试已由操作员停止。")
             PublishTestProgress(TestProgressStage.CollectingResults, "测量完成，正在读取和整理结果...", 70)
         Catch ex As Exception
-            If TypeOf ex Is OperationCanceledException OrElse blstop Then
+            If TypeOf ex Is OperationCanceledException OrElse IsStopRequested() Then
                 CancelTestProgress("测试已停止")
                 CompleteOcvDataTestTaskSafely(ocvTestTaskId, "Canceled", "操作员停止了当前测试。")
                 ClearIncompleteTestResults(runChannels)
@@ -797,7 +907,7 @@ Public Class frmTest
             RefreshChannelOverview()
             If automaticMode Then automaticResult = BuildAutomaticPassResult(runChannels)
             If Not automaticMode Then
-                SaveOcvDataTestResults(ocvTestTaskId, testType)
+                SaveOcvDataTestResults(ocvTestTaskId, testType, stageTestTime.Value)
                 SaveTestDataLocalFile(RecieveData)
                 If Not ocvTestTaskId.HasValue Then Throw New InvalidOperationException("OCV_DATA 测试任务号不存在。")
                 CompleteOcvDataTestTaskStrict(ocvTestTaskId.Value, "Completed", Nothing)
@@ -865,12 +975,9 @@ exit_sub:
         RefreshChannelOverview()
         currentTestChannels = Nothing
         'PLC负责测试完成后的后续动作，上位机只恢复自身测试控件。
-        btnOpen.Enabled = True
-        btnTrayState.Enabled = True
-        btnClose.Enabled = True
         SetSelectionControlsEnabled(True)
         Me.Cursor = Cursors.Default
-        If blstop Then blstop = False
+        If IsStopRequested() Then SetStopRequested(False)
         isRuning = False
         UpdateTestModeVisuals()
         If automaticMode Then
@@ -920,7 +1027,7 @@ exit_sub:
         Return Convert.ToInt64(table.Rows(0)("TestTaskId"))
     End Function
 
-    Private Sub SaveOcvDataTestResults(ByVal testTaskId As Long?, ByVal testType As Integer)
+    Private Sub SaveOcvDataTestResults(ByVal testTaskId As Long?, ByVal testType As Integer, ByVal stageTestTime As DateTime)
         If Not testTaskId.HasValue Then
             Return
         End If
@@ -934,17 +1041,17 @@ exit_sub:
                 Continue For
             End If
 
-            Dim finalResistance As Decimal = Convert.ToDecimal(RecieveData(index0).Resistance)
-            Dim deviceIndex0 As Integer = TrayChannelMapping.ToDeviceChannel(channel) - 1
-            Dim calibrationValue As Decimal = Convert.ToDecimal(calibrateValueArray(deviceIndex0))
-            Dim rawResistance As Decimal = finalResistance - calibrationValue
+            Dim measuredResult As Bat_info = RecieveData(index0)
+            Dim finalResistance As Decimal = Convert.ToDecimal(measuredResult.FinalResistanceMilliohm)
+            Dim calibrationValue As Decimal = Convert.ToDecimal(measuredResult.CalibrationValueMilliohm)
+            Dim rawResistance As Decimal = Convert.ToDecimal(measuredResult.RawResistanceMilliohm)
             Dim ngCode As Integer = IsNG(RecieveData(index0).Voltage, RecieveData(index0).Resistance)
 
             results.Add(New OcvTestResultInput With {
                 .ChannelNo = channel,
                 .BatteryCode = RecieveData(index0).BatCode,
                 .ExecutionOrder = orderIndex + 1,
-                .VoltageVolt = Convert.ToDecimal(RecieveData(index0).Voltage),
+                .VoltageVolt = Convert.ToDecimal(measuredResult.Voltage),
                 .RawResistanceMilliohm = rawResistance,
                 .CalibrationValueMilliohm = calibrationValue,
                 .FinalResistanceMilliohm = finalResistance,
@@ -955,7 +1062,7 @@ exit_sub:
         Next
 
         Dim service As New OcvDataService()
-        service.SaveTestResults(testTaskId.Value, results)
+        service.SaveTestResults(testTaskId.Value, stageTestTime, results)
     End Sub
 
     Private Sub CompleteOcvDataTestTaskSafely(ByVal testTaskId As Long?,
@@ -1126,7 +1233,7 @@ exit_sub:
         'End While
 
         ' 创建文件并写入数据
-        Using writer As New StreamWriter(filePath)
+        Using writer As New StreamWriter(filePath, False, New System.Text.UTF8Encoding(True))
             ' 写入文件头
             writer.WriteLine("电池条码,测试结果,通道号,内阻(mΩ),电压(mV),测试时间,TA1,TA2,TA3,TA4,维修通道")
 
@@ -1434,15 +1541,21 @@ exit_sub:
 
     End Sub
     Private Sub btnStop_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles btnStop.Click
-        If blstop OrElse shutdownPrepared Then Return
+        If IsStopRequested() OrElse shutdownPrepared OrElse resetInProgress Then Return
         Dim cycleActive As Boolean = plcAutomaticCoordinator IsNot Nothing AndAlso plcAutomaticCoordinator.IsCycleOccupied
-        If Not isRuning AndAlso Not cycleActive Then Return
+        Dim manualNgRetestPending As Boolean = manualNgRetestCancellation IsNot Nothing
+        If Not isRuning AndAlso Not cycleActive AndAlso Not manualNgRetestPending Then Return
 
         ReportAutomaticEvent("收到停止测试请求，正在停止当前测试周期")
+        If manualNgRetestPending Then CancelPendingManualNgRetest()
         If isRuning Then
-            blstop = True
+            SetStopRequested(True)
             UpdateTestModeVisuals()
             SetTestStatus("正在停止测试并复位设备...")
+            Return
+        End If
+        If manualNgRetestPending AndAlso Not cycleActive Then
+            SetTestStatus("正在取消等待针床压合...")
             Return
         End If
 
@@ -1453,11 +1566,223 @@ exit_sub:
         currentTestChannels = Nothing
         lastTestSelection = Nothing
         ResetTestProgressDisplay()
-        blstop = False
+        SetStopRequested(False)
         UpdateTestModeVisuals()
     End Sub
 
+    Private Async Sub btnReset_Click(sender As Object, e As EventArgs) Handles btnReset.Click
+        If resetInProgress OrElse shutdownPrepared Then Return
+
+        Dim cycleActive As Boolean = isRuning OrElse automaticTestPassInProgress OrElse
+                                     (plcAutomaticCoordinator IsNot Nothing AndAlso plcAutomaticCoordinator.IsCycleOccupied)
+        Dim hasCurrentTrayContext As Boolean = activeTrayPlan IsNot Nothing OrElse
+                                               (txtTray IsNot Nothing AndAlso Not String.IsNullOrWhiteSpace(txtTray.Text)) OrElse
+                                               currentTestChannels IsNot Nothing OrElse
+                                               pendingResetChannelsToClear.Count > 0 OrElse
+                                               haveNgPoint
+        If cycleActive OrElse hasCurrentTrayContext Then
+            Dim decision As DialogResult = MessageBox.Show(
+                "复位会取消当前流程，并清除当前托盘码、界面测量值和未完成结果；已保存结果、测试设置和历史日志会保留。是否继续？",
+                "复位确认",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning)
+            If decision <> DialogResult.Yes Then Return
+        End If
+
+        Dim channelsToClear As List(Of Integer) = CaptureCurrentResetChannels()
+        pendingResetChannelsToClear.Clear()
+        pendingResetChannelsToClear.AddRange(channelsToClear)
+        resetInProgress = True
+        If btnReset IsNot Nothing Then btnReset.Enabled = False
+        UpdateTestModeVisuals()
+        SetTestStatus("正在取消当前流程并等待设备退出...")
+
+        Try
+            CancelPendingManualNgRetest()
+            If isRuning Then SetStopRequested(True)
+            If plcAutomaticCoordinator IsNot Nothing Then plcAutomaticCoordinator.RequestStopCurrentCycle()
+
+            Dim workerDeadline As DateTime = DateTime.UtcNow.AddSeconds(30)
+            While isRuning OrElse automaticTestPassInProgress OrElse manualNgRetestCancellation IsNot Nothing
+                If DateTime.UtcNow >= workerDeadline Then
+                    resetFailureLatched = True
+                    RefreshAlarmStatus()
+                    Dim timeoutMessage As String = "复位失败：测试线程在30秒内没有安全退出；设备未复位，当前上下文已保留。"
+                    SetTestStatus(timeoutMessage)
+                    RecordResetEvent(timeoutMessage)
+                    MessageBox.Show(timeoutMessage, "复位失败", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                    Return
+                End If
+                Await System.Threading.Tasks.Task.Delay(100)
+            End While
+
+            SetStopRequested(False)
+            ResetCurrentTrayContext(channelsToClear)
+            SetTestStatus("测试线程已退出，正在复位中位机和仪表...")
+
+            Dim resetResult As TestEnvironmentResetResult = Await System.Threading.Tasks.Task.Run(
+                Function()
+                    If Com_SCM Is Nothing OrElse Not Com_SCM.IsOpen Then
+                        Dim unavailableResult As New TestEnvironmentResetResult()
+                        unavailableResult.AddFailure("中位机", "串口未打开")
+                        Return unavailableResult
+                    End If
+                    Return TestEnvironmentResetService.ResetAllWithResult(
+                        New SerialMiddleMachineClient(Com_SCM),
+                        closeInstrumentSessions:=False,
+                        totalTimeoutMs:=30000)
+                End Function)
+
+            Dim alarmWasLatched As Boolean = temperatureAlarmLatched OrElse ioAlarmLatched OrElse
+                                             smokeAlarmLatched OrElse smokeSignalReadFailed OrElse resetFailureLatched
+            Dim temperatureSourceIsNormal As Boolean = True
+            If temperatureAlarmLatched Then
+                temperatureSourceIsNormal = Await RefreshTemperatureForResetAsync()
+                If temperatureSourceIsNormal AndAlso Not temperatureAlarmRequiresUnavailableSensors Then
+                    temperatureAlarmLatched = False
+                End If
+            End If
+
+            Dim smokeSourceIsNormal As Boolean = True
+            If smokeAlarmLatched OrElse smokeSignalReadFailed Then
+                smokeSourceIsNormal = Await RefreshSmokeInputForResetAsync()
+                If resetResult.Succeeded AndAlso smokeSourceIsNormal Then
+                    smokeAlarmLatched = False
+                    smokeSignalReadFailed = False
+                End If
+            End If
+
+            If resetResult.Succeeded Then
+                resetFailureLatched = False
+            Else
+                resetFailureLatched = True
+            End If
+
+            Dim remainingAlarmReasons As New List(Of String)()
+            If ioAlarmLatched Then remainingAlarmReasons.Add("急停/其他IO报警源尚未取得有效的实时正常信号")
+            If smokeAlarmLatched Then
+                remainingAlarmReasons.Add(If(smokeSourceIsNormal,
+                                             "烟感信号已恢复，但设备复位未成功，烟感报警仍保持锁定",
+                                             "烟感输入 X1F 仍处于报警电平或无法确认正常"))
+            ElseIf smokeSignalReadFailed AndAlso Not smokeSourceIsNormal Then
+                remainingAlarmReasons.Add("烟感输入 X1F 通信异常")
+            End If
+            If temperatureAlarmRequiresUnavailableSensors Then remainingAlarmReasons.Add("温度探头3/4没有当前实时采集数据")
+            If temperatureAlarmLatched AndAlso Not temperatureSourceIsNormal Then remainingAlarmReasons.Add("温度信号无效、过期或仍高于阈值")
+            If Not resetResult.Succeeded Then remainingAlarmReasons.AddRange(resetResult.Failures)
+
+            RefreshAlarmStatus()
+            If Not alarmStatus Then System.Threading.Interlocked.Exchange(alarmCylinderReleaseState, 0)
+            Dim completionMessage As String
+            If Not resetResult.Succeeded Then
+                completionMessage = "复位未完成：" & String.Join("；", resetResult.Failures)
+            ElseIf alarmStatus Then
+                completionMessage = "测试流程已复位；报警仍保持锁定：" & String.Join("；", remainingAlarmReasons) &
+                                    "。PLC触发输入需先回到待机电平，再重新触发。"
+            Else
+                completionMessage = If(alarmWasLatched,
+                                       "设备和报警源已复位，测试已回到待开始状态。",
+                                       "设备和当前测试流程已复位，已回到待开始状态。") &
+                                    "PLC触发输入需先回到待机电平，再重新触发。"
+            End If
+            SetTestStatus(completionMessage)
+            RecordResetEvent(completionMessage)
+            If resetResult.Succeeded AndAlso Not alarmStatus Then
+                MessageBox.Show(completionMessage, "复位完成", MessageBoxButtons.OK, MessageBoxIcon.Information)
+            Else
+                MessageBox.Show(completionMessage, "复位状态", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+            End If
+        Catch ex As Exception
+            resetFailureLatched = True
+            RefreshAlarmStatus()
+            Dim failureMessage As String = "复位失败：" & ex.Message
+            SetTestStatus(failureMessage)
+            RecordResetEvent(failureMessage)
+            MessageBox.Show(failureMessage, "复位失败", MessageBoxButtons.OK, MessageBoxIcon.Error)
+        Finally
+            resetInProgress = False
+            UpdateTestModeVisuals()
+        End Try
+    End Sub
+
+    Private Async Function RefreshSmokeInputForResetAsync() As System.Threading.Tasks.Task(Of Boolean)
+        Dim plcClient As IPlcAutomationClient = plcAutomationClient
+        If plcClient Is Nothing OrElse Not plcClient.IsOpen Then Return False
+
+        Try
+            Dim smokeSample As Tuple(Of Boolean, DateTime) = Await System.Threading.Tasks.Task.Run(
+                Function()
+                    Dim inputHigh As Boolean = plcClient.ReadX1F()
+                    Return Tuple.Create(inputHigh, DateTime.UtcNow)
+                End Function)
+            ReportPlcSmokeInput(smokeSample.Item1, smokeSample.Item2)
+            Return Not IsSmokeAlarmActive(smokeSample.Item1)
+        Catch ex As Exception
+            ReportPlcSmokeInputReadFailure("复位校验烟感输入 X1F 失败：" & ex.Message, DateTime.UtcNow)
+            Return False
+        End Try
+    End Function
+
+    Private Function CaptureCurrentResetChannels() As List(Of Integer)
+        Dim channels As New HashSet(Of Integer)()
+        If currentTestChannels IsNot Nothing Then
+            For Each channel As Integer In currentTestChannels
+                If channel >= 1 AndAlso channel <= MAX_CHANNEL Then channels.Add(channel)
+            Next
+        End If
+        If activeTrayPlan IsNot Nothing Then
+            For Each channel As Integer In activeTrayPlan.OccupiedChannels.Concat(activeTrayPlan.MeasurementChannels)
+                If channel >= 1 AndAlso channel <= MAX_CHANNEL Then channels.Add(channel)
+            Next
+        End If
+        For Each channel As Integer In pendingResetChannelsToClear
+            If channel >= 1 AndAlso channel <= MAX_CHANNEL Then channels.Add(channel)
+        Next
+        If retestArray IsNot Nothing Then
+            For index As Integer = 0 To Math.Min(MAX_CHANNEL, retestArray.Length) - 1
+                If retestArray(index) = 1 Then channels.Add(index + 1)
+            Next
+        End If
+        Return channels.OrderBy(Function(channel) channel).ToList()
+    End Function
+
+    Private Sub ResetCurrentTrayContext(channels As IEnumerable(Of Integer))
+        Dim channelSnapshot As List(Of Integer) = If(channels, Enumerable.Empty(Of Integer)()).Distinct().ToList()
+        ClearIncompleteTestResults(channelSnapshot)
+        For Each channel As Integer In channelSnapshot
+            If channel >= 1 AndAlso channel <= MAX_CHANNEL Then RecieveData(channel - 1).BatCode = String.Empty
+        Next
+        If txtTray IsNot Nothing Then txtTray.Clear()
+        trayCode = String.Empty
+        trayCodeSet = String.Empty
+        lastTrayNo = String.Empty
+        currentTestChannels = Nothing
+        lastTestSelection = Nothing
+        pendingResetChannelsToClear.Clear()
+        haveNgPoint = False
+        autoStartFlag = False
+        activeTrayDebugMode = False
+        pendingTraySkipNotice = String.Empty
+        firstCellNumToTest = 0
+        lastCellNumToTest = 0
+        totalCellNumToTest = 0
+        ResetTestProgressDisplay()
+        RefreshChannelOverview()
+    End Sub
+
+    Private Sub RecordResetEvent(message As String)
+        Dim timestamp As DateTime = DateTime.Now
+        Dim logText As String = timestamp.ToString("yyyy-MM-dd HH:mm:ss") & ":" & If(message, String.Empty)
+        PrependEventLogLine(timestamp.ToString("HH:mm:ss") & " " & If(message, String.Empty))
+        AppLog.Write("Alarm", logText)
+        BusinessLogService.WriteAlarm(logText)
+    End Sub
+
     Private Sub btnGetBarcode_Click(ByVal sender As Object, ByVal e As EventArgs) Handles btnGetBarcode.Click
+        If resetInProgress Then
+            MessageBox.Show("设备正在复位，请复位完成后再准备托盘。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information)
+            Return
+        End If
         If chkAutoTest.Checked OrElse plcAutomaticModeActive Then
             MessageBox.Show("自动模式会自行读取并核对托盘码。", "提示", MessageBoxButtons.OK)
             Return
@@ -1476,9 +1801,15 @@ exit_sub:
 
         Try
             Dim plan As TrayTestPlan = PrepareTrayForTest(trayCode, chkAutoTest.Checked)
-            Dim resultLabel As String = If(activeTrayDebugMode, "已生成 ", "已获取 ")
-            Dim codeLabel As String = If(activeTrayDebugMode, " 个调试电芯码。", " 个电芯条码。")
-            MessageBox.Show(resultLabel & plan.BatteryCodes.Count.ToString() & codeLabel, "提示", MessageBoxButtons.OK, MessageBoxIcon.Information)
+            Dim requestedChannelCount As Integer = If(SelectedChannelNumbers Is Nothing, 0, SelectedChannelNumbers.Distinct().Count())
+            If plan.MeasurementChannels.Count = requestedChannelCount Then
+                Dim resultLabel As String = If(activeTrayDebugMode, "已生成 ", "已获取 ")
+                Dim codeLabel As String = If(activeTrayDebugMode, " 个调试电芯码。", " 个电芯条码。")
+                MessageBox.Show(resultLabel & plan.MeasurementChannels.Count.ToString() & codeLabel, "提示", MessageBoxButtons.OK, MessageBoxIcon.Information)
+            End If
+        Catch ex As NoTestableTrayChannelsException
+            ReportAutomaticEvent("托盘电芯码查询没有可测通道，测试未启动且未发送R160：" & ex.Message)
+            SetTestStatus("托盘没有可测通道，测试未启动")
         Catch ex As Exception
             MessageBox.Show("获取托盘条码失败：" & ex.Message, "错误", MessageBoxButtons.OK, MessageBoxIcon.Error)
         End Try
@@ -1487,15 +1818,24 @@ exit_sub:
     Private Function PrepareTrayForTest(ByVal requestedTrayCode As String,
                                         ByVal automaticMode As Boolean,
                                         Optional ByVal selectedChannels As IEnumerable(Of Integer) = Nothing) As TrayTestPlan
+        If resetInProgress Then Throw New InvalidOperationException("设备正在复位，暂不能准备新托盘。")
         Dim normalizedCode As String = If(requestedTrayCode, String.Empty).Trim()
         If Not ValidateTrayCode(normalizedCode) Then Throw New InvalidOperationException("托盘码为空或长度不符合设置。")
         Dim channelsForPreparation As IEnumerable(Of Integer) = selectedChannels
         If channelsForPreparation Is Nothing Then channelsForPreparation = SelectedChannelNumbers
         activeTrayPlan = Nothing
         activeTrayDebugMode = chk_Test.Checked
+        pendingTraySkipNotice = String.Empty
         For index As Integer = 0 To MAX_CHANNEL - 1
             RecieveData(index).BatCode = String.Empty
+            RecieveData(index).Voltage = 0
+            RecieveData(index).Resistance = 0
+            RecieveData(index).RawResistanceMilliohm = 0
+            RecieveData(index).CalibrationValueMilliohm = 0
+            RecieveData(index).FinalResistanceMilliohm = 0
+            RecieveData(index).Result = String.Empty
         Next
+        RefreshChannelOverview()
         If activeTrayDebugMode Then
             Return CreateDebugTrayPlan(automaticMode, channelsForPreparation)
         End If
@@ -1504,7 +1844,30 @@ exit_sub:
         Using service As New OcvDataService()
             trayCells = service.GetTrayCellsByTrayCode(normalizedCode)
         End Using
-        Dim plan As TrayTestPlan = TrayTestPreparation.Prepare(trayCells, channelsForPreparation, automaticMode)
+        Dim plan As TrayTestPlan
+        Try
+            plan = TrayTestPreparation.Prepare(trayCells, channelsForPreparation, automaticMode)
+        Catch ex As NoTestableTrayChannelsException
+            If Not automaticMode Then StartAutomaticEventLog(DateTime.Now)
+            RefreshChannelOverview()
+            Throw
+        End Try
+        Dim requestedChannels As IEnumerable(Of Integer) = If(automaticMode,
+                                                               Enumerable.Range(1, MAX_CHANNEL),
+                                                               If(channelsForPreparation, Enumerable.Empty(Of Integer)()))
+        Dim skippedChannels As List(Of Integer) = requestedChannels.
+            Distinct().
+            OrderBy(Function(channel) channel).
+            Where(Function(channel) Not plan.MeasurementChannels.Contains(channel)).
+            ToList()
+        If skippedChannels.Count > 0 Then
+            pendingTraySkipNotice = String.Format("托盘{0}有{1}个通道缺少电芯码，已跳过：{2}",
+                                                  normalizedCode,
+                                                  skippedChannels.Count,
+                                                  String.Join(",", skippedChannels.Select(Function(channel) "CH" & channel.ToString())))
+            If Not automaticMode Then StartAutomaticEventLog(DateTime.Now)
+            ReportAutomaticEvent(pendingTraySkipNotice)
+        End If
         For Each item As KeyValuePair(Of Integer, String) In plan.BatteryCodes
             RecieveData(item.Key - 1).BatCode = item.Value
         Next
@@ -1619,7 +1982,7 @@ exit_sub:
     Private Sub temperatureTimer_Elapsed(sender As Object, e As ElapsedEventArgs) Handles temperatureTimer.Elapsed
         If System.Threading.Interlocked.Exchange(temperaturePollBusy, 1) = 1 Then Return
         Try
-            If shutdownPrepared OrElse ApplicationShuttingDown OrElse alarmStatus Then Return
+            If shutdownPrepared OrElse ApplicationShuttingDown Then Return
             Try
                 If temperatureModuleClient Is Nothing Then
                     temperatureModuleClient = New NtcTemperatureModuleClient(Initsetting.TemperatureComPort)
@@ -1654,9 +2017,13 @@ exit_sub:
 
     Private Sub UpdateTemperatureReadings(readings As NtcTemperatureReading())
         If readings Is Nothing OrElse readings.Length <> 2 Then
+            lastNtcReadings = Nothing
+            lastNtcReadingsAtUtc = DateTime.MinValue
             UpdateTemperatureCommunicationError()
             Return
         End If
+        lastNtcReadings = CType(readings.Clone(), NtcTemperatureReading())
+        lastNtcReadingsAtUtc = DateTime.UtcNow
         Updatet1Text(FormatTemperatureReading(readings(0)))
         Updatet2Text(FormatTemperatureReading(readings(1)))
         hjwd = If(readings(0).IsValid,
@@ -1672,14 +2039,61 @@ exit_sub:
     End Function
 
     Private Sub UpdateTemperatureCommunicationError()
+        lastNtcReadings = Nothing
+        lastNtcReadingsAtUtc = DateTime.MinValue
         Updatet1Text("通信故障")
         Updatet2Text("通信故障")
     End Sub
 
     Private Sub UpdateTemperatureUnitError()
+        lastNtcReadings = Nothing
+        lastNtcReadingsAtUtc = DateTime.MinValue
         Updatet1Text("请设摄氏度")
         Updatet2Text("请设摄氏度")
     End Sub
+
+    Private Async Function RefreshTemperatureForResetAsync() As System.Threading.Tasks.Task(Of Boolean)
+        Dim waitDeadline As DateTime = DateTime.UtcNow.AddSeconds(3)
+        While System.Threading.Interlocked.CompareExchange(temperaturePollBusy, 1, 0) <> 0
+            If DateTime.UtcNow >= waitDeadline Then Return False
+            Await System.Threading.Tasks.Task.Delay(50)
+        End While
+
+        Try
+            Dim readings As NtcTemperatureReading() = Await System.Threading.Tasks.Task.Run(
+                Function()
+                    If temperatureModuleClient Is Nothing Then
+                        temperatureModuleClient = New NtcTemperatureModuleClient(Initsetting.TemperatureComPort)
+                    End If
+                    Return temperatureModuleClient.ReadTemperatures()
+                End Function)
+            UpdateTemperatureReadings(readings)
+            Return IsTemperatureSourceNormal()
+        Catch ex As Exception
+            If temperatureModuleClient IsNot Nothing Then
+                temperatureModuleClient.Dispose()
+                temperatureModuleClient = Nothing
+            End If
+            UpdateTemperatureCommunicationError()
+            AppLog.Write("Temperature", "Reset verification read failed: " & ex.Message)
+            Return False
+        Finally
+            System.Threading.Interlocked.Exchange(temperaturePollBusy, 0)
+        End Try
+    End Function
+
+    Private Function IsTemperatureSourceNormal() As Boolean
+        If temperatureAlarmRequiresUnavailableSensors OrElse
+           lastNtcReadings Is Nothing OrElse
+           lastNtcReadings.Length <> 2 OrElse
+           DateTime.UtcNow.Subtract(lastNtcReadingsAtUtc) > TimeSpan.FromSeconds(10) Then Return False
+
+        For Each reading As NtcTemperatureReading In lastNtcReadings
+            If Not reading.IsValid OrElse reading.TemperatureCelsius > CDec(Initsetting.overTemperateValue) Then Return False
+        Next
+        Return True
+    End Function
+
     ''' <summary>
     ''' jig信号监控定时器
     ''' </summary>
@@ -1723,7 +2137,9 @@ exit_sub:
                         LabelAlarm.Visible = True
                         LabelRun.Visible = False
                         '设置报警状态
-                        alarmStatus = True
+                        ioAlarmLatched = True
+                        RefreshAlarmStatus()
+                        RequestStopForAlarm("急停报警，请检查急停回路")
                         '关闭定时器
                         timer3.Close()
                         ' 显示一个警告消息框
@@ -1769,7 +2185,9 @@ exit_sub:
                         Dim timestamp As String = DateTime.Now.ToString()    ' 添加时间戳
                         Dim alarmLog As String = $"{timestamp}:烟感报警 " & "烟感 1 位置"  ' 添加时间戳和报警信息
                         '设置报警状态
-                        alarmStatus = True
+                        ioAlarmLatched = True
+                        RefreshAlarmStatus()
+                        RequestStopForAlarm("烟感1报警，请检查烟感回路")
                         Try
                             Dim filePath As String = "AlarmLog.txt"
                             ' 使用 StreamWriter 写入文件
@@ -1800,7 +2218,9 @@ exit_sub:
                         Dim timestamp As String = DateTime.Now.ToString()    ' 添加时间戳
                         Dim alarmLog As String = $"{timestamp}:烟感报警 " & "烟感 2位置"  ' 添加时间戳和报警信息
                         '设置报警状态
-                        alarmStatus = True
+                        ioAlarmLatched = True
+                        RefreshAlarmStatus()
+                        RequestStopForAlarm("烟感2报警，请检查烟感回路")
                         Try
                             Dim filePath As String = "AlarmLog.txt"
                             ' 使用 StreamWriter 写入文件
@@ -2163,8 +2583,6 @@ exit_sub:
         '复位报警状态
         alarmStatus = False
         'clientSocket.Close()
-        ' 测试结束，把校准值保存到文件。
-        SaveCalibrateArrayToFile()
         '保存设置值文件
         Call SaveInitFile()
         ocvStationReady = False
@@ -2206,7 +2624,7 @@ exit_sub:
             If frmMDI IsNot Nothing AndAlso Not frmMDI.IsDisposed Then sharedScannerPort = frmMDI.Com_scaner
             If sharedScannerPort IsNot Nothing AndAlso sharedScannerPort.IsOpen Then sharedScannerPort.Close()
             trayScannerClient = New TrayScannerClient(Initsetting, sharedScannerPort)
-            plcAutomaticCoordinator = New PlcAutomaticTestCoordinator(plcAutomationClient, trayScannerClient, Me)
+            plcAutomaticCoordinator = New PlcAutomaticTestCoordinator(plcAutomationClient, trayScannerClient, Me, CreatePlcRuntimeStatusReporter())
             plcAutomaticModeActive = True
             plcAutomaticCoordinator.Start()
         Catch ex As Exception
@@ -2228,6 +2646,7 @@ exit_sub:
     End Sub
 
     Private Sub StopPlcTestCoordinator()
+        Dim statusGeneration As Integer = Threading.Interlocked.Increment(plcRuntimeStatusGeneration)
         plcAutomaticModeActive = False
         If plcAutomaticCoordinator IsNot Nothing Then
             Try
@@ -2241,6 +2660,7 @@ exit_sub:
         If TypeOf trayScannerClient Is IDisposable Then DirectCast(trayScannerClient, IDisposable).Dispose()
         plcAutomationClient = Nothing
         trayScannerClient = Nothing
+        ReportPlcRuntimeStatus("未连接", statusGeneration)
     End Sub
 
     Friend ReadOnly Property CanApplyInitialSettings As Boolean
@@ -2364,7 +2784,7 @@ exit_sub:
         If TypeOf plcAutomationClient Is IDisposable Then DirectCast(plcAutomationClient, IDisposable).Dispose()
         plcAutomationClient = New PlcAutomationClient(Initsetting)
         trayScannerClient = Nothing
-        plcAutomaticCoordinator = New PlcAutomaticTestCoordinator(plcAutomationClient, Nothing, Me)
+        plcAutomaticCoordinator = New PlcAutomaticTestCoordinator(plcAutomationClient, Nothing, Me, CreatePlcRuntimeStatusReporter())
         plcAutomaticModeActive = False
         Try
             plcAutomaticCoordinator.StartManual()
@@ -2439,6 +2859,7 @@ exit_sub:
                                  If Not IsManualModeEnabled() Then Throw New InvalidOperationException("主测试页当前不在手动模式。")
                                  If Not AuthorizationService.IsAuthenticated() Then Throw New InvalidOperationException("请先登录后再启动手动测试。")
                                  If alarmStatus Then Throw New InvalidOperationException("目前处于报警状态，请先复位报警。")
+                                 If resetInProgress Then Throw New InvalidOperationException("设备正在复位，请稍后再启动测试。")
                                  If isRuning OrElse automaticTestPassInProgress Then Throw New InvalidOperationException("当前已有测量任务正在运行。")
                                  If Initsetting.PLCMode <> 0 Then Throw New InvalidOperationException("当前 PLC TCP 模式没有已定义的 R160 映射；手动周期需要 PLC ASCII 串口模式。")
                                  If plcAutomationClient Is Nothing OrElse Not plcAutomationClient.IsOpen Then Throw New InvalidOperationException("手动 PLC ASCII 串口未连接。")
@@ -2452,11 +2873,11 @@ exit_sub:
                                  ByVal channels As IReadOnlyList(Of Integer)) Implements IManualTestHost.PrepareManualTray
         ExecuteAutomaticOnUi(Sub()
                                  Dim normalizedTrayCode As String = If(trayCodeValue, String.Empty).Trim()
+                                 PrepareTrayForTest(normalizedTrayCode, False, channels)
                                  If String.Equals(normalizedTrayCode, lastTrayNo, StringComparison.Ordinal) Then
                                      Dim repeatDecision As DialogResult = MessageBox.Show("托盘号与上次相同，是否继续执行程序？", "提示", MessageBoxButtons.OKCancel, MessageBoxIcon.Question)
                                      If repeatDecision = DialogResult.Cancel Then Throw New OperationCanceledException("操作员取消了重复托盘测试。")
                                  End If
-                                 PrepareTrayForTest(normalizedTrayCode, False, channels)
                              End Sub, True)
     End Sub
 
@@ -2466,10 +2887,12 @@ exit_sub:
                                  ready = IsAutomaticModeEnabled() AndAlso
                                          AuthorizationService.IsAuthenticated() AndAlso
                                          Not alarmStatus AndAlso
+                                         Not resetInProgress AndAlso
                                          Not isRuning AndAlso
                                          Not automaticTestPassInProgress AndAlso
+                                         CalibrationService.HasCurrentSnapshot AndAlso
                                          activeTrayPlan IsNot Nothing AndAlso
-                                         activeTrayPlan.MeasurementChannels.Count = MAX_CHANNEL AndAlso
+                                         activeTrayPlan.MeasurementChannels.Count > 0 AndAlso
                                          CheckCom_SCM() = 1 AndAlso
                                          CheckCom_3561(True) = 1 AndAlso
                                          CheckCom_34461() = 0
@@ -2480,6 +2903,8 @@ exit_sub:
     Public Function ValidateTrayCode(ByVal trayCodeValue As String) As Boolean Implements IAutomaticTestHost.ValidateTrayCode
         Dim normalized As String = If(trayCodeValue, String.Empty).Trim()
         If normalized.Length = 0 Then Return False
+        Dim compactNormalized As String = New String(normalized.Where(Function(character) Not Char.IsWhiteSpace(character)).ToArray())
+        If String.Equals(compactNormalized, "NoRead", StringComparison.OrdinalIgnoreCase) Then Return False
         If Initsetting.txtCodeLenth > 0 AndAlso normalized.Length <> Initsetting.txtCodeLenth Then Return False
         Return True
     End Function
@@ -2524,6 +2949,14 @@ exit_sub:
                              End Sub, True)
     End Sub
 
+    Public Function GetPreparedTrayMeasurementChannels() As IReadOnlyList(Of Integer) Implements IPreparedTrayChannelsProvider.GetPreparedTrayMeasurementChannels
+        Dim measurementChannels As IReadOnlyList(Of Integer) = Nothing
+        ExecuteAutomaticOnUi(Sub()
+                                 If activeTrayPlan IsNot Nothing Then measurementChannels = activeTrayPlan.MeasurementChannels
+                             End Sub, True)
+        Return measurementChannels
+    End Function
+
     Public Sub StartManualInitialPass(ByVal trayCodeValue As String,
                                       ByVal channels As IReadOnlyList(Of Integer),
                                       ByVal canStart As Func(Of Boolean),
@@ -2531,6 +2964,7 @@ exit_sub:
                                       ByVal failed As Action(Of Exception)) Implements IManualTestHost.StartManualInitialPass
         ExecuteAutomaticOnUi(Sub()
                                  Try
+                                     If resetInProgress Then Return
                                      If canStart Is Nothing OrElse Not canStart() Then Return
                                      If activeTrayPlan Is Nothing Then Throw New InvalidOperationException("托盘准备未完成。")
                                      Dim snapshot As List(Of Integer) = channels.ToList()
@@ -2553,7 +2987,7 @@ exit_sub:
     Public Sub RequestManualTrayCode(ByVal accepted As Action(Of String), ByVal cancelled As Action) Implements IAutomaticTestHost.RequestManualTrayCode
         ExecuteAutomaticOnUi(Sub()
                                  Using dialog As New Form()
-                                     dialog.Text = "托盘码输入"
+                                     dialog.Text = "托盘码读取失败"
                                      dialog.FormBorderStyle = FormBorderStyle.FixedDialog
                                      dialog.StartPosition = FormStartPosition.CenterParent
                                      dialog.MinimizeBox = False
@@ -2562,7 +2996,7 @@ exit_sub:
                                      dialog.ClientSize = New Size(380, 142)
 
                                      Dim prompt As New Label With {
-                                         .Text = "扫码失败，请手工输入托盘码：",
+                                         .Text = "托盘码读取失败，请手工输入或重新读取。",
                                          .AutoSize = False,
                                          .Location = New Point(14, 14),
                                          .Size = New Size(350, 24)
@@ -2580,7 +3014,7 @@ exit_sub:
                                          .Size = New Size(80, 30)
                                      }
                                      Dim cancelButton As New Button With {
-                                         .Text = "取消",
+                                         .Text = "重新读取",
                                          .DialogResult = DialogResult.Cancel,
                                          .Location = New Point(284, 88),
                                          .Size = New Size(80, 30)
@@ -2605,6 +3039,7 @@ exit_sub:
     Public Sub StartInitialPass(ByVal completed As Action(Of TestPassResult), ByVal failed As Action(Of Exception)) Implements IAutomaticTestHost.StartInitialPass
         ExecuteAutomaticOnUi(Sub()
                                  Try
+                                     If resetInProgress Then Return
                                      If activeTrayPlan Is Nothing Then Throw New InvalidOperationException("托盘准备未完成。")
                                      haveNgPoint = False
                                      automaticTestPassInProgress = True
@@ -2621,6 +3056,7 @@ exit_sub:
                                ByVal failed As Action(Of Exception)) Implements IAutomaticTestHost.StartRetestPass
         ExecuteAutomaticOnUi(Sub()
                                  Try
+                                     If resetInProgress Then Return
                                      Array.Clear(retestArray, 0, retestArray.Length)
                                      For Each channel As Integer In channels
                                          If channel >= 1 AndAlso channel <= MAX_CHANNEL Then
@@ -2652,7 +3088,7 @@ exit_sub:
             '自动流程的初测和复测只产生内存中的最终结果；此处统一创建并完成唯一的最终 OCV_DATA 任务。
             currentTestChannels = resultChannels
             ocvTestTaskId = CreateOcvDataTestTask(1, cycle.TrayCode)
-            SaveOcvDataTestResults(ocvTestTaskId, 1)
+            SaveOcvDataTestResults(ocvTestTaskId, 1, DateTime.Now)
             SaveTestDataLocalFile(RecieveData, cycle.TrayCode)
             CompleteOcvDataTestTaskStrict(ocvTestTaskId.Value, "Completed", Nothing)
             BusinessLogService.Write("操作", "成功", "测试结果保存完成", cycle.TrayCode, "自动测试最终结果已保存到 OCV_DATA 和本地文件。", String.Format("OCV_DATA任务号={0}；通道数={1}；复测轮数={2}", ocvTestTaskId.Value, resultChannels.Count, cycle.CurrentRetestRound), "测试结果保存")
@@ -2686,6 +3122,21 @@ exit_sub:
         End Using
     End Sub
 
+    Private Function CreatePlcRuntimeStatusReporter() As Action(Of String)
+        Dim generation As Integer = Threading.Interlocked.Increment(plcRuntimeStatusGeneration)
+        Return Sub(status) ReportPlcRuntimeStatus(status, generation)
+    End Function
+
+    Private Sub ReportPlcRuntimeStatus(ByVal status As String, ByVal generation As Integer)
+        ExecuteAutomaticOnUi(Sub()
+                                 If shutdownPrepared OrElse generation <> plcRuntimeStatusGeneration Then Return
+                                 plcConnected = plcAutomationClient IsNot Nothing AndAlso plcAutomationClient.IsOpen
+                                 If frmMDI IsNot Nothing AndAlso Not frmMDI.IsDisposed Then
+                                     frmMDI.UpdatePlcRuntimeStatus(status)
+                                 End If
+                             End Sub)
+    End Sub
+
     Public Sub ReportAutomaticStatus(ByVal message As String) Implements IAutomaticTestHost.ReportAutomaticStatus
         ExecuteAutomaticOnUi(Sub()
                                  SetTestStatus(message)
@@ -2693,21 +3144,99 @@ exit_sub:
                              End Sub)
     End Sub
 
+    Public Sub ReportPlcSmokeInput(ByVal inputHigh As Boolean,
+                                   ByVal observedAtUtc As DateTime) Implements IPlcSmokeMonitorHost.ReportPlcSmokeInput
+        ExecuteAutomaticOnUi(Sub()
+                                 If shutdownPrepared Then Return
+                                 If observedAtUtc < lastSmokeInputObservedAtUtc Then Return
+                                 lastSmokeInputObservedAtUtc = observedAtUtc
+                                 Dim communicationRecovered As Boolean = smokeSignalReadFailed
+                                 smokeSignalReadFailed = False
+
+                                 Dim smokeAlarmActive As Boolean = IsSmokeAlarmActive(inputHigh)
+                                 Dim indicatorColor As Color = If(smokeAlarmActive, Color.Red, Color.LimeGreen)
+                                 If smokeAlarm1 IsNot Nothing Then smokeAlarm1.BackColor = indicatorColor
+                                 If smokeAlarm2 IsNot Nothing Then smokeAlarm2.BackColor = indicatorColor
+
+                                 If smokeAlarmActive AndAlso Not smokeAlarmLatched Then
+                                     smokeAlarmLatched = True
+                                     RefreshAlarmStatus()
+                                     Dim alarmMessage As String = "烟感报警：PLC输入 X1F 处于报警电平。"
+                                     RequestStopForAlarm(alarmMessage, releaseCylinder:=True)
+                                     RecordAlarmEvent(alarmMessage)
+                                 ElseIf communicationRecovered Then
+                                     RefreshAlarmStatus()
+                                     ReportAutomaticEvent("PLC烟感输入 X1F 通信已恢复。")
+                                 End If
+                             End Sub)
+    End Sub
+
+    Public Sub ReportPlcSmokeInputReadFailure(ByVal message As String,
+                                              ByVal observedAtUtc As DateTime) Implements IPlcSmokeMonitorHost.ReportPlcSmokeInputReadFailure
+        ExecuteAutomaticOnUi(Sub()
+                                 If shutdownPrepared Then Return
+                                 If observedAtUtc < lastSmokeInputObservedAtUtc Then Return
+                                 lastSmokeInputObservedAtUtc = observedAtUtc
+                                 If smokeAlarm1 IsNot Nothing Then smokeAlarm1.BackColor = Color.DarkGray
+                                 If smokeAlarm2 IsNot Nothing Then smokeAlarm2.BackColor = Color.DarkGray
+                                 If smokeSignalReadFailed Then Return
+
+                                 smokeSignalReadFailed = True
+                                 RefreshAlarmStatus()
+                                 Dim failureMessage As String = If(String.IsNullOrWhiteSpace(message),
+                                                                   "PLC烟感输入 X1F 读取失败。",
+                                                                   message.Trim())
+                                 RecordAlarmEvent(failureMessage)
+                                 RequestStopForAlarm(failureMessage & " 当前烟感状态无法确认。")
+                             End Sub)
+    End Sub
+
+    Private Shared Function IsSmokeAlarmActive(ByVal inputHigh As Boolean) As Boolean
+        Return If(SmokeAlarmIsActiveLow, Not inputHigh, inputHigh)
+    End Function
+
+    Private Sub PrependEventLogLine(ByVal line As String)
+        If txtAlarm Is Nothing OrElse txtAlarm.IsDisposed OrElse String.IsNullOrWhiteSpace(line) Then Return
+
+        Dim updatedText As String = line.TrimEnd(ControlChars.Cr, ControlChars.Lf)
+        If txtAlarm.TextLength > 0 Then
+            updatedText &= Environment.NewLine & txtAlarm.Text
+        End If
+
+        Dim maximumLength As Integer = txtAlarm.MaxLength
+        If maximumLength > 0 Then
+            While updatedText.Length > maximumLength
+                Dim lastLineBreak As Integer = updatedText.LastIndexOf(Environment.NewLine, StringComparison.Ordinal)
+                If lastLineBreak < 0 Then
+                    updatedText = updatedText.Substring(0, maximumLength)
+                    Exit While
+                End If
+                updatedText = updatedText.Substring(0, lastLineBreak)
+            End While
+        End If
+
+        txtAlarm.Text = updatedText
+        txtAlarm.SelectionStart = 0
+        txtAlarm.SelectionLength = 0
+        txtAlarm.ScrollToCaret()
+    End Sub
+
     Public Sub ReportAutomaticEvent(ByVal message As String) Implements IAutomaticTestHost.ReportAutomaticEvent
         Dim eventText As String = If(message, String.Empty).Trim()
         If eventText.Length = 0 Then Return
 
         ExecuteAutomaticOnUi(Sub()
-                                 If txtAlarm Is Nothing OrElse txtAlarm.IsDisposed Then Return
+                                 If shutdownPrepared OrElse txtAlarm Is Nothing OrElse txtAlarm.IsDisposed Then Return
                                  Dim occurredAt As DateTime = DateTime.Now
                                  Dim eventLine As String = occurredAt.ToString("HH:mm:ss") & " " & eventText
                                  If eventText.IndexOf("检测到R150=1", StringComparison.Ordinal) >= 0 Then
                                      StartAutomaticEventLog(occurredAt)
                                  End If
-                                 AppendAutomaticEventLog(eventLine)
-                                 txtAlarm.AppendText(eventLine & Environment.NewLine)
-                                 txtAlarm.SelectionStart = txtAlarm.TextLength
-                                 txtAlarm.ScrollToCaret()
+                                 If Not automaticEventLogWriter.TryEnqueue(automaticEventLogFilePath, eventLine) AndAlso
+                                    Not String.IsNullOrWhiteSpace(automaticEventLogFilePath) Then
+                                     System.Diagnostics.Debug.WriteLine("Automatic event log queue is full or closing.")
+                                 End If
+                                 PrependEventLogLine(eventLine)
                                  If eventText = "设备已复位，等待下一托盘" OrElse
                                     eventText = "自动测试已手动停止，本托盘流程已复位，等待新托盘" OrElse
                                     eventText.StartsWith("自动流程异常：", StringComparison.Ordinal) Then
@@ -2718,8 +3247,7 @@ exit_sub:
 
     Private Sub StartAutomaticEventLog(ByVal occurredAt As DateTime)
         Try
-            Dim logDirectoryPath As String = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "XK-OCV-256CH", "logs")
-            Directory.CreateDirectory(logDirectoryPath)
+            Dim logDirectoryPath As String = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs")
             Dim fileName As String = "testLog+" & occurredAt.ToString("yyyyMMdd_HHmmssfff") & ".txt"
             automaticEventLogFilePath = Path.Combine(logDirectoryPath, fileName)
         Catch ex As Exception
@@ -2728,19 +3256,11 @@ exit_sub:
         End Try
     End Sub
 
-    Private Sub AppendAutomaticEventLog(ByVal eventLine As String)
-        If String.IsNullOrWhiteSpace(automaticEventLogFilePath) Then Return
-        Try
-            File.AppendAllText(automaticEventLogFilePath, eventLine & Environment.NewLine, New System.Text.UTF8Encoding(False))
-        Catch ex As Exception
-            System.Diagnostics.Debug.WriteLine("写入自动流程事件日志失败: " & ex.Message)
-            automaticEventLogFilePath = String.Empty
-        End Try
-    End Sub
-
     Public Sub PrepareForShutdown()
         If shutdownPrepared Then Return
         shutdownPrepared = True
+        CancelPendingManualNgRetest()
+        Threading.Interlocked.Increment(plcRuntimeStatusGeneration)
         _isLoaded = False
 
         If timer3 IsNot Nothing Then timer3.Stop()
@@ -2768,6 +3288,80 @@ exit_sub:
             channelGrid.Visible = False
             channelGrid.SuspendLayout()
         End If
+        automaticEventLogWriter.Complete()
+    End Sub
+
+    Public Sub PrepareForApplicationExitUi()
+        If shutdownPrepared Then Return
+        shutdownPrepared = True
+        CancelPendingManualNgRetest()
+        Threading.Interlocked.Increment(plcRuntimeStatusGeneration)
+        _isLoaded = False
+
+        If timer3 IsNot Nothing Then timer3.Stop()
+        If temperatureTimer IsNot Nothing Then temperatureTimer.Stop()
+        If Timer1 IsNot Nothing Then Timer1.Stop()
+        If Timer2 IsNot Nothing Then Timer2.Stop()
+        If Timer4 IsNot Nothing Then Timer4.Stop()
+        If TimerTestProgress IsNot Nothing Then TimerTestProgress.Stop()
+
+        plcAutomaticModeActive = False
+        If channelGrid IsNot Nothing Then
+            channelGrid.Visible = False
+            channelGrid.SuspendLayout()
+        End If
+        automaticEventLogWriter.Complete()
+    End Sub
+
+    Public Function ShutdownForApplicationExit() As List(Of String)
+        Dim failures As New List(Of String)()
+        CancelPendingManualNgRetest()
+
+        RunApplicationExitDeviceStep(failures,
+                                     "关闭温度模块",
+                                     Sub()
+                                         Try
+                                             If temperatureModuleClient IsNot Nothing Then temperatureModuleClient.Dispose()
+                                         Finally
+                                             temperatureModuleClient = Nothing
+                                         End Try
+                                     End Sub)
+
+        RunApplicationExitDeviceStep(failures,
+                                     "停止PLC自动流程",
+                                     Sub()
+                                         If plcAutomaticCoordinator Is Nothing Then Return
+                                         Try
+                                             plcAutomaticCoordinator.Stop()
+                                         Finally
+                                             plcAutomaticCoordinator = Nothing
+                                         End Try
+                                     End Sub)
+
+        RunApplicationExitDeviceStep(failures,
+                                     "释放PLC串口客户端",
+                                     Sub()
+                                         If TypeOf plcAutomationClient Is IDisposable Then DirectCast(plcAutomationClient, IDisposable).Dispose()
+                                         plcAutomationClient = Nothing
+                                     End Sub)
+
+        RunApplicationExitDeviceStep(failures,
+                                     "释放扫码枪客户端",
+                                     Sub()
+                                         If TypeOf trayScannerClient Is IDisposable Then DirectCast(trayScannerClient, IDisposable).Dispose()
+                                         trayScannerClient = Nothing
+                                     End Sub)
+
+        Return failures
+    End Function
+
+    Private Sub RunApplicationExitDeviceStep(failures As List(Of String), stepName As String, action As Action)
+        Try
+            action()
+        Catch ex As Exception
+            failures.Add(stepName & "：" & ex.Message)
+            AppLog.Write("Shutdown", stepName & " failed: " & ex.ToString())
+        End Try
     End Sub
 
     Private Shared Function GetCalibrationFilePath() As String
@@ -2922,15 +3516,17 @@ exit_sub:
         reFlag = Trans_ReadData_3562(Voltage, Resistance)
         ' Trans_BatchReadData_3561(ch， 1, 1)
 
-        txtJiajuR.Text = "3.75"
-        txtCaliR.Text = (Resistance - Single.Parse(txtJiajuR.Text)).ToString()
+        If Not ApplicationShuttingDown Then
+            txtJiajuR.Text = "3.75"
+            txtCaliR.Text = (Resistance - Single.Parse(txtJiajuR.Text)).ToString()
 
-        txtTestR.Text = Resistance.ToString()
-        CalibrateR = Resistance - 3.75
-        ''把数据保存到initset文件中
-        Initsetting.sngR_B = CalibrateR
-        '把校准数据保存在校准值数组calibrateValueArray(i)中
-        calibrateValueArray(ch) = Single.Parse(txtJiajuR.Text)
+            txtTestR.Text = Resistance.ToString()
+            CalibrateR = Resistance - 3.75
+            ''把数据保存到initset文件中
+            Initsetting.sngR_B = CalibrateR
+            '把校准数据保存在校准值数组calibrateValueArray(i)中
+            calibrateValueArray(ch) = Single.Parse(txtJiajuR.Text)
+        End If
 
         '松开夹具（打开托盘）
         temp = mSock.GetSignalFixtureUp
@@ -2967,170 +3563,229 @@ exit_sub:
     '    '选择结果决定待测试通道数，扫码不会覆盖该数量。
     '    HandleSelectedChannelsChanged(channelGrid, EventArgs.Empty)
     'End Sub
-    '通过检测温度变化，判读是否有超温报警。
+    '温度报警保持锁存，只有复位时重新读取到有效且低于阈值的数据才能解除。
     Private Sub t1_TextChanged(sender As Object, e As EventArgs) Handles t1.TextChanged
-        Dim temperatureValue As Single
-        If Not Single.TryParse(t1.Text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.CurrentCulture, temperatureValue) Then Return
-        If temperatureValue > Initsetting.overTemperateValue Then
-            Dim temp As Byte()
-            '关闭定时器
-            timer3.Close()
-            '设置报警状态
-            alarmStatus = True
-            ' 显示一个警告消息框
-            MessageBox.Show("超温报警，请立刻停机检查", "警告", MessageBoxButtons.OK, MessageBoxIcon.Warning)
-            Dim bytes(500) As Byte
-            mSock = frmDebug.mSock
-            temp = mSock.GetSignalFixtureUp '松开夹具（打开托盘）
-            bytes = socketSR(temp)
-            Dim timestamp As String = DateTime.Now.ToString()    ' 添加时间戳
-            Dim alarmLog As String = $"{timestamp}:超温报警 " & "温度探头 1 位置"  ' 添加时间戳和报警信息
-            Try
-                Dim filePath As String = "AlarmLog.txt"
-                ' 使用 StreamWriter 写入文件
-                Using writer As New System.IO.StreamWriter(filePath, True)
-                    writer.WriteLine(DateTime.Now.ToString() & ": " & alarmLog)
-                End Using
-            Catch ex As Exception
-
-            End Try
-            BusinessLogService.WriteAlarm(alarmLog)
-
-            '' 调用 Application.Exit() 方法退出整个应用程序
-            'Application.Exit()
-        End If
-        '启动监测温度和JIG信号
-        '温度显示变化不再触发旧控制板 JIG/IO 查询。
+        HandleTemperatureTextChanged(1, t1.Text)
     End Sub
+
     Private Sub t2_TextChanged(sender As Object, e As EventArgs) Handles t2.TextChanged
-        Dim temperatureValue As Single
-        If Not Single.TryParse(t2.Text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.CurrentCulture, temperatureValue) Then Return
-        If temperatureValue > Initsetting.overTemperateValue Then
-            Dim temp As Byte()
-            '关闭定时器
-            timer3.Close()
-            '设置报警状态
-            alarmStatus = True
-            ' 显示一个警告消息框
-            MessageBox.Show("超温报警，请立刻停机检查", "警告", MessageBoxButtons.OK, MessageBoxIcon.Warning)
-
-            Dim bytes(500) As Byte
-            temp = mSock.GetSignalFixtureUp '松开夹具（打开托盘）
-            bytes = socketSR(temp)
-            Dim timestamp As String = DateTime.Now.ToString()    ' 添加时间戳
-            Dim alarmLog As String = $"{timestamp}:超温报警 " & "温度探头 2 位置"  ' 添加时间戳和报警信息
-            Try
-                Dim filePath As String = "AlarmLog.txt"
-                ' 使用 StreamWriter 写入文件
-                Using writer As New System.IO.StreamWriter(filePath, True)
-                    writer.WriteLine(DateTime.Now.ToString() & ": " & alarmLog)
-                End Using
-            Catch ex As Exception
-
-            End Try
-            BusinessLogService.WriteAlarm(alarmLog)
-            '' 调用 Application.Exit() 方法退出整个应用程序
-            'Application.Exit()
-        End If
+        HandleTemperatureTextChanged(2, t2.Text)
     End Sub
 
     Private Sub t3_TextChanged(sender As Object, e As EventArgs) Handles t3.TextChanged
-        Dim temperatureValue As Single
-        If Not Single.TryParse(t3.Text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.CurrentCulture, temperatureValue) Then Return
-        If temperatureValue > Initsetting.overTemperateValue Then
-            Dim temp As Byte()
-            '关闭定时器
-            timer3.Close()
-            '设置报警状态
-            alarmStatus = True
-            ' 显示一个警告消息框
-            MessageBox.Show("超温报警，请立刻停机检查", "警告", MessageBoxButtons.OK, MessageBoxIcon.Warning)
-            Dim bytes(500) As Byte
-            temp = mSock.GetSignalFixtureUp '松开夹具（打开托盘）
-            bytes = socketSR(temp)
-            Dim timestamp As String = DateTime.Now.ToString()    ' 添加时间戳
-            Dim alarmLog As String = $"{timestamp}:超温报警 " & "温度探头 3 位置"  ' 添加时间戳和报警信息
-            Try
-                Dim filePath As String = "AlarmLog.txt"
-                ' 使用 StreamWriter 写入文件
-                Using writer As New System.IO.StreamWriter(filePath, True)
-                    writer.WriteLine(DateTime.Now.ToString() & ": " & alarmLog)
-                End Using
-            Catch ex As Exception
-
-            End Try
-            BusinessLogService.WriteAlarm(alarmLog)
-
-            '' 调用 Application.Exit() 方法退出整个应用程序
-            'Application.Exit()
-        End If
+        HandleTemperatureTextChanged(3, t3.Text)
     End Sub
 
     Private Sub t4_TextChanged(sender As Object, e As EventArgs) Handles t4.TextChanged
-        Dim temperatureValue As Single
-        If Not Single.TryParse(t4.Text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.CurrentCulture, temperatureValue) Then Return
-        If temperatureValue > Initsetting.overTemperateValue Then
-            Dim temp As Byte()
-            '关闭定时器
-            timer3.Close()
-            '设置报警状态
-            alarmStatus = True
-            ' 显示一个警告消息框
-            MessageBox.Show("超温报警，请立刻停机检查", "警告", MessageBoxButtons.OK, MessageBoxIcon.Warning)
-            Dim bytes(500) As Byte
-            temp = mSock.GetSignalFixtureUp '松开夹具（打开托盘）
-            bytes = socketSR(temp)
-            Dim timestamp As String = DateTime.Now.ToString()    ' 添加时间戳
-            Dim alarmLog As String = $"{timestamp}:超温报警 " & "温度探头 4 位置"  ' 添加时间戳和报警信息
-            Try
-                Dim filePath As String = "AlarmLog.txt"
-                ' 使用 StreamWriter 写入文件
-                Using writer As New System.IO.StreamWriter(filePath, True)
-                    writer.WriteLine(DateTime.Now.ToString() & ": " & alarmLog)
-                End Using
-            Catch ex As Exception
-
-            End Try
-            BusinessLogService.WriteAlarm(alarmLog)
-            '要不要退出整个程序
-            '' 调用 Application.Exit() 方法退出整个应用程序
-            'Application.Exit()
-        End If
+        HandleTemperatureTextChanged(4, t4.Text)
     End Sub
 
-    Private Sub Button2_Click(sender As Object, e As EventArgs) Handles Button2.Click
-        alarmStatus = False
-        Dim timestamp As String = DateTime.Now.ToString()    ' 添加时间戳
-        Dim alarmLog As String = $"{timestamp}:报警复位。"  ' 添加时间戳和报警信息
-        Try
-            Dim filePath As String = "AlarmLog.txt"
-            ' 使用 StreamWriter 写入文件
-            Using writer As New System.IO.StreamWriter(filePath, True)
-                writer.WriteLine(DateTime.Now.ToString() & ": " & alarmLog)
-            End Using
-        Catch ex As Exception
+    Private Sub HandleTemperatureTextChanged(sensorNumber As Integer, text As String)
+        Dim temperatureValue As Decimal
+        If Not Decimal.TryParse(If(text, String.Empty),
+                                System.Globalization.NumberStyles.Float,
+                                System.Globalization.CultureInfo.CurrentCulture,
+                                temperatureValue) Then Return
+        If temperatureValue <= CDec(Initsetting.overTemperateValue) Then Return
 
+        If sensorNumber > 2 Then temperatureAlarmRequiresUnavailableSensors = True
+        If temperatureAlarmLatched Then Return
+
+        temperatureAlarmLatched = True
+        RefreshAlarmStatus()
+        Dim alarmText As String = String.Format("超温报警：温度探头 {0}，当前 {1:0.0}℃，阈值 {2}℃。",
+                                                sensorNumber,
+                                                temperatureValue,
+                                                Initsetting.overTemperateValue)
+        RequestStopForAlarm(alarmText, releaseCylinder:=True)
+        RecordAlarmEvent(alarmText)
+    End Sub
+
+    Private Sub RefreshAlarmStatus()
+        alarmStatus = temperatureAlarmLatched OrElse ioAlarmLatched OrElse
+                      smokeAlarmLatched OrElse smokeSignalReadFailed OrElse resetFailureLatched
+        If LabelAlarm IsNot Nothing Then
+            LabelAlarm.Visible = alarmStatus
+            If smokeAlarmLatched Then
+                LabelAlarm.Text = "烟感报警"
+            ElseIf smokeSignalReadFailed Then
+                LabelAlarm.Text = "烟感通信异常"
+            ElseIf ioAlarmLatched Then
+                LabelAlarm.Text = "急停报警"
+            ElseIf temperatureAlarmLatched Then
+                LabelAlarm.Text = "温度报警"
+            ElseIf resetFailureLatched Then
+                LabelAlarm.Text = "复位异常"
+            End If
+        End If
+        If LabelRun IsNot Nothing Then LabelRun.Visible = Not alarmStatus
+        UpdateTestModeVisuals()
+    End Sub
+
+    Private Sub RecordAlarmEvent(message As String)
+        Dim timestamp As DateTime = DateTime.Now
+        Dim alarmText As String = timestamp.ToString("yyyy-MM-dd HH:mm:ss") & ":" & If(message, String.Empty)
+        PrependEventLogLine(timestamp.ToString("HH:mm:ss") & " " & If(message, String.Empty))
+        AppLog.Write("Alarm", alarmText)
+        BusinessLogService.WriteAlarm(alarmText)
+    End Sub
+
+    Private Sub RequestStopForAlarm(message As String, Optional ByVal releaseCylinder As Boolean = False)
+        If isRuning Then SetStopRequested(True)
+        If plcAutomaticCoordinator IsNot Nothing Then plcAutomaticCoordinator.RequestStopCurrentCycle()
+        If releaseCylinder Then RequestAlarmCylinderRelease()
+        SetTestStatus(message & " 已停止当前测试流程，请检查后复位。")
+        UpdateTestModeVisuals()
+    End Sub
+
+    Private Sub RequestAlarmCylinderRelease()
+        If System.Threading.Interlocked.CompareExchange(alarmCylinderReleaseState, 1, 0) <> 0 Then Return
+
+        Dim plcClient As IPlcAutomationClient = plcAutomationClient
+        If plcClient Is Nothing OrElse Not plcClient.IsOpen Then
+            System.Threading.Interlocked.Exchange(alarmCylinderReleaseState, 0)
+            ReportAutomaticEvent("报警联动失败：PLC串口未打开，未能发送 R161=1 气缸弹开指令。")
+            Return
+        End If
+
+        Try
+            System.Threading.Tasks.Task.Run(
+                Sub()
+                    Try
+                        plcClient.WriteR161()
+                        System.Threading.Interlocked.Exchange(alarmCylinderReleaseState, 2)
+                        ReportAutomaticEvent("报警联动已确认：PLC R161=1，气缸弹开指令已发送。")
+                    Catch ex As Exception
+                        System.Threading.Interlocked.Exchange(alarmCylinderReleaseState, 0)
+                        ReportAutomaticEvent("报警联动失败：PLC写入 R161=1 未确认，气缸弹开指令可能未执行。" & ex.Message)
+                        ExecuteAutomaticOnUi(Sub()
+                                                 If shutdownPrepared Then Return
+                                                 SetTestStatus("报警停机；PLC未确认 R161=1，请检查PLC及气缸。")
+                                             End Sub)
+                    End Try
+                End Sub)
+        Catch ex As Exception
+            System.Threading.Interlocked.Exchange(alarmCylinderReleaseState, 0)
+            ReportAutomaticEvent("报警联动失败：无法启动PLC R161=1发送任务。" & ex.Message)
         End Try
-            BusinessLogService.WriteAlarm(alarmLog)
     End Sub
 
     Private Sub txtLastNum_TextChanged(sender As Object, e As EventArgs) Handles txtLastNum.TextChanged
         avalibleCount = Val(txtLastNum.Text)
     End Sub
 
-    Private Sub btnNGTest_Click(sender As Object, e As EventArgs) Handles btnNGTest.Click
-        If chkAutoTest.Checked OrElse plcAutomaticModeActive OrElse isRuning Then
+    Private Async Sub btnNGTest_Click(sender As Object, e As EventArgs) Handles btnNGTest.Click
+        Dim plcCycleOccupied As Boolean = plcAutomaticCoordinator IsNot Nothing AndAlso plcAutomaticCoordinator.IsCycleOccupied
+        If resetInProgress OrElse chkAutoTest.Checked OrElse plcAutomaticModeActive OrElse isRuning OrElse
+           automaticTestPassInProgress OrElse plcCycleOccupied Then
             MessageBox.Show("自动流程或正式测试进行中，不能手动启动 NG 复测。", "提示", MessageBoxButtons.OK)
             Return
         End If
-        '复位NG标志
-        If (alarmStatus = True) Then
+        If alarmStatus Then
             MessageBox.Show("目前处于报警状态，请先复位报警！", "提示", MessageBoxButtons.OK)
             Exit Sub
         End If
-        haveNgPoint = False
-        '启动NG测试
-        Call StarTest(0)
+
+        If Not AuthorizationService.RequireAuthenticatedUser(Me) Then Return
+        If Not ValidateTrayCode(txtTray.Text) Then
+            MessageBox.Show("请先确认有效托盘码，再进行 NG 复测。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+            Return
+        End If
+
+        Dim ngChannels As Integer() = If(retestArray Is Nothing,
+                                         New Integer() {},
+                                         Enumerable.Range(1, Math.Min(MAX_CHANNEL, retestArray.Length)).
+                                             Where(Function(channelNo) retestArray(channelNo - 1) = 1).
+                                             ToArray())
+        If ngChannels.Length = 0 Then
+            MessageBox.Show("当前没有可复测的 NG 通道。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information)
+            Return
+        End If
+
+        If CalibrationService.IsCalibrationAcquisitionInProgress OrElse CalibrationService.IsBarcodeRetestInProgress Then
+            MessageBox.Show("通道校准或扫码复测正在采集，当前不能启动 NG 复测。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information)
+            Return
+        End If
+        If currentOCVNum < 1 OrElse currentOCVNum > 3 Then
+            MessageBox.Show("未选择有效的 OCV 测试阶段。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+            Return
+        End If
+
+        Try
+            If CalibrationService.HasCurrentSnapshot Then
+                calibrationLoadError = String.Empty
+            Else
+                CalibrationService.SharedInstance.LoadSnapshot()
+                calibrationLoadError = String.Empty
+            End If
+            EnsureManualTestReady()
+        Catch ex As Exception
+            MessageBox.Show("NG 复测准备失败，未发送 PLC R160=1：" & ex.Message,
+                            "提示",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning)
+            Return
+        End Try
+
+        Dim plcClient As IPlcAutomationClient = plcAutomationClient
+        If plcClient Is Nothing OrElse Not plcClient.IsOpen Then
+            MessageBox.Show("PLC 串口未连接，未发送 R160=1，NG 复测未启动。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+            Return
+        End If
+
+        Dim pressCancellation As New System.Threading.CancellationTokenSource()
+        manualNgRetestCancellation = pressCancellation
+        automaticTestPassInProgress = True
+        UpdateTestModeVisuals()
+        Try
+            plcClient.WriteR160()
+            ReportAutomaticEvent("主页面NG点测试已发送PLC R160=1，等待针床压合信号R151=1。")
+            SetTestStatus("已发送 PLC R160=1，等待针床压合到位...")
+
+            Dim fixturePressed As Boolean = Await System.Threading.Tasks.Task.Run(
+                Function()
+                    Dim deadline As DateTime = DateTime.UtcNow.AddMilliseconds(ManualNgFixturePressTimeoutMs)
+                    Do
+                        pressCancellation.Token.ThrowIfCancellationRequested()
+                        If Not plcClient.IsOpen Then Throw New InvalidOperationException("PLC串口已断开。")
+                        If plcClient.ReadR151() Then Return True
+
+                        Dim remainingMs As Double = (deadline - DateTime.UtcNow).TotalMilliseconds
+                        If remainingMs <= 0 Then Return False
+                        pressCancellation.Token.WaitHandle.WaitOne(CInt(Math.Min(250.0R, remainingMs)))
+                    Loop
+                    Return False
+                End Function,
+                pressCancellation.Token)
+
+            If Not fixturePressed Then
+                Throw New TimeoutException(String.Format("{0}秒内未收到PLC针床压合信号R151=1。", ManualNgFixturePressTimeoutMs \ 1000))
+            End If
+            If resetInProgress OrElse shutdownPrepared Then Return
+
+            ReportAutomaticEvent("PLC针床压合信号R151=1已确认，开始主页面NG点复测。")
+            haveNgPoint = False
+            automaticTestPassInProgress = False
+            Call StarTest(0)
+        Catch ex As OperationCanceledException
+            If Not resetInProgress AndAlso Not shutdownPrepared Then
+                ReportAutomaticEvent("主页面NG点测试已取消，保留待复测NG点。")
+                SetTestStatus("NG复测已取消，待复测NG点保留")
+            End If
+        Catch ex As Exception
+            ReportAutomaticEvent("主页面NG点测试未启动：" & ex.Message)
+            MessageBox.Show("针床压合未确认，NG 复测未启动：" & ex.Message,
+                            "提示",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning)
+        Finally
+            If Object.ReferenceEquals(manualNgRetestCancellation, pressCancellation) Then
+                manualNgRetestCancellation = Nothing
+            End If
+            pressCancellation.Dispose()
+            automaticTestPassInProgress = False
+            If Not shutdownPrepared AndAlso Not IsDisposed Then UpdateTestModeVisuals()
+        End Try
     End Sub
 
     Private Sub txtTray_TextChanged(sender As Object, e As EventArgs) Handles txtTray.TextChanged
@@ -3299,7 +3954,7 @@ exit_sub:
             End If
         End If
 
-        If isRuning OrElse automaticTestPassInProgress OrElse
+        If isRuning OrElse automaticTestPassInProgress OrElse manualNgRetestCancellation IsNot Nothing OrElse
            (plcAutomaticCoordinator IsNot Nothing AndAlso plcAutomaticCoordinator.IsCycleOccupied) Then
             SetTestMode(plcAutomaticModeActive)
             SetTestStatus("测试周期进行中，不能切换模式")
@@ -3316,6 +3971,10 @@ exit_sub:
 
             If Not chkAutoTest.Checked AndAlso Not chkManualTest.Checked Then
                 chkAutoTest.Checked = True
+            End If
+
+            If chkAutoTest.Checked AndAlso channelGrid IsNot Nothing Then
+                channelGrid.SelectAll()
             End If
         Finally
             modeChangeInProgress = False
@@ -3342,6 +4001,9 @@ exit_sub:
         Try
             chkAutoTest.Checked = autoMode
             chkManualTest.Checked = Not autoMode
+            If autoMode AndAlso channelGrid IsNot Nothing Then
+                channelGrid.SelectAll()
+            End If
         Finally
             modeChangeInProgress = False
             UpdateTestModeVisuals()
@@ -3353,14 +4015,17 @@ exit_sub:
         UiTheme.ApplyToggleStateStyle(chkAutoTest, chkAutoTest.Checked)
         UiTheme.ApplyToggleStateStyle(chkManualTest, chkManualTest.Checked)
         Dim cycleOccupied As Boolean = plcAutomaticCoordinator IsNot Nothing AndAlso plcAutomaticCoordinator.IsCycleOccupied
-        Dim cycleBusy As Boolean = isRuning OrElse automaticTestPassInProgress OrElse cycleOccupied
+        Dim cycleBusy As Boolean = isRuning OrElse automaticTestPassInProgress OrElse
+                                   manualNgRetestCancellation IsNot Nothing OrElse cycleOccupied OrElse resetInProgress
         If btnStop IsNot Nothing Then
-            btnStop.Enabled = cycleBusy AndAlso Not blstop AndAlso Not shutdownPrepared
+            btnStop.Enabled = cycleBusy AndAlso Not IsStopRequested() AndAlso Not shutdownPrepared AndAlso Not resetInProgress
         End If
+        If btnReset IsNot Nothing Then btnReset.Enabled = Not resetInProgress AndAlso Not shutdownPrepared
         If chk_Test IsNot Nothing Then
             chk_Test.Enabled = Not cycleBusy AndAlso Not initializationApplyInProgress
         End If
-        If CmdStart IsNot Nothing Then CmdStart.Enabled = chkManualTest.Checked AndAlso Not cycleBusy AndAlso Not initializationApplyInProgress
+        If CmdStart IsNot Nothing Then CmdStart.Enabled = chkManualTest.Checked AndAlso Not cycleBusy AndAlso Not alarmStatus AndAlso Not initializationApplyInProgress AndAlso CalibrationService.HasCurrentSnapshot
+        If btnNGTest IsNot Nothing Then btnNGTest.Enabled = Not cycleBusy AndAlso Not alarmStatus AndAlso Not resetInProgress
         If btnGetBarcode IsNot Nothing Then btnGetBarcode.Enabled = chkManualTest.Checked AndAlso Not cycleBusy AndAlso Not initializationApplyInProgress
         If txtTray IsNot Nothing Then txtTray.ReadOnly = chkAutoTest.Checked OrElse cycleBusy
         SetSelectionControlsEnabled(Not cycleBusy)
@@ -3451,6 +4116,7 @@ exit_sub:
         ApplyTestProgressSnapshot(testProgressState.CreateSnapshot())
         If testProgressDialog IsNot Nothing AndAlso Not testProgressDialog.IsDisposed Then
             testProgressDialog.MarkCompleted(message)
+            testProgressDialog.Hide()
         End If
     End Sub
 
@@ -3488,6 +4154,9 @@ exit_sub:
                 If channel < 1 OrElse channel > MAX_CHANNEL Then Continue For
                 RecieveData(channel - 1).Voltage = 0
                 RecieveData(channel - 1).Resistance = 0
+                RecieveData(channel - 1).RawResistanceMilliohm = 0
+                RecieveData(channel - 1).CalibrationValueMilliohm = 0
+                RecieveData(channel - 1).FinalResistanceMilliohm = 0
                 RecieveData(channel - 1).Result = String.Empty
             Next
         End If

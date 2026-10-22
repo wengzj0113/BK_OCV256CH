@@ -47,9 +47,6 @@ Partial Class frmTest
         Me.CmdStart = New System.Windows.Forms.Button()
         Me.btnStop = New System.Windows.Forms.Button()
         Me.btnNGTest = New System.Windows.Forms.Button()
-        Me.btnTrayState = New System.Windows.Forms.Button()
-        Me.btnOpen = New System.Windows.Forms.Button()
-        Me.btnClose = New System.Windows.Forms.Button()
         Me.Label3 = New System.Windows.Forms.Label()
         Me.Label4 = New System.Windows.Forms.Label()
         Me.txtLastNum = New System.Windows.Forms.TextBox()
@@ -97,10 +94,10 @@ Partial Class frmTest
         Me.LabelRun = New System.Windows.Forms.Label()
         Me.LabelAlarm = New System.Windows.Forms.Label()
         Me.GroupBox7 = New System.Windows.Forms.GroupBox()
-        Me.txtAlarm = New System.Windows.Forms.TextBox()
-        Me.Button2 = New System.Windows.Forms.Button()
-        Me.Panel1 = New System.Windows.Forms.Panel()
         Me.txtUsed = New System.Windows.Forms.TextBox()
+        Me.txtAlarm = New System.Windows.Forms.TextBox()
+        Me.btnReset = New System.Windows.Forms.Button()
+        Me.Panel1 = New System.Windows.Forms.Panel()
         Me.leftContentPanel = New System.Windows.Forms.TableLayoutPanel()
         Me.currentStationButton = New System.Windows.Forms.RadioButton()
         Me.grpTestMode = New System.Windows.Forms.GroupBox()
@@ -190,7 +187,7 @@ Partial Class frmTest
         Me.GroupBox3.FlatStyle = System.Windows.Forms.FlatStyle.Flat
         Me.GroupBox3.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
         Me.GroupBox3.ForeColor = System.Drawing.Color.FromArgb(CType(CType(23, Byte), Integer), CType(CType(105, Byte), Integer), CType(CType(232, Byte), Integer))
-        Me.GroupBox3.Location = New System.Drawing.Point(6, 347)
+        Me.GroupBox3.Location = New System.Drawing.Point(6, 318)
         Me.GroupBox3.Margin = New System.Windows.Forms.Padding(0, 0, 0, 5)
         Me.GroupBox3.Name = "GroupBox3"
         Me.GroupBox3.Padding = New System.Windows.Forms.Padding(6, 15, 6, 6)
@@ -347,7 +344,7 @@ Partial Class frmTest
         Me.GroupBox1.Margin = New System.Windows.Forms.Padding(0, 0, 0, 5)
         Me.GroupBox1.Name = "GroupBox1"
         Me.GroupBox1.Padding = New System.Windows.Forms.Padding(6, 15, 6, 6)
-        Me.GroupBox1.Size = New System.Drawing.Size(338, 126)
+        Me.GroupBox1.Size = New System.Drawing.Size(338, 97)
         Me.GroupBox1.TabIndex = 56
         Me.GroupBox1.TabStop = False
         Me.GroupBox1.Text = "控制板"
@@ -358,28 +355,24 @@ Partial Class frmTest
         Me.controlBoardLayout.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink
         Me.controlBoardLayout.BackColor = System.Drawing.Color.White
         Me.controlBoardLayout.ColumnCount = 3
-        Me.controlBoardLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 22.08589!))
-        Me.controlBoardLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 52.45399!))
-        Me.controlBoardLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 25.46012!))
+        Me.controlBoardLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 29.77346!))
+        Me.controlBoardLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 43.3657!))
+        Me.controlBoardLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 26.86084!))
         Me.controlBoardLayout.Controls.Add(Me.Label2, 0, 0)
         Me.controlBoardLayout.Controls.Add(Me.txtTray, 1, 0)
         Me.controlBoardLayout.Controls.Add(Me.btnGetBarcode, 2, 0)
         Me.controlBoardLayout.Controls.Add(Me.CmdStart, 0, 1)
         Me.controlBoardLayout.Controls.Add(Me.btnStop, 1, 1)
         Me.controlBoardLayout.Controls.Add(Me.btnNGTest, 2, 1)
-        Me.controlBoardLayout.Controls.Add(Me.btnTrayState, 0, 2)
-        Me.controlBoardLayout.Controls.Add(Me.btnOpen, 1, 2)
-        Me.controlBoardLayout.Controls.Add(Me.btnClose, 2, 2)
         Me.controlBoardLayout.Dock = System.Windows.Forms.DockStyle.Top
         Me.controlBoardLayout.Location = New System.Drawing.Point(6, 31)
         Me.controlBoardLayout.Margin = New System.Windows.Forms.Padding(0)
         Me.controlBoardLayout.Name = "controlBoardLayout"
-        Me.controlBoardLayout.RowCount = 3
-        Me.controlBoardLayout.RowStyles.Add(New System.Windows.Forms.RowStyle())
+        Me.controlBoardLayout.RowCount = 2
         Me.controlBoardLayout.RowStyles.Add(New System.Windows.Forms.RowStyle())
         Me.controlBoardLayout.RowStyles.Add(New System.Windows.Forms.RowStyle())
         Me.controlBoardLayout.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 20.0!))
-        Me.controlBoardLayout.Size = New System.Drawing.Size(326, 89)
+        Me.controlBoardLayout.Size = New System.Drawing.Size(326, 60)
         Me.controlBoardLayout.TabIndex = 47
         '
         'Label2
@@ -390,10 +383,10 @@ Partial Class frmTest
         Me.Label2.Location = New System.Drawing.Point(2, 2)
         Me.Label2.Margin = New System.Windows.Forms.Padding(2)
         Me.Label2.Name = "Label2"
-        Me.Label2.Size = New System.Drawing.Size(64, 23)
+        Me.Label2.Size = New System.Drawing.Size(77, 23)
         Me.Label2.TabIndex = 47
         Me.Label2.Text = "托盘码"
-        Me.Label2.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
+        Me.Label2.TextAlign = System.Drawing.ContentAlignment.MiddleRight
         '
         'txtTray
         '
@@ -402,10 +395,10 @@ Partial Class frmTest
         Me.txtTray.Dock = System.Windows.Forms.DockStyle.Fill
         Me.txtTray.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
         Me.txtTray.ForeColor = System.Drawing.Color.FromArgb(CType(CType(36, Byte), Integer), CType(CType(49, Byte), Integer), CType(CType(66, Byte), Integer))
-        Me.txtTray.Location = New System.Drawing.Point(74, 2)
+        Me.txtTray.Location = New System.Drawing.Point(99, 2)
         Me.txtTray.Margin = New System.Windows.Forms.Padding(2)
         Me.txtTray.Name = "txtTray"
-        Me.txtTray.Size = New System.Drawing.Size(167, 23)
+        Me.txtTray.Size = New System.Drawing.Size(137, 23)
         Me.txtTray.TabIndex = 44
         '
         'btnGetBarcode
@@ -416,10 +409,10 @@ Partial Class frmTest
         Me.btnGetBarcode.FlatStyle = System.Windows.Forms.FlatStyle.Flat
         Me.btnGetBarcode.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
         Me.btnGetBarcode.ForeColor = System.Drawing.Color.FromArgb(CType(CType(23, Byte), Integer), CType(CType(105, Byte), Integer), CType(CType(232, Byte), Integer))
-        Me.btnGetBarcode.Location = New System.Drawing.Point(245, 2)
+        Me.btnGetBarcode.Location = New System.Drawing.Point(240, 2)
         Me.btnGetBarcode.Margin = New System.Windows.Forms.Padding(2)
         Me.btnGetBarcode.Name = "btnGetBarcode"
-        Me.btnGetBarcode.Size = New System.Drawing.Size(79, 27)
+        Me.btnGetBarcode.Size = New System.Drawing.Size(84, 27)
         Me.btnGetBarcode.TabIndex = 57
         Me.btnGetBarcode.Text = "获取条码"
         Me.btnGetBarcode.UseVisualStyleBackColor = False
@@ -435,10 +428,9 @@ Partial Class frmTest
         Me.CmdStart.Location = New System.Drawing.Point(2, 33)
         Me.CmdStart.Margin = New System.Windows.Forms.Padding(2)
         Me.CmdStart.Name = "CmdStart"
-        Me.CmdStart.Size = New System.Drawing.Size(68, 25)
+        Me.CmdStart.Size = New System.Drawing.Size(93, 25)
         Me.CmdStart.TabIndex = 56
         Me.CmdStart.Text = "启动测试"
-        Me.CmdStart.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
         Me.CmdStart.UseVisualStyleBackColor = False
         '
         'btnStop
@@ -449,10 +441,10 @@ Partial Class frmTest
         Me.btnStop.FlatStyle = System.Windows.Forms.FlatStyle.Flat
         Me.btnStop.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
         Me.btnStop.ForeColor = System.Drawing.Color.FromArgb(CType(CType(239, Byte), Integer), CType(CType(62, Byte), Integer), CType(CType(62, Byte), Integer))
-        Me.btnStop.Location = New System.Drawing.Point(74, 33)
+        Me.btnStop.Location = New System.Drawing.Point(99, 33)
         Me.btnStop.Margin = New System.Windows.Forms.Padding(2)
         Me.btnStop.Name = "btnStop"
-        Me.btnStop.Size = New System.Drawing.Size(167, 25)
+        Me.btnStop.Size = New System.Drawing.Size(137, 25)
         Me.btnStop.TabIndex = 65
         Me.btnStop.Text = "停止测试"
         Me.btnStop.UseVisualStyleBackColor = False
@@ -465,67 +457,19 @@ Partial Class frmTest
         Me.btnNGTest.FlatStyle = System.Windows.Forms.FlatStyle.Flat
         Me.btnNGTest.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
         Me.btnNGTest.ForeColor = System.Drawing.Color.White
-        Me.btnNGTest.Location = New System.Drawing.Point(245, 33)
+        Me.btnNGTest.Location = New System.Drawing.Point(240, 33)
         Me.btnNGTest.Margin = New System.Windows.Forms.Padding(2)
         Me.btnNGTest.Name = "btnNGTest"
-        Me.btnNGTest.Size = New System.Drawing.Size(79, 25)
+        Me.btnNGTest.Size = New System.Drawing.Size(84, 25)
         Me.btnNGTest.TabIndex = 56
         Me.btnNGTest.Text = "NG点测试"
         Me.btnNGTest.UseVisualStyleBackColor = False
-        '
-        'btnTrayState
-        '
-        Me.btnTrayState.BackColor = System.Drawing.Color.White
-        Me.btnTrayState.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.btnTrayState.FlatAppearance.BorderColor = System.Drawing.Color.FromArgb(CType(CType(231, Byte), Integer), CType(CType(235, Byte), Integer), CType(CType(240, Byte), Integer))
-        Me.btnTrayState.FlatStyle = System.Windows.Forms.FlatStyle.Flat
-        Me.btnTrayState.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.btnTrayState.ForeColor = System.Drawing.Color.FromArgb(CType(CType(36, Byte), Integer), CType(CType(49, Byte), Integer), CType(CType(66, Byte), Integer))
-        Me.btnTrayState.Location = New System.Drawing.Point(2, 62)
-        Me.btnTrayState.Margin = New System.Windows.Forms.Padding(2)
-        Me.btnTrayState.Name = "btnTrayState"
-        Me.btnTrayState.Size = New System.Drawing.Size(68, 25)
-        Me.btnTrayState.TabIndex = 60
-        Me.btnTrayState.Text = "托盘状态"
-        Me.btnTrayState.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
-        Me.btnTrayState.UseVisualStyleBackColor = False
-        '
-        'btnOpen
-        '
-        Me.btnOpen.BackColor = System.Drawing.Color.White
-        Me.btnOpen.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.btnOpen.FlatAppearance.BorderColor = System.Drawing.Color.FromArgb(CType(CType(231, Byte), Integer), CType(CType(235, Byte), Integer), CType(CType(240, Byte), Integer))
-        Me.btnOpen.FlatStyle = System.Windows.Forms.FlatStyle.Flat
-        Me.btnOpen.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.btnOpen.ForeColor = System.Drawing.Color.FromArgb(CType(CType(36, Byte), Integer), CType(CType(49, Byte), Integer), CType(CType(66, Byte), Integer))
-        Me.btnOpen.Location = New System.Drawing.Point(74, 62)
-        Me.btnOpen.Margin = New System.Windows.Forms.Padding(2)
-        Me.btnOpen.Name = "btnOpen"
-        Me.btnOpen.Size = New System.Drawing.Size(167, 25)
-        Me.btnOpen.TabIndex = 62
-        Me.btnOpen.Text = "开启托盘"
-        Me.btnOpen.UseVisualStyleBackColor = False
-        '
-        'btnClose
-        '
-        Me.btnClose.BackColor = System.Drawing.Color.White
-        Me.btnClose.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.btnClose.FlatAppearance.BorderColor = System.Drawing.Color.FromArgb(CType(CType(231, Byte), Integer), CType(CType(235, Byte), Integer), CType(CType(240, Byte), Integer))
-        Me.btnClose.FlatStyle = System.Windows.Forms.FlatStyle.Flat
-        Me.btnClose.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.btnClose.ForeColor = System.Drawing.Color.FromArgb(CType(CType(36, Byte), Integer), CType(CType(49, Byte), Integer), CType(CType(66, Byte), Integer))
-        Me.btnClose.Location = New System.Drawing.Point(245, 62)
-        Me.btnClose.Margin = New System.Windows.Forms.Padding(2)
-        Me.btnClose.Name = "btnClose"
-        Me.btnClose.Size = New System.Drawing.Size(79, 25)
-        Me.btnClose.TabIndex = 63
-        Me.btnClose.Text = "闭合托盘"
-        Me.btnClose.UseVisualStyleBackColor = False
+        Me.btnNGTest.Visible = False
         '
         'Label3
         '
         Me.Label3.Font = New System.Drawing.Font("宋体", 9.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.Label3.Location = New System.Drawing.Point(152, 874)
+        Me.Label3.Location = New System.Drawing.Point(152, 1025)
         Me.Label3.Name = "Label3"
         Me.Label3.Size = New System.Drawing.Size(10, 10)
         Me.Label3.TabIndex = 42
@@ -536,7 +480,7 @@ Partial Class frmTest
         'Label4
         '
         Me.Label4.Font = New System.Drawing.Font("宋体", 9.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.Label4.Location = New System.Drawing.Point(86, 873)
+        Me.Label4.Location = New System.Drawing.Point(86, 1024)
         Me.Label4.Name = "Label4"
         Me.Label4.Size = New System.Drawing.Size(10, 10)
         Me.Label4.TabIndex = 43
@@ -550,7 +494,7 @@ Partial Class frmTest
         Me.txtLastNum.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
         Me.txtLastNum.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
         Me.txtLastNum.ForeColor = System.Drawing.Color.FromArgb(CType(CType(36, Byte), Integer), CType(CType(49, Byte), Integer), CType(CType(66, Byte), Integer))
-        Me.txtLastNum.Location = New System.Drawing.Point(132, 873)
+        Me.txtLastNum.Location = New System.Drawing.Point(132, 1024)
         Me.txtLastNum.Name = "txtLastNum"
         Me.txtLastNum.ReadOnly = True
         Me.txtLastNum.Size = New System.Drawing.Size(10, 23)
@@ -563,7 +507,7 @@ Partial Class frmTest
         Me.txtFirstNum.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
         Me.txtFirstNum.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
         Me.txtFirstNum.ForeColor = System.Drawing.Color.FromArgb(CType(CType(36, Byte), Integer), CType(CType(49, Byte), Integer), CType(CType(66, Byte), Integer))
-        Me.txtFirstNum.Location = New System.Drawing.Point(198, 874)
+        Me.txtFirstNum.Location = New System.Drawing.Point(198, 1025)
         Me.txtFirstNum.Name = "txtFirstNum"
         Me.txtFirstNum.ReadOnly = True
         Me.txtFirstNum.Size = New System.Drawing.Size(10, 23)
@@ -580,7 +524,7 @@ Partial Class frmTest
         Me.grpChannelSelection.FlatStyle = System.Windows.Forms.FlatStyle.Flat
         Me.grpChannelSelection.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
         Me.grpChannelSelection.ForeColor = System.Drawing.Color.FromArgb(CType(CType(23, Byte), Integer), CType(CType(105, Byte), Integer), CType(CType(232, Byte), Integer))
-        Me.grpChannelSelection.Location = New System.Drawing.Point(6, 273)
+        Me.grpChannelSelection.Location = New System.Drawing.Point(6, 244)
         Me.grpChannelSelection.Margin = New System.Windows.Forms.Padding(0, 0, 0, 5)
         Me.grpChannelSelection.Name = "grpChannelSelection"
         Me.grpChannelSelection.Padding = New System.Windows.Forms.Padding(6, 15, 6, 6)
@@ -685,7 +629,7 @@ Partial Class frmTest
         Me.GroupBox2.Controls.Add(Me.Rbtn3)
         Me.GroupBox2.Controls.Add(Me.Rbtn2)
         Me.GroupBox2.Enabled = False
-        Me.GroupBox2.Location = New System.Drawing.Point(2, 18)
+        Me.GroupBox2.Location = New System.Drawing.Point(2, 169)
         Me.GroupBox2.Name = "GroupBox2"
         Me.GroupBox2.Size = New System.Drawing.Size(306, 39)
         Me.GroupBox2.TabIndex = 58
@@ -818,11 +762,11 @@ Partial Class frmTest
         Me.GroupBox5.FlatStyle = System.Windows.Forms.FlatStyle.Flat
         Me.GroupBox5.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
         Me.GroupBox5.ForeColor = System.Drawing.Color.FromArgb(CType(CType(23, Byte), Integer), CType(CType(105, Byte), Integer), CType(CType(232, Byte), Integer))
-        Me.GroupBox5.Location = New System.Drawing.Point(6, 478)
+        Me.GroupBox5.Location = New System.Drawing.Point(6, 449)
         Me.GroupBox5.Margin = New System.Windows.Forms.Padding(0, 0, 0, 5)
         Me.GroupBox5.Name = "GroupBox5"
         Me.GroupBox5.Padding = New System.Windows.Forms.Padding(6, 15, 6, 6)
-        Me.GroupBox5.Size = New System.Drawing.Size(338, 133)
+        Me.GroupBox5.Size = New System.Drawing.Size(338, 142)
         Me.GroupBox5.TabIndex = 59
         Me.GroupBox5.TabStop = False
         Me.GroupBox5.Text = "报警指示"
@@ -842,8 +786,8 @@ Partial Class frmTest
         Me.alarmSectionLayout.Name = "alarmSectionLayout"
         Me.alarmSectionLayout.RowCount = 2
         Me.alarmSectionLayout.RowStyles.Add(New System.Windows.Forms.RowStyle())
-        Me.alarmSectionLayout.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 30.0!))
-        Me.alarmSectionLayout.Size = New System.Drawing.Size(326, 96)
+        Me.alarmSectionLayout.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 39.0!))
+        Me.alarmSectionLayout.Size = New System.Drawing.Size(326, 105)
         Me.alarmSectionLayout.TabIndex = 0
         '
         'Panel2
@@ -1011,7 +955,7 @@ Partial Class frmTest
         Me.Panel3.Location = New System.Drawing.Point(2, 68)
         Me.Panel3.Margin = New System.Windows.Forms.Padding(2)
         Me.Panel3.Name = "Panel3"
-        Me.Panel3.Size = New System.Drawing.Size(322, 26)
+        Me.Panel3.Size = New System.Drawing.Size(322, 35)
         Me.Panel3.TabIndex = 57
         '
         'alarmStatusLayout
@@ -1031,8 +975,8 @@ Partial Class frmTest
         Me.alarmStatusLayout.Margin = New System.Windows.Forms.Padding(0)
         Me.alarmStatusLayout.Name = "alarmStatusLayout"
         Me.alarmStatusLayout.RowCount = 1
-        Me.alarmStatusLayout.RowStyles.Add(New System.Windows.Forms.RowStyle())
-        Me.alarmStatusLayout.Size = New System.Drawing.Size(322, 27)
+        Me.alarmStatusLayout.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 28.0!))
+        Me.alarmStatusLayout.Size = New System.Drawing.Size(322, 28)
         Me.alarmStatusLayout.TabIndex = 0
         '
         'smokeOneLayout
@@ -1045,7 +989,7 @@ Partial Class frmTest
         Me.smokeOneLayout.Location = New System.Drawing.Point(2, 2)
         Me.smokeOneLayout.Margin = New System.Windows.Forms.Padding(2)
         Me.smokeOneLayout.Name = "smokeOneLayout"
-        Me.smokeOneLayout.Size = New System.Drawing.Size(73, 23)
+        Me.smokeOneLayout.Size = New System.Drawing.Size(73, 24)
         Me.smokeOneLayout.TabIndex = 0
         Me.smokeOneLayout.WrapContents = False
         '
@@ -1072,7 +1016,7 @@ Partial Class frmTest
         Me.smokeAlarm1.Multiline = True
         Me.smokeAlarm1.Name = "smokeAlarm1"
         Me.smokeAlarm1.ReadOnly = True
-        Me.smokeAlarm1.Size = New System.Drawing.Size(32, 19)
+        Me.smokeAlarm1.Size = New System.Drawing.Size(18, 19)
         Me.smokeAlarm1.TabIndex = 49
         '
         'smokeTwoLayout
@@ -1085,7 +1029,7 @@ Partial Class frmTest
         Me.smokeTwoLayout.Location = New System.Drawing.Point(79, 2)
         Me.smokeTwoLayout.Margin = New System.Windows.Forms.Padding(2)
         Me.smokeTwoLayout.Name = "smokeTwoLayout"
-        Me.smokeTwoLayout.Size = New System.Drawing.Size(73, 23)
+        Me.smokeTwoLayout.Size = New System.Drawing.Size(73, 24)
         Me.smokeTwoLayout.TabIndex = 1
         Me.smokeTwoLayout.WrapContents = False
         '
@@ -1112,7 +1056,7 @@ Partial Class frmTest
         Me.smokeAlarm2.Multiline = True
         Me.smokeAlarm2.Name = "smokeAlarm2"
         Me.smokeAlarm2.ReadOnly = True
-        Me.smokeAlarm2.Size = New System.Drawing.Size(34, 17)
+        Me.smokeAlarm2.Size = New System.Drawing.Size(20, 19)
         Me.smokeAlarm2.TabIndex = 50
         '
         'deviceStatusLayout
@@ -1126,7 +1070,7 @@ Partial Class frmTest
         Me.deviceStatusLayout.Location = New System.Drawing.Point(156, 2)
         Me.deviceStatusLayout.Margin = New System.Windows.Forms.Padding(2)
         Me.deviceStatusLayout.Name = "deviceStatusLayout"
-        Me.deviceStatusLayout.Size = New System.Drawing.Size(164, 23)
+        Me.deviceStatusLayout.Size = New System.Drawing.Size(164, 24)
         Me.deviceStatusLayout.TabIndex = 2
         Me.deviceStatusLayout.WrapContents = False
         '
@@ -1172,20 +1116,33 @@ Partial Class frmTest
         '
         Me.GroupBox7.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink
         Me.GroupBox7.BackColor = System.Drawing.Color.White
+        Me.GroupBox7.Controls.Add(Me.txtUsed)
         Me.GroupBox7.Controls.Add(Me.txtAlarm)
         Me.GroupBox7.Dock = System.Windows.Forms.DockStyle.Top
         Me.GroupBox7.FlatStyle = System.Windows.Forms.FlatStyle.Flat
         Me.GroupBox7.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
         Me.GroupBox7.ForeColor = System.Drawing.Color.FromArgb(CType(CType(23, Byte), Integer), CType(CType(105, Byte), Integer), CType(CType(232, Byte), Integer))
-        Me.GroupBox7.Location = New System.Drawing.Point(6, 756)
+        Me.GroupBox7.Location = New System.Drawing.Point(6, 736)
         Me.GroupBox7.Margin = New System.Windows.Forms.Padding(0, 0, 0, 5)
         Me.GroupBox7.MinimumSize = New System.Drawing.Size(0, 82)
         Me.GroupBox7.Name = "GroupBox7"
         Me.GroupBox7.Padding = New System.Windows.Forms.Padding(6, 15, 6, 6)
-        Me.GroupBox7.Size = New System.Drawing.Size(338, 115)
+        Me.GroupBox7.Size = New System.Drawing.Size(338, 230)
         Me.GroupBox7.TabIndex = 64
         Me.GroupBox7.TabStop = False
         Me.GroupBox7.Text = "事件日志"
+        '
+        'txtUsed
+        '
+        Me.txtUsed.BackColor = System.Drawing.Color.White
+        Me.txtUsed.Font = New System.Drawing.Font("宋体", 9.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
+        Me.txtUsed.ForeColor = System.Drawing.Color.FromArgb(CType(CType(64, Byte), Integer), CType(CType(0, Byte), Integer), CType(CType(0, Byte), Integer))
+        Me.txtUsed.Location = New System.Drawing.Point(270, 180)
+        Me.txtUsed.Name = "txtUsed"
+        Me.txtUsed.ReadOnly = True
+        Me.txtUsed.Size = New System.Drawing.Size(10, 21)
+        Me.txtUsed.TabIndex = 53
+        Me.txtUsed.Visible = False
         '
         'txtAlarm
         '
@@ -1198,30 +1155,29 @@ Partial Class frmTest
         Me.txtAlarm.Margin = New System.Windows.Forms.Padding(0)
         Me.txtAlarm.Multiline = True
         Me.txtAlarm.Name = "txtAlarm"
-        Me.txtAlarm.Size = New System.Drawing.Size(326, 78)
+        Me.txtAlarm.Size = New System.Drawing.Size(326, 193)
         Me.txtAlarm.TabIndex = 0
         '
-        'Button2
+        'btnReset
         '
-        Me.Button2.Anchor = System.Windows.Forms.AnchorStyles.None
-        Me.Button2.BackColor = System.Drawing.Color.White
-        Me.Button2.FlatAppearance.BorderColor = System.Drawing.Color.FromArgb(CType(CType(239, Byte), Integer), CType(CType(62, Byte), Integer), CType(CType(62, Byte), Integer))
-        Me.Button2.FlatStyle = System.Windows.Forms.FlatStyle.Flat
-        Me.Button2.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.Button2.ForeColor = System.Drawing.Color.FromArgb(CType(CType(239, Byte), Integer), CType(CType(62, Byte), Integer), CType(CType(62, Byte), Integer))
-        Me.Button2.Location = New System.Drawing.Point(102, 9)
-        Me.Button2.Margin = New System.Windows.Forms.Padding(0)
-        Me.Button2.Name = "Button2"
-        Me.Button2.Size = New System.Drawing.Size(133, 34)
-        Me.Button2.TabIndex = 1
-        Me.Button2.Text = "报警复位"
-        Me.Button2.UseVisualStyleBackColor = False
+        Me.btnReset.Anchor = System.Windows.Forms.AnchorStyles.None
+        Me.btnReset.BackColor = System.Drawing.Color.White
+        Me.btnReset.FlatAppearance.BorderColor = System.Drawing.Color.FromArgb(CType(CType(239, Byte), Integer), CType(CType(62, Byte), Integer), CType(CType(62, Byte), Integer))
+        Me.btnReset.FlatStyle = System.Windows.Forms.FlatStyle.Flat
+        Me.btnReset.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
+        Me.btnReset.ForeColor = System.Drawing.Color.FromArgb(CType(CType(239, Byte), Integer), CType(CType(62, Byte), Integer), CType(CType(62, Byte), Integer))
+        Me.btnReset.Location = New System.Drawing.Point(102, 9)
+        Me.btnReset.Margin = New System.Windows.Forms.Padding(0)
+        Me.btnReset.Name = "btnReset"
+        Me.btnReset.Size = New System.Drawing.Size(133, 34)
+        Me.btnReset.TabIndex = 1
+        Me.btnReset.Text = "复位"
+        Me.btnReset.UseVisualStyleBackColor = False
         '
         'Panel1
         '
         Me.Panel1.AutoScroll = True
         Me.Panel1.BackColor = System.Drawing.Color.FromArgb(CType(CType(243, Byte), Integer), CType(CType(246, Byte), Integer), CType(CType(250, Byte), Integer))
-        Me.Panel1.Controls.Add(Me.txtUsed)
         Me.Panel1.Controls.Add(Me.leftContentPanel)
         Me.Panel1.Controls.Add(Me.txtTotle)
         Me.Panel1.Controls.Add(Me.GroupBox2)
@@ -1235,18 +1191,6 @@ Partial Class frmTest
         Me.Panel1.Name = "Panel1"
         Me.Panel1.Size = New System.Drawing.Size(350, 844)
         Me.Panel1.TabIndex = 15
-        '
-        'txtUsed
-        '
-        Me.txtUsed.BackColor = System.Drawing.Color.White
-        Me.txtUsed.Font = New System.Drawing.Font("宋体", 9.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.txtUsed.ForeColor = System.Drawing.Color.FromArgb(CType(CType(64, Byte), Integer), CType(CType(0, Byte), Integer), CType(CType(0, Byte), Integer))
-        Me.txtUsed.Location = New System.Drawing.Point(216, 874)
-        Me.txtUsed.Name = "txtUsed"
-        Me.txtUsed.ReadOnly = True
-        Me.txtUsed.Size = New System.Drawing.Size(10, 21)
-        Me.txtUsed.TabIndex = 53
-        Me.txtUsed.Visible = False
         '
         'leftContentPanel
         '
@@ -1281,7 +1225,7 @@ Partial Class frmTest
         Me.leftContentPanel.RowStyles.Add(New System.Windows.Forms.RowStyle())
         Me.leftContentPanel.RowStyles.Add(New System.Windows.Forms.RowStyle())
         Me.leftContentPanel.RowStyles.Add(New System.Windows.Forms.RowStyle())
-        Me.leftContentPanel.Size = New System.Drawing.Size(333, 934)
+        Me.leftContentPanel.Size = New System.Drawing.Size(333, 1029)
         Me.leftContentPanel.TabIndex = 59
         '
         'currentStationButton
@@ -1380,7 +1324,7 @@ Partial Class frmTest
         Me.GroupBox8.FlatStyle = System.Windows.Forms.FlatStyle.Flat
         Me.GroupBox8.Font = New System.Drawing.Font("Microsoft YaHei UI", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
         Me.GroupBox8.ForeColor = System.Drawing.Color.FromArgb(CType(CType(23, Byte), Integer), CType(CType(105, Byte), Integer), CType(CType(232, Byte), Integer))
-        Me.GroupBox8.Location = New System.Drawing.Point(6, 683)
+        Me.GroupBox8.Location = New System.Drawing.Point(6, 663)
         Me.GroupBox8.Margin = New System.Windows.Forms.Padding(0, 0, 0, 5)
         Me.GroupBox8.Name = "GroupBox8"
         Me.GroupBox8.Padding = New System.Windows.Forms.Padding(6, 15, 6, 6)
@@ -1456,9 +1400,9 @@ Partial Class frmTest
         '
         Me.resetAlarmLayout.ColumnCount = 1
         Me.resetAlarmLayout.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100.0!))
-        Me.resetAlarmLayout.Controls.Add(Me.Button2, 0, 0)
+        Me.resetAlarmLayout.Controls.Add(Me.btnReset, 0, 0)
         Me.resetAlarmLayout.Dock = System.Windows.Forms.DockStyle.Top
-        Me.resetAlarmLayout.Location = New System.Drawing.Point(6, 876)
+        Me.resetAlarmLayout.Location = New System.Drawing.Point(6, 971)
         Me.resetAlarmLayout.Margin = New System.Windows.Forms.Padding(0)
         Me.resetAlarmLayout.Name = "resetAlarmLayout"
         Me.resetAlarmLayout.RowCount = 1
@@ -1475,7 +1419,7 @@ Partial Class frmTest
         Me.GroupBox4.Dock = System.Windows.Forms.DockStyle.Top
         Me.GroupBox4.Font = New System.Drawing.Font("宋体", 10.5!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
         Me.GroupBox4.ForeColor = System.Drawing.SystemColors.ActiveCaptionText
-        Me.GroupBox4.Location = New System.Drawing.Point(9, 619)
+        Me.GroupBox4.Location = New System.Drawing.Point(9, 599)
         Me.GroupBox4.Name = "GroupBox4"
         Me.GroupBox4.Size = New System.Drawing.Size(332, 61)
         Me.GroupBox4.TabIndex = 74
@@ -1532,7 +1476,7 @@ Partial Class frmTest
         Me.txtTotle.BackColor = System.Drawing.Color.White
         Me.txtTotle.Font = New System.Drawing.Font("宋体", 9.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
         Me.txtTotle.ForeColor = System.Drawing.Color.FromArgb(CType(CType(64, Byte), Integer), CType(CType(0, Byte), Integer), CType(CType(0, Byte), Integer))
-        Me.txtTotle.Location = New System.Drawing.Point(232, 874)
+        Me.txtTotle.Location = New System.Drawing.Point(232, 1025)
         Me.txtTotle.Name = "txtTotle"
         Me.txtTotle.ReadOnly = True
         Me.txtTotle.Size = New System.Drawing.Size(10, 21)
@@ -1721,15 +1665,12 @@ Partial Class frmTest
     Friend WithEvents cmbShow As ComboBox
     Friend WithEvents Rbtn3 As RadioButton
     Friend WithEvents Rbtn2 As RadioButton
-    Friend WithEvents btnClose As Button
     Friend WithEvents GroupBox6 As GroupBox
     Friend WithEvents btn_ChCalibrate As Button
     Friend WithEvents cmb_ChSelect As ComboBox
     Friend WithEvents txtJiajuR As TextBox
     Friend WithEvents txtCaliR As TextBox
     Friend WithEvents txtTestR As TextBox
-    Friend WithEvents btnOpen As Button
-    Friend WithEvents btnTrayState As Button
     Friend WithEvents GroupBox5 As GroupBox
     Friend WithEvents Panel3 As Panel
     Friend WithEvents LabelRun As Label
@@ -1749,7 +1690,7 @@ Partial Class frmTest
     Friend WithEvents Label1 As Label
     Friend WithEvents Label15 As Label
     Friend WithEvents GroupBox7 As GroupBox
-    Friend WithEvents Button2 As Button
+    Friend WithEvents btnReset As Button
     Friend WithEvents txtAlarm As TextBox
     Friend WithEvents Panel1 As Panel
     Friend WithEvents GroupBox8 As GroupBox

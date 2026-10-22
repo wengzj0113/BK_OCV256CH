@@ -8,6 +8,7 @@ Public NotInheritable Class PlcAutomationProtocol
     Public Const ReadR150Frame As String = "%01#RCSR0150**"
     Public Const ReadR151Frame As String = "%01#RCSR0151**"
     Public Const ReadR152Frame As String = "%01#RCSR0152**"
+    Public Const ReadX1FFrame As String = "%01#RCSX001F**"
     Public Const WriteR160Frame As String = "%01#WCSR01601**"
     Public Const WriteR161Frame As String = "%01#WCSR01611**"
     Public Const WriteR162Frame As String = "%01#WCSR01621**"

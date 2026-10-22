@@ -1,6 +1,8 @@
 Imports System.Data
 Imports System.Data.SqlClient
 Imports System.Linq
+Imports System.Collections.Generic
+Imports System.Globalization
 
 Public Class OcvDataService
     Implements IDisposable
@@ -136,15 +138,96 @@ Public Class OcvDataService
     End Function
 
     Public Function SaveTestResults(ByVal testTaskId As Long,
+                                    ByVal stageTestTime As DateTime,
                                     ByVal results As IEnumerable(Of OcvTestResultInput)) As DataTable
         Using connection As New SqlConnection(connectionString)
             connection.Open()
             Using command As SqlCommand = CreateStoredProcedureCommand(connection, "dbo.usp_SaveTestResults")
                 command.Parameters.Add("@TestTaskId", SqlDbType.BigInt).Value = testTaskId
-                AddStructuredParameter(command, "@Results", "dbo.TestResultInputType", BuildTestResultTable(results))
+                command.Parameters.Add("@StageTestTime", SqlDbType.DateTime2).Value = stageTestTime
+                Dim resultTable As DataTable = BuildTestResultTable(results)
+                AddStructuredParameter(command, "@Results", "dbo.TestResultInputType", resultTable)
+                Try
+                    Return ExecuteDataTable(command)
+                Catch ex As SqlException When ex.Errors.Cast(Of SqlError)().Any(Function(item) item.Number = 8115)
+                    Dim detail As String = DescribeTestResultNumericOverflow(connection, resultTable)
+                    Throw New InvalidOperationException("测试结果入库数值溢出（@Results → dbo.TestResultInputType）：" &
+                                                        detail & Environment.NewLine & ex.Message, ex)
+                End Try
+            End Using
+        End Using
+    End Function
+
+    Public Function GetCellOcvSummary(ByVal batteryCode As String) As DataTable
+        Using connection As New SqlConnection(connectionString)
+            connection.Open()
+            Using command As SqlCommand = CreateStoredProcedureCommand(connection, "dbo.usp_GetCellOcvSummary")
+                AddParameter(command, "@BatteryCode", SqlDbType.NVarChar, 100, batteryCode)
                 Return ExecuteDataTable(command)
             End Using
         End Using
+    End Function
+
+    Private Shared Function DescribeTestResultNumericOverflow(ByVal connection As SqlConnection,
+                                                              ByVal results As DataTable) As String
+        '仅在SQL报告溢出后读取现场表类型；正常保存不增加查询，也不改写测量值。
+        Try
+            Dim schema As DataTable
+            Using command As New SqlCommand(
+                "SELECT c.name, c.precision, c.scale FROM sys.table_types t " &
+                "INNER JOIN sys.schemas s ON s.schema_id=t.schema_id " &
+                "INNER JOIN sys.columns c ON c.object_id=t.type_table_object_id " &
+                "WHERE s.name=N'dbo' AND t.name=N'TestResultInputType' " &
+                "AND c.system_type_id IN (106,108) ORDER BY c.column_id", connection)
+                command.CommandTimeout = 5
+                schema = ExecuteDataTable(command)
+            End Using
+            If schema.Rows.Count = 0 Then Return "无法读取现场表类型的数值字段定义，请检查数据库元数据权限。"
+
+            Dim violations As New List(Of String)()
+            Dim definitions As New List(Of String)()
+            Dim samples As New List(Of String)()
+            For Each column As DataRow In schema.Rows
+                Dim field As String = CStr(column("name"))
+                Dim precision As Integer = CInt(column("precision"))
+                Dim scale As Integer = CInt(column("scale"))
+                Dim sqlType As String = String.Format(CultureInfo.InvariantCulture, "decimal({0},{1})", precision, scale)
+                definitions.Add(field & " " & sqlType)
+                If Not results.Columns.Contains(field) Then Continue For
+                Dim integerDigits As Integer = precision - scale
+                Dim exclusiveLimit As Decimal = 1D
+                If integerDigits < 29 Then
+                    For digit As Integer = 1 To integerDigits
+                        exclusiveLimit *= 10D
+                    Next
+                End If
+                Dim largestRow As DataRow = Nothing
+                Dim largestMagnitude As Decimal = -1D
+                For Each row As DataRow In results.Rows
+                    If row.IsNull(field) Then Continue For
+                    Dim value As Decimal = CDec(row(field))
+                    Dim description As String = "ChannelNo=" & CStr(row("ChannelNo")) & " " & field & "=" &
+                                                value.ToString(CultureInfo.InvariantCulture)
+                    Dim rounded As Decimal = Decimal.Round(value, Math.Min(scale, 28), MidpointRounding.AwayFromZero)
+                    If integerDigits < 29 AndAlso (rounded >= exclusiveLimit OrElse rounded <= -exclusiveLimit) Then
+                        violations.Add(description & " 超出 " & sqlType)
+                    End If
+                    If Math.Abs(value) > largestMagnitude Then
+                        largestRow = row
+                        largestMagnitude = Math.Abs(value)
+                    End If
+                Next
+                If largestRow IsNot Nothing Then
+                    samples.Add("ChannelNo=" & CStr(largestRow("ChannelNo")) & " " & field & "=" &
+                                CDec(largestRow(field)).ToString(CultureInfo.InvariantCulture))
+                End If
+            Next
+            If violations.Count > 0 Then Return String.Join("；", violations)
+            Return "按现场表类型未发现超范围值；字段定义：" & String.Join("；", definitions) &
+                   "；本批各字段最大绝对值所在行：" & String.Join("；", samples)
+        Catch diagnosticError As Exception
+            Return "溢出详情读取失败：" & diagnosticError.Message
+        End Try
     End Function
 
     Public Function CompleteTestTask(ByVal testTaskId As Long,
@@ -539,6 +622,64 @@ Public Class OcvDataService
             End Using
         End Using
     End Function
+
+    Public Sub SaveCalibrationValuesBatch(ByVal values As IList(Of Decimal),
+                                          Optional ByVal operatorName As String = Nothing,
+                                          Optional ByVal remark As String = Nothing)
+        If values Is Nothing OrElse values.Count <> CalibrationService.ChannelCount Then
+            Throw New ArgumentException("校准值必须正好包含256个通道。", NameOf(values))
+        End If
+
+        Using connection As New SqlConnection(connectionString)
+            connection.Open()
+            Using transaction As SqlTransaction = connection.BeginTransaction(IsolationLevel.Serializable)
+                Try
+                    Dim activeValues As New Dictionary(Of Integer, Decimal)()
+                    Const readSql As String =
+                        "SELECT ChannelNo, CalibrationValueMilliohm " &
+                        "FROM dbo.ChannelCalibration WITH (UPDLOCK, HOLDLOCK) " &
+                        "WHERE MeasurementType = N'Resistance' AND IsActive = 1;"
+                    Using readCommand As New SqlCommand(readSql, connection, transaction)
+                        Using reader As SqlDataReader = readCommand.ExecuteReader()
+                            While reader.Read()
+                                activeValues(Convert.ToInt32(reader("ChannelNo"))) =
+                                    Convert.ToDecimal(reader("CalibrationValueMilliohm"))
+                            End While
+                        End Using
+                    End Using
+
+                    For index0 As Integer = 0 To CalibrationService.ChannelCount - 1
+                        Dim channelNo As Integer = index0 + 1
+                        Dim value As Decimal = Decimal.Round(values(index0), 6, MidpointRounding.AwayFromZero)
+                        If activeValues.ContainsKey(channelNo) AndAlso
+                           Math.Abs(activeValues(channelNo) - value) < 0.000001D Then
+                            Continue For
+                        End If
+
+                        Using command As New SqlCommand("dbo.usp_SaveChannelCalibration", connection, transaction)
+                            command.CommandType = CommandType.StoredProcedure
+                            command.CommandTimeout = 10
+                            command.Parameters.Add("@ChannelNo", SqlDbType.SmallInt).Value = channelNo
+                            AddParameter(command, "@StandardValue", SqlDbType.Decimal, CType(Nothing, Decimal?), 18, 6)
+                            AddParameter(command, "@MeasuredValue", SqlDbType.Decimal, CType(Nothing, Decimal?), 18, 6)
+                            AddParameter(command, "@CalibrationValueMilliohm", SqlDbType.Decimal, CType(value, Decimal?), 18, 6)
+                            AddParameter(command, "@OperatorName", SqlDbType.NVarChar, 100, operatorName)
+                            AddParameter(command, "@Remark", SqlDbType.NVarChar, 500, remark)
+                            command.ExecuteNonQuery()
+                        End Using
+                    Next
+
+                    transaction.Commit()
+                Catch
+                    Try
+                        transaction.Rollback()
+                    Catch
+                    End Try
+                    Throw
+                End Try
+            End Using
+        End Using
+    End Sub
 
     Public Sub SaveDeviceCommLog(ByVal deviceName As String,
                                  ByVal direction As String,

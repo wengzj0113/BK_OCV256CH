@@ -72,6 +72,8 @@ Public Class Retest3562Service
 
             Dim result As New RetestMeasurement() With {
                 .Resistance = CSng(resistanceOhm * 1000.0R),
+                .RawResistanceMilliohm = resistanceOhm * 1000.0R,
+                .FinalResistanceMilliohm = resistanceOhm * 1000.0R,
                 .Voltage = CSng(measuredVoltage),
                 .VoltageMeasured = True,
                 .MeasuredAt = DateTime.Now

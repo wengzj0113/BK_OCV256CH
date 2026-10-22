@@ -11,6 +11,7 @@ public sealed class FakePlc : IPlcAutomationClient {
     public bool R150 = true;
     public bool R151;
     public bool R152;
+    public bool X1F;
     public int CompletionWrites;
     public int SortingCompletionWrites;
     public readonly List<string> GradeWrites = new List<string>();
@@ -19,10 +20,11 @@ public sealed class FakePlc : IPlcAutomationClient {
     public bool ReadR150() { return R150; }
     public bool ReadR151() { return R151; }
     public bool ReadR152() { return R152; }
+    public bool ReadX1F() { return X1F; }
     public void WriteR160() {}
     public void WriteR161() { CompletionWrites++; if (CompletionWrites == 1) throw new Exception("timeout"); }
     public void WriteR162() { SortingCompletionWrites++; }
-    public void WriteNgSelection(int channel) {
+    public void WriteNgSelection(int channel, Action<string> responseReceived) {
         string frame = PlcAutomationProtocol.BuildNgSelectionFrame(channel);
         GradeWrites.Add(channel + ":2:" + frame.Substring(7, 5));
     }
@@ -86,7 +88,7 @@ $plc.R151 = $true
 [void]$poll.Invoke($coordinator, @($null))
 if ($coordinator.State.ToString() -ne 'WaitingR161Ack') { throw "Expected pending R161; got $($coordinator.State)" }
 [void]$poll.Invoke($coordinator, @($null))
-if ($coordinator.State.ToString() -ne 'Idle' -or -not $coordinator.IsCycleOccupied) { throw 'R161 retry did not release the tray while retaining its pending NG handoff.' }
+if ($coordinator.State.ToString() -ne 'Idle' -or $coordinator.IsCycleOccupied) { throw 'R161 retry did not release the completed tray after retest cleared its NG result.' }
 if ($fakeHost.PrepareCalls -ne 1 -or $fakeHost.InitialCalls -ne 1 -or $fakeHost.RetestCalls -ne 1 -or $fakeHost.PublishCalls -ne 1 -or $plc.CompletionWrites -ne 2) {
     throw 'The retry repeated tray preparation, measurement, retest, or publication.'
 }
@@ -109,9 +111,9 @@ if ($stillNgCoordinator.State.ToString() -ne 'WaitingR161Ack' -or
     throw 'An NG that remained NG after retest was sent before test-complete acknowledgement.'
 }
 [void]$poll.Invoke($stillNgCoordinator, @($null))
-if ($stillNgCoordinator.State.ToString() -ne 'Idle' -or -not $stillNgCoordinator.IsCycleOccupied -or
+if ($stillNgCoordinator.State.ToString() -ne 'Idle' -or $stillNgCoordinator.IsCycleOccupied -or
     $stillNgPlc.GradeWrites.Count -ne 0 -or $stillNgPlc.CompletionWrites -ne 2) {
-    throw 'R161 retry did not advance to the R152 sorting gate.'
+    throw 'R161 retry did not release the tray while preserving the separate pending R152/R162 handoff.'
 }
 $stillNgPlc.R152 = $true
 [void]$poll.Invoke($stillNgCoordinator, @($null))

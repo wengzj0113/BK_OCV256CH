@@ -1,5 +1,7 @@
 # 主测试页手动模式统一周期实施计划
 
+> 2026-10-15 协议纠正：本文件记录历史实施过程，其中“R160 ACK 后手动直启”和“手动不读 R151”的任务已被用户明确纠正。当前应执行：手动准备 → 仅发送 R160=1（无 ACK）→ PLC 控制托盘到位 → 有效 R151=1 → 手选通道测试；以同名设计文档的修订内容为准。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:executing-plans` to implement this plan task by task. Steps use checkbox syntax for tracking.
 
 **Goal:** 让主测试页手动入口跳过扫码、R150 和 R151 门控，完成托盘准备后由统一 PLC 周期协调器发送 R160=1；ACK 成功即按手选通道开始测试，并与自动模式共用测量、复测、最终保存及 PLC 收尾。

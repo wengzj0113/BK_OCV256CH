@@ -11,5 +11,6 @@
   <ItemGroup>
     <Compile Include="..\..\PlcAutomaticTestCoordinator.vb" Link="PlcAutomaticTestCoordinator.vb" />
     <Compile Include="..\..\PlcAutomaticTestState.vb" Link="PlcAutomaticTestState.vb" />
+    <Compile Include="..\..\AutomaticEventLogWriter.vb" Link="AutomaticEventLogWriter.vb" />
   </ItemGroup>
 </Project>

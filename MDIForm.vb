@@ -9,8 +9,11 @@ Imports MpFByteArrDLL
 Imports CmdMemberDLL
 Imports System.Threading
 Imports System.Reflection.Emit
+Imports System.Threading.Tasks
 
 Public Class MDIForm
+    Private plcRuntimeStatus As String = String.Empty
+    Private plcRuntimeStatusActive As Boolean
     Private ngRetestForm As FrmNgRetest
     Private applyingMdiClientLayout As Boolean
     Private mdiLayoutOrderApplied As Boolean
@@ -29,7 +32,11 @@ Public Class MDIForm
     Public fixtureClose As Boolean
     Public operTypeNum As Integer = 0
     Private environmentResetStarted As Boolean
+    Private applicationExitReadyToClose As Boolean
+    Private applicationExitCurrentStep As String = "准备退出"
     Private Const ShutdownResetTimeoutMs As Integer = 3000
+    Private Const ShutdownPortCloseTimeoutMs As Integer = 3000
+    Private Const ShutdownWaitPromptIntervalMs As Integer = 5000
     Private Const ResizeDebounceMs As Integer = 75
 
     Private Sub OpenFile(ByVal sender As Object, ByVal e As EventArgs)
@@ -89,7 +96,7 @@ Public Class MDIForm
         Finally
             Me.Cursor = Cursors.Default
         End Try
-        If exitAfterSettings Then Application.Exit()
+        If exitAfterSettings Then Me.Close()
     End Sub
     Private Sub OnLineTest_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles OnLineTest.Click
         Me.Cursor = Cursors.WaitCursor
@@ -130,7 +137,7 @@ Public Class MDIForm
         Me.Cursor = Cursors.Default
     End Sub
     Private Sub ExitTool_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles ExitTool.Click
-        Me.Dispose()
+        Me.Close()
     End Sub
     Private Sub AboutToolStripMenuItem_Click(ByVal sender As System.Object, ByVal e As System.EventArgs)
         Dim obj_frmAbout As Form
@@ -222,12 +229,93 @@ Public Class MDIForm
         Me.Close()
     End Sub
 
-    Private Sub MDIForm_FormClosing(sender As Object, e As FormClosingEventArgs) Handles Me.FormClosing
+    Private Async Sub MDIForm_FormClosing(sender As Object, e As FormClosingEventArgs) Handles Me.FormClosing
+        If applicationExitReadyToClose Then Return
+
+        If e.CloseReason = CloseReason.WindowsShutDown OrElse e.CloseReason = CloseReason.TaskManagerClosing Then
+            RunLegacyShutdownForSystemClose()
+            Return
+        End If
+
+        '设备清理期间先取消本次关窗，避免 UI 线程进入同步的串口/VISA Close。
+        e.Cancel = True
+        If environmentResetStarted Then Return
+
+        environmentResetStarted = True
+        ApplicationShuttingDown = True
+        applicationExitCurrentStep = "停止界面计时器"
+        UseWaitCursor = True
+        Enabled = False
+
+        resizeDebounceTimer.Stop()
+        pendingSettingsApplyTimer.Stop()
+
+        Dim testForms As New List(Of frmTest)()
+        For Each child As Form In MdiChildren
+            Dim testForm As frmTest = TryCast(child, frmTest)
+            If testForm Is Nothing OrElse testForm.IsDisposed Then Continue For
+            testForm.PrepareForApplicationExitUi()
+            testForms.Add(testForm)
+        Next
+
+        Dim retestFormForShutdown As FrmNgRetest = ngRetestForm
+        If retestFormForShutdown IsNot Nothing AndAlso Not retestFormForShutdown.IsDisposed Then
+            retestFormForShutdown.PrepareForApplicationExitUi()
+        End If
+
+        DetachDevicePortsFromDesignerContainer()
+        AppLog.Write("Shutdown", "Application exit requested; UI shutdown preparation completed.")
+
+        Dim cleanupTask As Task(Of List(Of String)) = Task.Run(
+            Function() RunApplicationExitCleanup(testForms, retestFormForShutdown))
+
+        Do While Not cleanupTask.IsCompleted
+            Dim completedTask As Task = Await Task.WhenAny(cleanupTask, Task.Delay(ShutdownWaitPromptIntervalMs))
+            If completedTask Is cleanupTask Then Exit Do
+
+            Dim timeoutMessage As String = String.Format("退出清理仍在执行。当前步骤：{0}{1}选 是 继续等待；选 否 直接退出（设备状态可能尚未确认）。", applicationExitCurrentStep, Environment.NewLine)
+            Dim answer As DialogResult = MessageBox.Show(timeoutMessage, "程序正在退出", MessageBoxButtons.YesNo, MessageBoxIcon.Warning)
+
+            If answer = DialogResult.No Then
+                AppLog.Write("Shutdown", "User chose to exit before cleanup completed. Current step: " & applicationExitCurrentStep)
+                DetachRetestWindowForForcedExit(retestFormForShutdown)
+                applicationExitReadyToClose = True
+                Close()
+                Return
+            End If
+        Loop
+
+        Dim failures As List(Of String)
+        Try
+            failures = Await cleanupTask
+        Catch ex As Exception
+            failures = New List(Of String) From {"退出清理任务异常：" & ex.Message}
+            AppLog.Write("Shutdown", "Application exit cleanup task failed: " & ex.ToString())
+        End Try
+
+        If failures.Count > 0 Then
+            Dim failureMessage As String = String.Format("退出清理过程中有步骤未能正常完成，设备状态需要现场确认：{0}{0}{1}", Environment.NewLine, String.Join(Environment.NewLine, failures))
+            MessageBox.Show(failureMessage, "退出清理提示", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+        End If
+
+        If retestFormForShutdown IsNot Nothing AndAlso Not retestFormForShutdown.IsDisposed Then
+            Try
+                retestFormForShutdown.Close()
+            Catch ex As Exception
+                AppLog.Write("Shutdown", "Closing NG retest window failed: " & ex.ToString())
+            End Try
+        End If
+
+        AppLog.Write("Shutdown", "Application exit cleanup finished; closing main window.")
+        applicationExitReadyToClose = True
+        Close()
+    End Sub
+
+    Private Sub RunLegacyShutdownForSystemClose()
         If environmentResetStarted Then Return
         environmentResetStarted = True
         ApplicationShuttingDown = True
 
-        '先停止 frmTest 的计时器和通道刷新，避免关闭 MDI 时 256 个方块反复布局。
         For Each child As Form In MdiChildren
             Dim testForm As frmTest = TryCast(child, frmTest)
             If testForm IsNot Nothing Then testForm.PrepareForShutdown()
@@ -242,7 +330,124 @@ Public Class MDIForm
             End If
             TestEnvironmentResetService.ResetAll(middleMachine, True, ShutdownResetTimeoutMs)
         Catch ex As Exception
-            SerialMiddleMachineClient.LogMessage("Application exit reset exception: " & ex.Message)
+            SerialMiddleMachineClient.LogMessage("System shutdown reset exception: " & ex.Message)
+        End Try
+    End Sub
+
+    Private Sub DetachDevicePortsFromDesignerContainer()
+        If components Is Nothing Then Return
+
+        Dim devicePorts As System.IO.Ports.SerialPort() = {
+            Com_SCM,
+            Com_3561,
+            Com_scaner,
+            Com_IOCard
+        }
+        For Each port As System.IO.Ports.SerialPort In devicePorts
+            If port Is Nothing Then Continue For
+            Try
+                'MDIForm.Designer.Dispose 会同步释放 Container 中的组件；串口改由退出后台任务释放。
+                components.Remove(port)
+            Catch ex As Exception
+                AppLog.Write("Shutdown", "Could not detach serial port from form container: " & ex.ToString())
+            End Try
+        Next
+    End Sub
+
+    Private Function RunApplicationExitCleanup(testForms As IList(Of frmTest),
+                                               retestForm As FrmNgRetest) As List(Of String)
+        Dim failures As New List(Of String)()
+
+        For Each testForm As frmTest In testForms
+            RunApplicationExitStep(failures,
+                                   "关闭测试页设备客户端",
+                                   Sub() failures.AddRange(testForm.ShutdownForApplicationExit()))
+        Next
+
+        RunApplicationExitStep(failures,
+                               "复位中位机和仪表",
+                               Sub()
+                                   Dim middleMachine As SerialMiddleMachineClient = Nothing
+                                   If Com_SCM IsNot Nothing AndAlso Com_SCM.IsOpen Then
+                                       middleMachine = New SerialMiddleMachineClient(Com_SCM)
+                                   End If
+                                   TestEnvironmentResetService.ResetAll(middleMachine, True, ShutdownResetTimeoutMs)
+                               End Sub)
+
+        CloseAndDisposeDevicePort(Com_3561, "3561串口", failures)
+        CloseAndDisposeDevicePort(Com_SCM, "中位机串口", failures)
+        CloseAndDisposeDevicePort(Com_scaner, "扫码枪串口", failures)
+        CloseAndDisposeDevicePort(Com_IOCard, "IO板串口", failures)
+
+        If retestForm IsNot Nothing Then
+            RunApplicationExitStep(failures,
+                                   "关闭复测仪表",
+                                   Sub() retestForm.ShutdownForApplicationExit())
+        End If
+
+        Return failures
+    End Function
+
+    Private Sub CloseAndDisposeDevicePort(port As System.IO.Ports.SerialPort,
+                                          portLabel As String,
+                                          failures As List(Of String))
+        RunApplicationExitStep(failures,
+                               "释放" & portLabel,
+                               Sub()
+                                   If port Is Nothing Then Return
+
+                                   '串口关闭可能被驱动或正在进行的 I/O 卡住；退出线程只等待有限时间。
+                                   'SerialPort.Close 在端口打开时已执行 Dispose，无需紧接着重复 Dispose。
+                                   Dim closeTask As Task = Task.Run(
+                                       Sub()
+                                           If port.IsOpen Then
+                                               port.Close()
+                                           Else
+                                               port.Dispose()
+                                           End If
+                                       End Sub)
+
+                                   Try
+                                       If Not closeTask.Wait(ShutdownPortCloseTimeoutMs) Then
+                                           closeTask.ContinueWith(
+                                               Sub(completedTask)
+                                                   Dim ignored As AggregateException = completedTask.Exception
+                                               End Sub,
+                                               TaskContinuationOptions.OnlyOnFaulted)
+                                           Throw New TimeoutException(portLabel & "关闭超过" & ShutdownPortCloseTimeoutMs.ToString() & "毫秒，退出将继续。")
+                                       End If
+                                   Catch ex As AggregateException
+                                       Dim flattened As AggregateException = ex.Flatten()
+                                       Dim detail As String = If(flattened.InnerExceptions.Count > 0,
+                                                                  flattened.InnerExceptions(0).Message,
+                                                                  ex.Message)
+                                       Throw New InvalidOperationException(portLabel & "关闭失败：" & detail, ex)
+                                   End Try
+                               End Sub)
+    End Sub
+
+    Private Sub RunApplicationExitStep(failures As List(Of String), stepName As String, action As Action)
+        Dim timer As System.Diagnostics.Stopwatch = System.Diagnostics.Stopwatch.StartNew()
+        Dim failureCountBefore As Integer = failures.Count
+        applicationExitCurrentStep = stepName
+        AppLog.Write("Shutdown", "START " & stepName)
+        Try
+            action()
+            Dim result As String = If(failures.Count = failureCountBefore, "returned", "completed-with-errors")
+            AppLog.Write("Shutdown", "END " & stepName & " result=" & result & " elapsedMs=" & timer.ElapsedMilliseconds.ToString())
+        Catch ex As Exception
+            failures.Add(stepName & "：" & ex.Message)
+            AppLog.Write("Shutdown", "FAIL " & stepName & " elapsedMs=" & timer.ElapsedMilliseconds.ToString() & " error=" & ex.ToString())
+        End Try
+    End Sub
+
+    Private Sub DetachRetestWindowForForcedExit(retestForm As FrmNgRetest)
+        If retestForm Is Nothing OrElse retestForm.IsDisposed Then Return
+        Try
+            retestForm.Hide()
+            retestForm.Owner = Nothing
+        Catch ex As Exception
+            AppLog.Write("Shutdown", "Could not detach NG retest window before forced exit: " & ex.ToString())
         End Try
     End Sub
 
@@ -254,13 +459,6 @@ Public Class MDIForm
         pendingSettingsApplyTimer.Dispose()
         If ngRetestForm IsNot Nothing AndAlso Not ngRetestForm.IsDisposed Then
             ngRetestForm.Close()
-        End If
-        '鍏抽棴绔彛鍐呴樆浠拰鍗曠墖鏈轰笌PC鐨勯€氳绔彛
-        If Com_3561.IsOpen Then
-            Com_3561.Close()
-        End If
-        If Com_SCM.IsOpen Then
-            Com_SCM.Close()
         End If
         ''鍒犻櫎鐢熸垚鐨凚arCode鏂囦欢
         'File.Delete(Application.StartupPath & "\bar.set")
@@ -361,13 +559,19 @@ Public Class MDIForm
         bottomStatusControl.UpdateStatus(
             GetConfiguredStationName(),
             If(controlBoardConnected, "已连接", "未连接"),
-            If(plcConnected, "已连接", "未连接"),
+            If(String.IsNullOrWhiteSpace(plcRuntimeStatus), If(plcConnected, "已连接", "未连接"), plcRuntimeStatus),
             If(dmm34461Connected, "已连接", "未连接"),
             If(resistance3561Connected AndAlso Com_3561 IsNot Nothing AndAlso Com_3561.IsOpen, "已连接", "未连接"),
             If(databaseConnected, "已连接", "未连接"),
             If(mesConnected, "已连接", "未连接"),
             If(String.IsNullOrWhiteSpace(AuthorizationService.CurrentUserName), "未登录", AuthorizationService.CurrentUserName),
             DateTime.Now)
+    End Sub
+
+    Public Sub UpdatePlcRuntimeStatus(ByVal status As String)
+        plcRuntimeStatus = status
+        plcRuntimeStatusActive = Not String.IsNullOrWhiteSpace(status) AndAlso status <> "未连接"
+        UpdateBottomStatus()
     End Sub
 
     Private Shared Function GetConfiguredStationName() As String
@@ -642,7 +846,8 @@ Public Class MDIForm
         End If
         If result.Dmm34461Checked AndAlso result.Dmm34461 <> 0 Then blnOnLine = False
         If result.Resistance3561Checked AndAlso result.Resistance3561 <> 1 Then blnOnLine = False
-        If result.PlcChecked Then
+        If result.PlcChecked AndAlso Not plcRuntimeStatusActive Then
+            plcRuntimeStatus = String.Empty
             plcConnected = (result.Plc = 1)
             If Not plcConnected Then blnOnLine = False
         End If
@@ -918,7 +1123,7 @@ Public Class MDIForm
         Me.Cursor = Cursors.Default
     End Sub
     Private Sub ToolStripButton1_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles ToolStripButton1.Click
-        frmMDI.Dispose()
+        Me.Close()
     End Sub
 
     Private Sub ToolDebug_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles ToolDebug.Click

@@ -36,10 +36,15 @@ Assert-True ($protocol.Contains('BuildNgSelectionFrame')) 'NG-only grade-2 frame
 Assert-True (-not $protocol.Contains('BuildDtGradeFrame')) 'generic DT grade builder can send an unapproved OK/clear grade'
 Assert-True ($client.Contains('Function ReadR152()')) 'R152 read operation is missing from the PLC client interface'
 Assert-True ($client.Contains('Sub WriteR162()')) 'R162 write operation is missing from the PLC client interface'
-Assert-True ($client.Contains('Sub WriteNgSelection(ByVal ngChannelNumber As Integer)')) 'NG-only grade-2 write operation is missing from the PLC client interface'
+Assert-True ([regex]::IsMatch($client, 'Sub\s+WriteNgSelection\(ByVal\s+ngChannelNumber\s+As\s+Integer,\s+Optional\s+ByVal\s+responseReceived\s+As\s+System\.Action\(Of\s+String\)')) 'NG-only grade-2 write operation with response logging is missing from the PLC client interface'
 Assert-True ($client.Contains('Parity.Odd')) 'PLC odd parity is missing'
 Assert-True ($client.Contains('BaudRate')) 'PLC baud-rate configuration is missing'
 Assert-True ($client.Contains('DefaultPlcBaudRate')) 'PLC default baud rate is missing'
+$r160 = [regex]::Match($client, '(?ms)^\s*Public Sub WriteR160\(\).*?^\s*End Sub').Value
+$sendOnly = [regex]::Match($client, '(?ms)^\s*Private Sub SendWithoutResponse\(.*?^\s*End Sub').Value
+Assert-True ($r160.Contains('SendWithoutResponse(') -and -not $r160.Contains('WriteAndRequireAck(')) 'R160 has no PLC write ACK and must only send its frame'
+Assert-True ($sendOnly.Contains('SyncLock syncRoot') -and $sendOnly.Contains('serialPortPLC.Write(frame)')) 'send-only R160 must serialize access and write the frame'
+Assert-True ($sendOnly -notmatch 'SendAndReceive|WriteAndRequireAck|ReadExisting|ReadLine|BytesToRead|Thread.Sleep|DiscardOutBuffer') 'send-only R160 must not wait for a response or discard queued output'
 Assert-True ($client.Contains('SyncLock')) 'PLC request serialization is missing'
 Assert-True ($scanner.Contains('Parity.None')) 'scanner no-parity configuration is missing'
 Assert-True ($scanner.Contains('DefaultScannerBaudRate')) 'scanner default baud rate is missing'

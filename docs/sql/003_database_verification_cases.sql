@@ -172,7 +172,7 @@ BEGIN TRY
         (129, NULL, 4, 3.704000000, 1.300000, 0.000000, 1.300000, 0, NULL, N'FormalTest'),
         (256, NULL, 5, 3.705000000, 1.400000, 0.000000, 1.400000, 0, NULL, N'FormalTest');
 
-    EXEC dbo.usp_SaveTestResults @TestTaskId = @TaskId, @Results = @Results;
+    EXEC dbo.usp_SaveTestResults @TestTaskId = @TaskId, @StageTestTime = sysdatetime(), @Results = @Results;
 
     IF (SELECT COUNT(*) FROM dbo.TestResult WHERE TestTaskId = @TaskId) <> 5
         THROW 51007, 'TestResult count is incorrect.', 1;
@@ -188,7 +188,7 @@ BEGIN TRY
         THROW 51008, 'Calibration value was not applied to final resistance.', 1;
 
     PRINT N'Case 7: repeat save test results must stay idempotent';
-    EXEC dbo.usp_SaveTestResults @TestTaskId = @TaskId, @Results = @Results;
+    EXEC dbo.usp_SaveTestResults @TestTaskId = @TaskId, @StageTestTime = sysdatetime(), @Results = @Results;
 
     IF (SELECT COUNT(*) FROM dbo.TestResult WHERE TestTaskId = @TaskId) <> 5
         THROW 51009, 'Duplicate test results were created.', 1;

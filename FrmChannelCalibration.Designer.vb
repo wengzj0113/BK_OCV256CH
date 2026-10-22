@@ -17,7 +17,9 @@ Partial Class FrmChannelCalibration
     Friend WithEvents btnClearSelection As Button
     Friend WithEvents btnCalibrateSelected As Button
     Friend WithEvents btnStop As Button
-    Friend WithEvents topPanel As FlowLayoutPanel
+    Friend WithEvents btnExport As Button
+    Friend WithEvents btnRetryNg As Button
+    Friend WithEvents topPanel As Panel
     Friend WithEvents bottomPanel As Panel
     Friend WithEvents lblStandard As Label
     Friend WithEvents lblStartChannel As Label
@@ -45,7 +47,9 @@ Partial Class FrmChannelCalibration
         Me.btnClearSelection = New System.Windows.Forms.Button()
         Me.btnCalibrateSelected = New System.Windows.Forms.Button()
         Me.btnStop = New System.Windows.Forms.Button()
-        Me.topPanel = New System.Windows.Forms.FlowLayoutPanel()
+        Me.btnExport = New System.Windows.Forms.Button()
+        Me.btnRetryNg = New System.Windows.Forms.Button()
+        Me.topPanel = New System.Windows.Forms.Panel()
         Me.lblStandard = New System.Windows.Forms.Label()
         Me.lblStartChannel = New System.Windows.Forms.Label()
         Me.lblEndChannel = New System.Windows.Forms.Label()
@@ -57,6 +61,7 @@ Partial Class FrmChannelCalibration
         Me.DataGridViewTextBoxColumn3 = New System.Windows.Forms.DataGridViewTextBoxColumn()
         Me.DataGridViewTextBoxColumn2 = New System.Windows.Forms.DataGridViewTextBoxColumn()
         Me.DataGridViewTextBoxColumn1 = New System.Windows.Forms.DataGridViewTextBoxColumn()
+        Me.DataGridViewTextBoxColumn8 = New System.Windows.Forms.DataGridViewTextBoxColumn()
         Me.DataGridViewCheckBoxColumn1 = New System.Windows.Forms.DataGridViewCheckBoxColumn()
         CType(Me.grid, System.ComponentModel.ISupportInitialize).BeginInit()
         Me.topPanel.SuspendLayout()
@@ -68,7 +73,7 @@ Partial Class FrmChannelCalibration
         Me.grid.AllowUserToAddRows = False
         Me.grid.AllowUserToDeleteRows = False
         Me.grid.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill
-        Me.grid.Columns.AddRange(New System.Windows.Forms.DataGridViewColumn() {Me.DataGridViewCheckBoxColumn1, Me.DataGridViewTextBoxColumn1, Me.DataGridViewTextBoxColumn2, Me.DataGridViewTextBoxColumn3, Me.DataGridViewTextBoxColumn4, Me.DataGridViewTextBoxColumn5, Me.DataGridViewTextBoxColumn6, Me.DataGridViewTextBoxColumn7})
+        Me.grid.Columns.AddRange(New System.Windows.Forms.DataGridViewColumn() {Me.DataGridViewCheckBoxColumn1, Me.DataGridViewTextBoxColumn1, Me.DataGridViewTextBoxColumn8, Me.DataGridViewTextBoxColumn2, Me.DataGridViewTextBoxColumn3, Me.DataGridViewTextBoxColumn4, Me.DataGridViewTextBoxColumn5, Me.DataGridViewTextBoxColumn6, Me.DataGridViewTextBoxColumn7})
         Me.grid.Dock = System.Windows.Forms.DockStyle.Fill
         Me.grid.Location = New System.Drawing.Point(0, 86)
         Me.grid.Name = "grid"
@@ -184,6 +189,26 @@ Partial Class FrmChannelCalibration
         Me.btnStop.TabIndex = 13
         Me.btnStop.Text = "停止"
         '
+        'btnExport
+        '
+        Me.btnExport.Anchor = CType((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+        Me.btnExport.Location = New System.Drawing.Point(1416, 11)
+        Me.btnExport.Name = "btnExport"
+        Me.btnExport.Size = New System.Drawing.Size(112, 28)
+        Me.btnExport.TabIndex = 14
+        Me.btnExport.Text = "导出数据"
+        Me.btnExport.UseVisualStyleBackColor = True
+        '
+        'btnRetryNg
+        '
+        Me.btnRetryNg.Anchor = CType((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+        Me.btnRetryNg.Location = New System.Drawing.Point(1408, 45)
+        Me.btnRetryNg.Name = "btnRetryNg"
+        Me.btnRetryNg.Size = New System.Drawing.Size(120, 28)
+        Me.btnRetryNg.TabIndex = 15
+        Me.btnRetryNg.Text = "NG点位复测"
+        Me.btnRetryNg.UseVisualStyleBackColor = True
+        '
         'topPanel
         '
         Me.topPanel.AutoScroll = True
@@ -201,13 +226,14 @@ Partial Class FrmChannelCalibration
         Me.topPanel.Controls.Add(Me.btnClear)
         Me.topPanel.Controls.Add(Me.btnCalibrateSelected)
         Me.topPanel.Controls.Add(Me.btnStop)
+        Me.topPanel.Controls.Add(Me.btnExport)
+        Me.topPanel.Controls.Add(Me.btnRetryNg)
         Me.topPanel.Dock = System.Windows.Forms.DockStyle.Top
         Me.topPanel.Location = New System.Drawing.Point(0, 0)
         Me.topPanel.Name = "topPanel"
-        Me.topPanel.Padding = New System.Windows.Forms.Padding(8)
+        Me.topPanel.Padding = New System.Windows.Forms.Padding(8, 8, 140, 8)
         Me.topPanel.Size = New System.Drawing.Size(1544, 86)
         Me.topPanel.TabIndex = 2
-        Me.topPanel.WrapContents = False
         '
         'lblStandard
         '
@@ -252,35 +278,48 @@ Partial Class FrmChannelCalibration
         '
         'DataGridViewTextBoxColumn7
         '
-        Me.DataGridViewTextBoxColumn7.Name = "DataGridViewTextBoxColumn7"
+        Me.DataGridViewTextBoxColumn7.HeaderText = "校准状态"
+        Me.DataGridViewTextBoxColumn7.Name = "Status"
         '
         'DataGridViewTextBoxColumn6
         '
-        Me.DataGridViewTextBoxColumn6.Name = "DataGridViewTextBoxColumn6"
+        Me.DataGridViewTextBoxColumn6.HeaderText = "校准时间"
+        Me.DataGridViewTextBoxColumn6.Name = "CalibratedAt"
         '
         'DataGridViewTextBoxColumn5
         '
-        Me.DataGridViewTextBoxColumn5.Name = "DataGridViewTextBoxColumn5"
+        Me.DataGridViewTextBoxColumn5.HeaderText = "本次补偿值（mΩ）"
+        Me.DataGridViewTextBoxColumn5.Name = "Compensation"
         '
         'DataGridViewTextBoxColumn4
         '
-        Me.DataGridViewTextBoxColumn4.Name = "DataGridViewTextBoxColumn4"
+        Me.DataGridViewTextBoxColumn4.HeaderText = "标准电阻（mΩ）"
+        Me.DataGridViewTextBoxColumn4.Name = "Standard"
         '
         'DataGridViewTextBoxColumn3
         '
-        Me.DataGridViewTextBoxColumn3.Name = "DataGridViewTextBoxColumn3"
+        Me.DataGridViewTextBoxColumn3.HeaderText = "实测电阻（mΩ）"
+        Me.DataGridViewTextBoxColumn3.Name = "Measured"
         '
         'DataGridViewTextBoxColumn2
         '
-        Me.DataGridViewTextBoxColumn2.Name = "DataGridViewTextBoxColumn2"
+        Me.DataGridViewTextBoxColumn2.HeaderText = "当前补偿值（mΩ）"
+        Me.DataGridViewTextBoxColumn2.Name = "CurrentValue"
         '
         'DataGridViewTextBoxColumn1
         '
-        Me.DataGridViewTextBoxColumn1.Name = "DataGridViewTextBoxColumn1"
+        Me.DataGridViewTextBoxColumn1.HeaderText = "托盘标准通道号"
+        Me.DataGridViewTextBoxColumn1.Name = "ChannelNo"
+        '
+        'DataGridViewTextBoxColumn8
+        '
+        Me.DataGridViewTextBoxColumn8.HeaderText = "设备通道号"
+        Me.DataGridViewTextBoxColumn8.Name = "DeviceChannel"
         '
         'DataGridViewCheckBoxColumn1
         '
-        Me.DataGridViewCheckBoxColumn1.Name = "DataGridViewCheckBoxColumn1"
+        Me.DataGridViewCheckBoxColumn1.HeaderText = "选择"
+        Me.DataGridViewCheckBoxColumn1.Name = "Selected"
         '
         'FrmChannelCalibration
         '
@@ -310,4 +349,5 @@ Partial Class FrmChannelCalibration
     Friend WithEvents DataGridViewTextBoxColumn5 As DataGridViewTextBoxColumn
     Friend WithEvents DataGridViewTextBoxColumn6 As DataGridViewTextBoxColumn
     Friend WithEvents DataGridViewTextBoxColumn7 As DataGridViewTextBoxColumn
+    Friend WithEvents DataGridViewTextBoxColumn8 As DataGridViewTextBoxColumn
 End Class

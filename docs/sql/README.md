@@ -34,6 +34,7 @@
 - `012_debug_mode_result_queries_sqlserver2008r2.sql` — 在已部署的 SQL Server 2008 R2 `OCV_DATA` 上安装调试/生产结果隔离查询和 NG 来源过滤。该脚本只重建两个存储过程，不改表和业务数据；将调试模式应用版本部署到已有 2008 R2 数据库前必须运行。全新部署仍使用根目录完整安装脚本，该脚本也包含相同过程定义。
 - `013_seed_demo_trays.sql` — 在已部署 `OCV_DATA` 表结构及 `dbo.usp_SaveTrayCells` 后运行，写入 `TP001`（`BAT01001`–`BAT01256`）和 `TP002`（`BAT02001`–`BAT02256`）各 256 个通道映射。重复运行会更新这两个托盘的映射；脚本末尾会查询并显示结果。
 - `014_ng_retest_source_identity.sql` — 在既有 `OCV_DATA` 上部署并列 NG 复测版本前运行；SQL Server 2008 R2 及更高版本可用。脚本幂等补齐 `OCV_RETEST_DATA` 的来源/操作 ID、唯一操作索引以及 NG 来源查询和保存过程。新装库通过 001/002（现代 SQL Server）或根目录完整安装脚本（SQL Server 2008 R2）得到相同定义。
+- `015_ng_retest_calibration_snapshot.sql` — 部署带校准快照的扫码 NG 复测版本前运行，且须在 014 之后执行；SQL Server 2008 R2 及更高版本可用。保留历史复测值并回填为“原始值=旧复测值、补偿=0、最终值=旧复测值”，然后更新复测保存过程以保存原始内阻、通道补偿、最终内阻及快照指纹/来源。新装库通过 001/002 或根目录完整安装脚本直接建立相同结构。
 
 ## 调试模式查询部署
 
@@ -78,3 +79,21 @@
 - 所有 `001/002` 脚本:用 `IF NOT EXISTS`、`IF OBJECT_ID IS NULL`、`CREATE OR ALTER` 保证可重复执行
 - `000` 脚本:检测 `DB_ID` 后才建库,重复运行会跳过
 - `005/006/007/008` 脚本:有副作用,谨慎重复执行。`006/007` 推荐用 `@DryRun=1` 先验证条数
+
+## 电芯条码结果覆盖部署（016）
+
+- 已有数据库依次执行 `014_ng_retest_source_identity.sql`、`015_ng_retest_calibration_snapshot.sql`、`016_barcode_result_upsert.sql`，再部署应用。016 兼容 SQL Server 2008 R2，可重复运行；现代 001/002 与根目录完整安装脚本包含相同定义。
+- `TestResult` 以去除首尾空格后的 `BatteryCode` 作为全库当前结果身份，跨任务、托盘、OCV 阶段以及 Debug/Manual/Formal 模式。同条码再次保存会移动并覆盖当前结果的任务/托盘/阶段/通道、规格、测量及判定字段，保留最新旧记录的 `TestResultId` 和 `CreatedAt`。最新记录按 `COALESCE(UpdatedAt, CreatedAt) DESC, TestResultId DESC` 确定。
+- 安装/升级不清理历史结果。仅当某条码再次保存时，合并该条码所有旧重复行，并先把 `OCV_RETEST_DATA.SourceTestResultId` 引用重定向到保留行。未保存的条码历史重复行继续保留，因此条码索引不能是唯一索引。
+- 输入条码先 trim，空值再使用同托盘/通道的有效 TrayCell 条码（同样 trim）；仍为空、归一化条码重复或通道重复会拒绝整批。目标任务/通道如果被本批以外的条码占用，同样拒绝；本批条码之间可交换通道。原 `UX_TestResult_Task_Channel` 替换为非唯一 `IX_TestResult_Task_Channel`，另建非唯一 `IX_TestResult_BatteryCode`。
+- 普通保存、NG 覆盖和只记审计的复测保存通过同一事务级 `sp_getapplock` 串行化，15 秒获取超时会报错。任何错误回滚完整事务（包含调用者外层事务）。NG 覆盖仍验证来源行/条码/托盘/通道及 NG 状态，并要求来源是该条码最新当前行；审计模式仍只追加复测审计，不改原结果；若延迟提交的来源 ID 已被普通保存合并删除，则在锁内将引用解析到该条码当前保留行，保留调用者原始测量/上下文快照。来源属于其他条码或已无有效结果时拒绝写入。NG 来源及覆盖均使用结果条码 trim 后回退有效 TrayCell 条码的相同规则。复测快照及操作 ID 幂等行为保留。
+- `017_verify_barcode_result_upsert_rollback.sql` 是发布前验证脚本，仅应在一次性验证库运行。覆盖重复/跨阶段保存、条码和通道归一化拒绝、旧重复按需合并、交换通道、历史来源引用重定向以及 NG 校准快照与覆盖；所有数据事务回滚。执行需允许建测试数据，建议 `sqlcmd -b` 使断言错误返回失败。
+- 验证环境：独立命名的 SQL Server 2019 LocalDB 实例，数据库兼容级别 100。该验证不替代 SQL Server 2008 R2 引擎上的部署验收。
+
+## 电芯 OCV0/1/2 汇总与 K 值（018）
+
+- 已有数据库部署应用前运行 `018_cell_ocv_summary.sql`；该迁移兼容 SQL Server 2008 R2，可重复运行。现代新库由 `001_create_ocv_data_schema.sql` 和 `002_create_core_procedures.sql` 创建相同表和过程；SQL Server 2008 R2 新库使用根目录完整安装脚本。
+- `dbo.CellOcvSummary` 按 trim 后的 `BatteryCode` 一行保存 OCV0/1/2 电压、最终内阻、阶段采集时间、K1/K2。单位分别为 V、mΩ、时间戳和 V/hour。缺阶段或时间差小于等于零时对应 K 为 NULL。
+- `usp_SaveTestResults` 在现有条码锁和事务内更新明细与汇总；NG 复测只有 `@OverwriteOriginal=1` 覆盖当前阶段结果时同步汇总。普通复测审计不更改汇总。
+- 升级不会从 `TestResult` 回填历史阶段：该表以条码为身份跨阶段覆盖，旧阶段值无法可靠恢复。汇总从升级后新保存的 OCV 阶段结果开始累计。
+- 执行 `019_verify_cell_ocv_summary_rollback.sql` 前先部署 018（或现代 001/002），并仅在一次性验证库运行。用例验证 OCV0/1/2 累积、小时差 K1/K2、同阶段覆盖重算、非正时间差、查询接口；全部夹具事务回滚。

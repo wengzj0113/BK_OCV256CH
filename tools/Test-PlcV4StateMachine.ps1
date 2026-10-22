@@ -37,10 +37,10 @@ foreach ($name in @('NoTestStarted','TestInProgress','TestCompleted','TestFaulte
     Assert-True ($state.Contains($name)) "R152 state $name is missing"
 }
 Assert-True ($poll.Contains('ReadRegisterSignal("R150", AddressOf plc.ReadR150, r150ReadSucceeded)')) 'R150 must be polled independently in automatic mode'
-Assert-True ($poll.Contains('If automaticModeEnabled Then r151High = ReadRegisterSignal("R151", AddressOf plc.ReadR151, r151ReadSucceeded)')) 'R151 must gate startup only in automatic mode'
+Assert-True ($poll.Contains('If pollR151 Then r151High = ReadRegisterSignal("R151", AddressOf plc.ReadR151, r151ReadSucceeded)')) 'R151 must gate startup in both manual and automatic modes'
 Assert-True ($poll.Contains('ReadRegisterSignal("R152", AddressOf plc.ReadR152, r152ReadSucceeded)')) 'R152 must be polled independently on every coordinator tick'
 Assert-True (-not $poll.Contains('Select Case Me.State')) 'input-register polling must not be gated by the current workflow state'
-Assert-True ($coordinator.Contains('testRequestPending AndAlso Not cycle.TestStarted AndAlso cycle.TrayConfirmed')) 'an early R151 trigger must be held until its tray is prepared and R160 acknowledged'
+Assert-True ($coordinator.Contains('testRequestPending AndAlso Not cycle.TestStarted AndAlso cycle.TrayConfirmed')) 'an early R151 trigger must be held until its tray is prepared and R160 sent'
 Assert-True ($coordinator.Contains('sortingRequestTestStateAtCapture = CaptureR152TestStateLocked()')) 'R152 must retain the test state captured atomically at its rising edge'
 Assert-True ($coordinator.Contains('CaptureR152TestStateLocked()')) 'R152 state must be captured atomically with its input edge'
 Assert-True ($coordinator.Contains('sortingRequestTestStateAtCapture = PlcR152TestState.NoTestStarted')) 'R152 capture state must clear after acknowledgement or stop'

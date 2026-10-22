@@ -15,16 +15,18 @@ using software;
 public sealed class RecoveryPlc : IPlcAutomationClient {
     public bool IsOpen { get { return true; } }
     public bool R150 = true, R151, R152;
+    public bool X1F;
     public int R160Writes, R161Writes, R162Writes;
     public void Open() {}
     public void Close() {}
     public bool ReadR150() { return R150; }
     public bool ReadR151() { return R151; }
     public bool ReadR152() { return R152; }
+    public bool ReadX1F() { return X1F; }
     public void WriteR160() { R160Writes++; }
     public void WriteR161() { R161Writes++; }
     public void WriteR162() { R162Writes++; }
-    public void WriteNgSelection(int channel) {}
+    public void WriteNgSelection(int channel, Action<string> responseReceived) {}
 }
 
 public sealed class RecoveryScanner : ITrayScannerClient {

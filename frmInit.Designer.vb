@@ -47,6 +47,11 @@ Partial Class frmInit
         Me.GroupBox4 = New System.Windows.Forms.GroupBox()
         Me.btn34461ConnectTest = New System.Windows.Forms.Button()
         Me.Label4 = New System.Windows.Forms.Label()
+        Me.GroupBox13 = New System.Windows.Forms.GroupBox()
+        Me.ComboBox1 = New System.Windows.Forms.ComboBox()
+        Me.Label54 = New System.Windows.Forms.Label()
+        Me.Label55 = New System.Windows.Forms.Label()
+        Me.ComboBox2 = New System.Windows.Forms.ComboBox()
         Me.txt34461 = New System.Windows.Forms.TextBox()
         Me.GroupBox3 = New System.Windows.Forms.GroupBox()
         Me.btnScmConnectTest = New System.Windows.Forms.Button()
@@ -230,16 +235,12 @@ Partial Class frmInit
         Me.colorDialogChannel = New System.Windows.Forms.ColorDialog()
         Me.CmdOK = New System.Windows.Forms.Button()
         Me.Button1 = New System.Windows.Forms.Button()
-        Me.GroupBox13 = New System.Windows.Forms.GroupBox()
-        Me.ComboBox1 = New System.Windows.Forms.ComboBox()
-        Me.Label54 = New System.Windows.Forms.Label()
-        Me.Label55 = New System.Windows.Forms.Label()
-        Me.ComboBox2 = New System.Windows.Forms.ComboBox()
         Me.TabControl1.SuspendLayout()
         Me.TabPage1.SuspendLayout()
         Me.GroupBox9.SuspendLayout()
         Me.GroupBox5.SuspendLayout()
         Me.GroupBox4.SuspendLayout()
+        Me.GroupBox13.SuspendLayout()
         Me.GroupBox3.SuspendLayout()
         Me.GroupBox2.SuspendLayout()
         Me.GroupBox12.SuspendLayout()
@@ -259,7 +260,6 @@ Partial Class frmInit
         Me.GroupBoxInstrument34461.SuspendLayout()
         Me.GroupBoxInstrumentMain3562.SuspendLayout()
         Me.GroupBoxInstrumentRetest3562.SuspendLayout()
-        Me.GroupBox13.SuspendLayout()
         Me.SuspendLayout()
         '
         'TabControl1
@@ -507,6 +507,57 @@ Partial Class frmInit
         Me.Label4.Size = New System.Drawing.Size(65, 12)
         Me.Label4.TabIndex = 10
         Me.Label4.Text = "Ip相关参数"
+        '
+        'GroupBox13
+        '
+        Me.GroupBox13.BackColor = System.Drawing.Color.Cyan
+        Me.GroupBox13.Controls.Add(Me.ComboBox1)
+        Me.GroupBox13.Controls.Add(Me.Label54)
+        Me.GroupBox13.Controls.Add(Me.Label55)
+        Me.GroupBox13.Controls.Add(Me.ComboBox2)
+        Me.GroupBox13.Location = New System.Drawing.Point(350, 14)
+        Me.GroupBox13.Name = "GroupBox13"
+        Me.GroupBox13.Size = New System.Drawing.Size(10, 13)
+        Me.GroupBox13.TabIndex = 17
+        Me.GroupBox13.TabStop = False
+        Me.GroupBox13.Text = "IO控制卡通讯参数"
+        '
+        'ComboBox1
+        '
+        Me.ComboBox1.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList
+        Me.ComboBox1.FormattingEnabled = True
+        Me.ComboBox1.Location = New System.Drawing.Point(80, 21)
+        Me.ComboBox1.Name = "ComboBox1"
+        Me.ComboBox1.Size = New System.Drawing.Size(90, 22)
+        Me.ComboBox1.TabIndex = 8
+        '
+        'Label54
+        '
+        Me.Label54.AutoSize = True
+        Me.Label54.Location = New System.Drawing.Point(13, 25)
+        Me.Label54.Name = "Label54"
+        Me.Label54.Size = New System.Drawing.Size(63, 14)
+        Me.Label54.TabIndex = 6
+        Me.Label54.Text = "通讯端口"
+        '
+        'Label55
+        '
+        Me.Label55.AutoSize = True
+        Me.Label55.Location = New System.Drawing.Point(195, 25)
+        Me.Label55.Name = "Label55"
+        Me.Label55.Size = New System.Drawing.Size(49, 14)
+        Me.Label55.TabIndex = 7
+        Me.Label55.Text = "波特率"
+        '
+        'ComboBox2
+        '
+        Me.ComboBox2.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList
+        Me.ComboBox2.FormattingEnabled = True
+        Me.ComboBox2.Items.AddRange(New Object() {"9600", "19200", "38400", "115200"})
+        Me.ComboBox2.Location = New System.Drawing.Point(251, 21)
+        Me.ComboBox2.Name = "ComboBox2"
+        Me.ComboBox2.Size = New System.Drawing.Size(90, 22)
+        Me.ComboBox2.TabIndex = 9
         '
         'txt34461
         '
@@ -985,12 +1036,13 @@ Partial Class frmInit
         Me.Label16.Size = New System.Drawing.Size(56, 14)
         Me.Label16.TabIndex = 14
         Me.Label16.Text = "电压B值"
+        Me.Label16.Visible = False
         '
         'Label28
         '
         Me.Label28.AutoSize = True
         Me.Label28.Font = New System.Drawing.Font("宋体", 10.5!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.Label28.Location = New System.Drawing.Point(212, 120)
+        Me.Label28.Location = New System.Drawing.Point(212, 104)
         Me.Label28.Name = "Label28"
         Me.Label28.Size = New System.Drawing.Size(21, 14)
         Me.Label28.TabIndex = 20
@@ -1005,11 +1057,12 @@ Partial Class frmInit
         Me.Label17.Size = New System.Drawing.Size(56, 14)
         Me.Label17.TabIndex = 15
         Me.Label17.Text = "内阻B值"
+        Me.Label17.Visible = False
         '
         'txtProbeUsed
         '
         Me.txtProbeUsed.Font = New System.Drawing.Font("宋体", 10.5!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.txtProbeUsed.Location = New System.Drawing.Point(332, 151)
+        Me.txtProbeUsed.Location = New System.Drawing.Point(332, 135)
         Me.txtProbeUsed.Name = "txtProbeUsed"
         Me.txtProbeUsed.Size = New System.Drawing.Size(75, 23)
         Me.txtProbeUsed.TabIndex = 24
@@ -1020,7 +1073,7 @@ Partial Class frmInit
         '
         Me.Label41.AutoSize = True
         Me.Label41.Font = New System.Drawing.Font("宋体", 10.5!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.Label41.Location = New System.Drawing.Point(262, 73)
+        Me.Label41.Location = New System.Drawing.Point(262, 57)
         Me.Label41.Name = "Label41"
         Me.Label41.Size = New System.Drawing.Size(63, 14)
         Me.Label41.TabIndex = 15
@@ -1029,7 +1082,7 @@ Partial Class frmInit
         'txtProbelifespan
         '
         Me.txtProbelifespan.Font = New System.Drawing.Font("宋体", 10.5!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.txtProbelifespan.Location = New System.Drawing.Point(137, 151)
+        Me.txtProbelifespan.Location = New System.Drawing.Point(137, 135)
         Me.txtProbelifespan.Name = "txtProbelifespan"
         Me.txtProbelifespan.Size = New System.Drawing.Size(75, 23)
         Me.txtProbelifespan.TabIndex = 25
@@ -1041,7 +1094,7 @@ Partial Class frmInit
         '
         Me.Label29.AutoSize = True
         Me.Label29.Font = New System.Drawing.Font("宋体", 10.5!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.Label29.Location = New System.Drawing.Point(212, 157)
+        Me.Label29.Location = New System.Drawing.Point(212, 141)
         Me.Label29.Name = "Label29"
         Me.Label29.Size = New System.Drawing.Size(21, 14)
         Me.Label29.TabIndex = 19
@@ -1050,7 +1103,7 @@ Partial Class frmInit
         'txtCailiModelValue
         '
         Me.txtCailiModelValue.Font = New System.Drawing.Font("宋体", 10.5!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.txtCailiModelValue.Location = New System.Drawing.Point(137, 68)
+        Me.txtCailiModelValue.Location = New System.Drawing.Point(137, 52)
         Me.txtCailiModelValue.Name = "txtCailiModelValue"
         Me.txtCailiModelValue.Size = New System.Drawing.Size(75, 23)
         Me.txtCailiModelValue.TabIndex = 26
@@ -1065,11 +1118,12 @@ Partial Class frmInit
         Me.txt_V_B.Size = New System.Drawing.Size(75, 23)
         Me.txt_V_B.TabIndex = 16
         Me.txt_V_B.TextAlign = System.Windows.Forms.HorizontalAlignment.Center
+        Me.txt_V_B.Visible = False
         '
         'txtCodeLenth
         '
         Me.txtCodeLenth.Font = New System.Drawing.Font("宋体", 10.5!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.txtCodeLenth.Location = New System.Drawing.Point(137, 111)
+        Me.txtCodeLenth.Location = New System.Drawing.Point(137, 95)
         Me.txtCodeLenth.Name = "txtCodeLenth"
         Me.txtCodeLenth.Size = New System.Drawing.Size(75, 23)
         Me.txtCodeLenth.TabIndex = 26
@@ -1080,7 +1134,7 @@ Partial Class frmInit
         '
         Me.Label36.AutoSize = True
         Me.Label36.Font = New System.Drawing.Font("宋体", 9.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.Label36.Location = New System.Drawing.Point(211, 77)
+        Me.Label36.Location = New System.Drawing.Point(211, 61)
         Me.Label36.Name = "Label36"
         Me.Label36.Size = New System.Drawing.Size(23, 12)
         Me.Label36.TabIndex = 20
@@ -1090,7 +1144,7 @@ Partial Class frmInit
         '
         Me.Label31.AutoSize = True
         Me.Label31.Font = New System.Drawing.Font("宋体", 10.5!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.Label31.Location = New System.Drawing.Point(262, 157)
+        Me.Label31.Location = New System.Drawing.Point(262, 141)
         Me.Label31.Name = "Label31"
         Me.Label31.Size = New System.Drawing.Size(63, 14)
         Me.Label31.TabIndex = 21
@@ -1104,12 +1158,13 @@ Partial Class frmInit
         Me.txt_R_B.Size = New System.Drawing.Size(75, 23)
         Me.txt_R_B.TabIndex = 17
         Me.txt_R_B.TextAlign = System.Windows.Forms.HorizontalAlignment.Center
+        Me.txt_R_B.Visible = False
         '
         'Label37
         '
         Me.Label37.AutoSize = True
         Me.Label37.Font = New System.Drawing.Font("宋体", 10.5!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.Label37.Location = New System.Drawing.Point(30, 73)
+        Me.Label37.Location = New System.Drawing.Point(30, 57)
         Me.Label37.Name = "Label37"
         Me.Label37.Size = New System.Drawing.Size(91, 14)
         Me.Label37.TabIndex = 23
@@ -1119,7 +1174,7 @@ Partial Class frmInit
         '
         Me.Label40.AutoSize = True
         Me.Label40.Font = New System.Drawing.Font("宋体", 10.5!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.Label40.Location = New System.Drawing.Point(406, 73)
+        Me.Label40.Location = New System.Drawing.Point(406, 57)
         Me.Label40.Name = "Label40"
         Me.Label40.Size = New System.Drawing.Size(21, 14)
         Me.Label40.TabIndex = 11
@@ -1129,7 +1184,7 @@ Partial Class frmInit
         '
         Me.Label24.AutoSize = True
         Me.Label24.Font = New System.Drawing.Font("宋体", 10.5!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.Label24.Location = New System.Drawing.Point(58, 157)
+        Me.Label24.Location = New System.Drawing.Point(58, 141)
         Me.Label24.Name = "Label24"
         Me.Label24.Size = New System.Drawing.Size(63, 14)
         Me.Label24.TabIndex = 22
@@ -1139,7 +1194,7 @@ Partial Class frmInit
         '
         Me.Label30.AutoSize = True
         Me.Label30.Font = New System.Drawing.Font("宋体", 10.5!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.Label30.Location = New System.Drawing.Point(408, 157)
+        Me.Label30.Location = New System.Drawing.Point(408, 141)
         Me.Label30.Name = "Label30"
         Me.Label30.Size = New System.Drawing.Size(21, 14)
         Me.Label30.TabIndex = 18
@@ -1149,7 +1204,7 @@ Partial Class frmInit
         '
         Me.Label25.AutoSize = True
         Me.Label25.Font = New System.Drawing.Font("宋体", 10.5!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.Label25.Location = New System.Drawing.Point(58, 114)
+        Me.Label25.Location = New System.Drawing.Point(58, 98)
         Me.Label25.Name = "Label25"
         Me.Label25.Size = New System.Drawing.Size(63, 14)
         Me.Label25.TabIndex = 23
@@ -1158,7 +1213,7 @@ Partial Class frmInit
         'txtOverTemperate
         '
         Me.txtOverTemperate.Font = New System.Drawing.Font("宋体", 10.5!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(134, Byte))
-        Me.txtOverTemperate.Location = New System.Drawing.Point(329, 68)
+        Me.txtOverTemperate.Location = New System.Drawing.Point(329, 52)
         Me.txtOverTemperate.Name = "txtOverTemperate"
         Me.txtOverTemperate.Size = New System.Drawing.Size(75, 23)
         Me.txtOverTemperate.TabIndex = 9
@@ -2386,57 +2441,6 @@ Partial Class frmInit
         Me.Button1.Text = "取消"
         Me.Button1.UseVisualStyleBackColor = True
         '
-        'GroupBox13
-        '
-        Me.GroupBox13.BackColor = System.Drawing.Color.Cyan
-        Me.GroupBox13.Controls.Add(Me.ComboBox1)
-        Me.GroupBox13.Controls.Add(Me.Label54)
-        Me.GroupBox13.Controls.Add(Me.Label55)
-        Me.GroupBox13.Controls.Add(Me.ComboBox2)
-        Me.GroupBox13.Location = New System.Drawing.Point(350, 14)
-        Me.GroupBox13.Name = "GroupBox13"
-        Me.GroupBox13.Size = New System.Drawing.Size(10, 13)
-        Me.GroupBox13.TabIndex = 17
-        Me.GroupBox13.TabStop = False
-        Me.GroupBox13.Text = "IO控制卡通讯参数"
-        '
-        'ComboBox1
-        '
-        Me.ComboBox1.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList
-        Me.ComboBox1.FormattingEnabled = True
-        Me.ComboBox1.Location = New System.Drawing.Point(80, 21)
-        Me.ComboBox1.Name = "ComboBox1"
-        Me.ComboBox1.Size = New System.Drawing.Size(90, 22)
-        Me.ComboBox1.TabIndex = 8
-        '
-        'Label54
-        '
-        Me.Label54.AutoSize = True
-        Me.Label54.Location = New System.Drawing.Point(13, 25)
-        Me.Label54.Name = "Label54"
-        Me.Label54.Size = New System.Drawing.Size(63, 14)
-        Me.Label54.TabIndex = 6
-        Me.Label54.Text = "通讯端口"
-        '
-        'Label55
-        '
-        Me.Label55.AutoSize = True
-        Me.Label55.Location = New System.Drawing.Point(195, 25)
-        Me.Label55.Name = "Label55"
-        Me.Label55.Size = New System.Drawing.Size(49, 14)
-        Me.Label55.TabIndex = 7
-        Me.Label55.Text = "波特率"
-        '
-        'ComboBox2
-        '
-        Me.ComboBox2.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList
-        Me.ComboBox2.FormattingEnabled = True
-        Me.ComboBox2.Items.AddRange(New Object() {"9600", "19200", "38400", "115200"})
-        Me.ComboBox2.Location = New System.Drawing.Point(251, 21)
-        Me.ComboBox2.Name = "ComboBox2"
-        Me.ComboBox2.Size = New System.Drawing.Size(90, 22)
-        Me.ComboBox2.TabIndex = 9
-        '
         'frmInit
         '
         Me.AcceptButton = Me.CmdOK
@@ -2453,7 +2457,6 @@ Partial Class frmInit
         Me.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen
         Me.Tag = "设置"
         Me.Text = "初始设置"
-        Me.TopMost = False
         Me.TabControl1.ResumeLayout(False)
         Me.TabPage1.ResumeLayout(False)
         Me.GroupBox9.ResumeLayout(False)
@@ -2462,6 +2465,8 @@ Partial Class frmInit
         Me.GroupBox5.PerformLayout()
         Me.GroupBox4.ResumeLayout(False)
         Me.GroupBox4.PerformLayout()
+        Me.GroupBox13.ResumeLayout(False)
+        Me.GroupBox13.PerformLayout()
         Me.GroupBox3.ResumeLayout(False)
         Me.GroupBox3.PerformLayout()
         Me.GroupBox2.ResumeLayout(False)
@@ -2499,8 +2504,6 @@ Partial Class frmInit
         Me.GroupBoxInstrumentMain3562.PerformLayout()
         Me.GroupBoxInstrumentRetest3562.ResumeLayout(False)
         Me.GroupBoxInstrumentRetest3562.PerformLayout()
-        Me.GroupBox13.ResumeLayout(False)
-        Me.GroupBox13.PerformLayout()
         Me.ResumeLayout(False)
 
     End Sub

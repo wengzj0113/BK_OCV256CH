@@ -61,7 +61,10 @@ Public Class NgRetestDataService
                 command.Parameters.Add("@OriginalResistance", SqlDbType.Real).Value = request.Source.OriginalResistance
                 command.Parameters.Add("@OriginalResult", SqlDbType.NVarChar, 10).Value = request.Source.OriginalResult
                 command.Parameters.Add("@RetestVoltage", SqlDbType.Real).Value = request.Measurement.Voltage
-                command.Parameters.Add("@RetestResistance", SqlDbType.Real).Value = request.Measurement.Resistance
+                command.Parameters.Add("@RetestResistance", SqlDbType.Real).Value = CSng(request.Measurement.FinalResistanceMilliohm)
+                AddDecimalParameter(command, "@RetestRawResistanceMilliohm", request.Measurement.RawResistanceMilliohm)
+                AddDecimalParameter(command, "@CalibrationValueMilliohm", request.Measurement.CalibrationValueMilliohm)
+                AddDecimalParameter(command, "@RetestFinalResistanceMilliohm", request.Measurement.FinalResistanceMilliohm)
                 command.Parameters.Add("@RetestResult", SqlDbType.NVarChar, 10).Value = request.Measurement.Result
                 command.Parameters.Add("@RetestTime", SqlDbType.DateTime2).Value = request.Measurement.MeasuredAt
                 command.Parameters.Add("@OverwriteOriginal", SqlDbType.Bit).Value = request.OverwriteOriginal
@@ -69,9 +72,20 @@ Public Class NgRetestDataService
                 command.Parameters.Add("@MeterPort", SqlDbType.NVarChar, 20).Value = If(request.MeterPort, String.Empty)
                 command.Parameters.Add("@SourceTestResultId", SqlDbType.BigInt).Value = request.Source.SourceTestResultId
                 command.Parameters.Add("@RetestOperationId", SqlDbType.UniqueIdentifier).Value = request.RetestOperationId
+                command.Parameters.Add("@CalibrationSnapshotFingerprint", SqlDbType.Char, 64).Value =
+                    If(String.IsNullOrWhiteSpace(request.Measurement.CalibrationSnapshotFingerprint), CType(DBNull.Value, Object), request.Measurement.CalibrationSnapshotFingerprint)
+                command.Parameters.Add("@CalibrationSnapshotSource", SqlDbType.NVarChar, 200).Value =
+                    If(String.IsNullOrWhiteSpace(request.Measurement.CalibrationSnapshotSource), CType(DBNull.Value, Object), request.Measurement.CalibrationSnapshotSource)
                 command.ExecuteNonQuery()
             End Using
         End Using
+    End Sub
+
+    Private Shared Sub AddDecimalParameter(ByVal command As SqlCommand, ByVal name As String, ByVal value As Double)
+        Dim parameter = command.Parameters.Add(name, SqlDbType.Decimal)
+        parameter.Precision = 18
+        parameter.Scale = 6
+        parameter.Value = Convert.ToDecimal(value)
     End Sub
 
     Private Shared Function BuildTrayPosition(ByVal channelNo As Integer) As String

@@ -29,7 +29,8 @@ Public Class ChannelGridControl
 
     Public Sub New()
         InitializeComponent()
-        hoverDetailsLabel.ForeColor = UiTheme.TextPrimary
+        hoverDetailsLabel.Font = New Font("Microsoft YaHei", 11.0F, FontStyle.Bold, GraphicsUnit.Point)
+        hoverDetailsLabel.ForeColor = Color.FromArgb(18, 58, 112)
         GetType(Panel).GetProperty("DoubleBuffered", BindingFlags.Instance Or BindingFlags.NonPublic).SetValue(gridSurface, True, Nothing)
         AddHandler gridSurface.Paint, AddressOf HandleGridPaint
         AddHandler gridSurface.MouseDown, AddressOf HandleGridMouseDown
@@ -112,6 +113,23 @@ Public Class ChannelGridControl
         If batchUpdateDepth = 0 Then gridSurface.Invalidate()
     End Sub
 
+    Public Sub RefreshHoverDetailsAtCursor()
+        If gridSurface Is Nothing OrElse gridSurface.IsDisposed OrElse
+           Not Enabled OrElse Not gridSurface.Enabled OrElse
+           Not gridSurface.Visible Then
+            hoverDetailsLabel.Text = String.Empty
+            Return
+        End If
+
+        Dim point As Point = gridSurface.PointToClient(Cursor.Position)
+        If Not gridSurface.ClientRectangle.Contains(point) Then
+            hoverDetailsLabel.Text = String.Empty
+            Return
+        End If
+
+        UpdateHoverDetails(point)
+    End Sub
+
     Public Sub UpdateAll(ByVal data As IEnumerable(Of ChannelDisplayData))
         If data Is Nothing Then Return
         BeginBatchUpdate()
@@ -157,7 +175,11 @@ Public Class ChannelGridControl
             Return
         End If
 
-        Dim channelNo As Integer = GetChannelAtPoint(e.Location)
+        UpdateHoverDetails(e.Location)
+    End Sub
+
+    Private Sub UpdateHoverDetails(ByVal point As Point)
+        Dim channelNo As Integer = GetChannelAtPoint(point)
         Dim data As ChannelDisplayData = Nothing
         If channelNo > 0 AndAlso displayDataByChannel.TryGetValue(channelNo, data) Then
             hoverDetailsLabel.Text = BuildHoverDetailsText(data)

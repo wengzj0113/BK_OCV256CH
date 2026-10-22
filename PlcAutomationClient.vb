@@ -9,10 +9,11 @@ Public Interface IPlcAutomationClient
     Function ReadR150() As Boolean
     Function ReadR151() As Boolean
     Function ReadR152() As Boolean
+    Function ReadX1F() As Boolean
     Sub WriteR160()
     Sub WriteR161()
     Sub WriteR162()
-    Sub WriteNgSelection(ByVal ngChannelNumber As Integer)
+    Sub WriteNgSelection(ByVal ngChannelNumber As Integer, Optional ByVal responseReceived As System.Action(Of String) = Nothing)
 End Interface
 
 Friend Class PlcAutomationClient
@@ -67,8 +68,13 @@ Friend Class PlcAutomationClient
         Return PlcAutomationProtocol.ParseSignal(SendAndReceive(PlcAutomationProtocol.WithCr(PlcAutomationProtocol.ReadR152Frame)))
     End Function
 
+    Public Function ReadX1F() As Boolean Implements IPlcAutomationClient.ReadX1F
+        Return PlcAutomationProtocol.ParseSignal(SendAndReceive(PlcAutomationProtocol.WithCr(PlcAutomationProtocol.ReadX1FFrame)))
+    End Function
+
     Public Sub WriteR160() Implements IPlcAutomationClient.WriteR160
-        WriteAndRequireAck(PlcAutomationProtocol.WithCr(PlcAutomationProtocol.WriteR160Frame), "WC")
+        'R160只通知PLC托盘码已准备好；托盘到位由后续R151=1通知，不返回写入ACK。
+        SendWithoutResponse(PlcAutomationProtocol.WithCr(PlcAutomationProtocol.WriteR160Frame))
     End Sub
 
     Public Sub WriteR161() Implements IPlcAutomationClient.WriteR161
@@ -79,15 +85,25 @@ Friend Class PlcAutomationClient
         WriteAndRequireAck(PlcAutomationProtocol.WithCr(PlcAutomationProtocol.WriteR162Frame), "WC")
     End Sub
 
-    Public Sub WriteNgSelection(ByVal ngChannelNumber As Integer) Implements IPlcAutomationClient.WriteNgSelection
-        WriteAndRequireAck(PlcAutomationProtocol.BuildNgSelectionFrame(ngChannelNumber), "WD")
+    Public Sub WriteNgSelection(ByVal ngChannelNumber As Integer, Optional ByVal responseReceived As System.Action(Of String) = Nothing) Implements IPlcAutomationClient.WriteNgSelection
+        WriteAndRequireAck(PlcAutomationProtocol.BuildNgSelectionFrame(ngChannelNumber), "WD", responseReceived)
     End Sub
 
-    Private Sub WriteAndRequireAck(ByVal frame As String, ByVal expectedCommand As String)
+    Private Sub WriteAndRequireAck(ByVal frame As String, ByVal expectedCommand As String, Optional ByVal responseReceived As System.Action(Of String) = Nothing)
         Dim response As String = SendAndReceive(frame)
+        If responseReceived IsNot Nothing Then responseReceived.Invoke(response)
         If Not PlcAutomationProtocol.IsWriteAcknowledged(response, expectedCommand) Then
             Throw New PlcProtocolException("PLC写入未收到有效响应。")
         End If
+    End Sub
+
+    Private Sub SendWithoutResponse(ByVal frame As String)
+        ThrowIfDisposed()
+        If String.IsNullOrWhiteSpace(frame) Then Throw New ArgumentException("PLC报文不能为空。", NameOf(frame))
+        SyncLock syncRoot
+            If Not serialPortPLC.IsOpen Then Throw New InvalidOperationException("PLC串口未打开。")
+            serialPortPLC.Write(frame)
+        End SyncLock
     End Sub
 
     Private Function SendAndReceive(ByVal frame As String) As String

@@ -242,14 +242,21 @@ Public Class SerialMiddleMachineClient
         TraceMessage("Middle machine safe reset start")
         Dim deadline As DateTime = DateTime.UtcNow.AddMilliseconds(Math.Max(1, totalTimeoutMs))
 
-        TryWriteRegisterForDeadline(RegStartStop, &H0, deadline)
+        If Not TryWriteRegisterForDeadline(RegStartStop, &H0, deadline) Then
+            Throw New InvalidOperationException("Middle machine did not confirm the stop command during safe reset.")
+        End If
         Dim remainingTimeoutMs As Integer = GetRemainingTimeoutMs(deadline)
         If remainingTimeoutMs > 0 Then
             Thread.Sleep(Math.Min(StopSettleDelayMs, remainingTimeoutMs))
         End If
 
-        TryWriteRegisterForDeadline(RegG1ListClear, &H1, deadline)
-        TryWriteRegisterForDeadline(RegG2ListClear, &H1, deadline)
+        Dim failures As New List(Of String)()
+        If Not TryWriteRegisterForDeadline(RegG1ListClear, &H1, deadline) Then
+            failures.Add("G1通道列表清除失败")
+        End If
+        If Not TryWriteRegisterForDeadline(RegG2ListClear, &H1, deadline) Then
+            failures.Add("G2通道列表清除失败")
+        End If
 
         Dim safeWrites As UShort(,) = {
             {RegSyncMode, &H0},
@@ -259,9 +266,13 @@ Public Class SerialMiddleMachineClient
             {RegSpeed, &H0}
         }
         For i As Integer = 0 To safeWrites.GetLength(0) - 1
-            If GetRemainingTimeoutMs(deadline) <= 0 Then Exit For
-            TryWriteRegisterForDeadline(safeWrites(i, 0), safeWrites(i, 1), deadline)
+            If Not TryWriteRegisterForDeadline(safeWrites(i, 0), safeWrites(i, 1), deadline) Then
+                failures.Add(String.Format("安全寄存器0x{0:X4}写入失败", safeWrites(i, 0)))
+            End If
         Next
+        If failures.Count > 0 Then
+            Throw New InvalidOperationException(String.Join("；", failures.ToArray()))
+        End If
         TraceMessage("Middle machine safe reset completed")
     End Sub
 
@@ -536,9 +547,9 @@ Public Class SerialMiddleMachineClient
         Throw lastException
     End Sub
 
-    Private Sub TryWriteRegisterForDeadline(address As UShort, value As UShort, deadline As DateTime)
+    Private Function TryWriteRegisterForDeadline(address As UShort, value As UShort, deadline As DateTime) As Boolean
         Dim remainingTimeoutMs As Integer = GetRemainingTimeoutMs(deadline)
-        If remainingTimeoutMs <= 0 Then Return
+        If remainingTimeoutMs <= 0 Then Return False
 
         Try
             WriteRegister(address,
@@ -546,10 +557,12 @@ Public Class SerialMiddleMachineClient
                           False,
                           Math.Min(remainingTimeoutMs, WriteResponseTimeoutMs),
                           1)
+            Return True
         Catch ex As Exception
             TraceMessage(String.Format("Middle machine bounded reset write failed: 0x{0:X4}=0x{1:X4}: {2}", address, value, ex.Message))
+            Return False
         End Try
-    End Sub
+    End Function
 
     Private Shared Function GetRemainingTimeoutMs(deadline As DateTime) As Integer
         Return CInt(Math.Max(0, Math.Ceiling((deadline - DateTime.UtcNow).TotalMilliseconds)))
@@ -632,7 +645,7 @@ Public Class SerialMiddleMachineClient
                 Dim status As UShort = CUShort((CUShort(frame(4)) << 8) Or frame(5))
                 If registerAddress = StatusEventRegister Then
                     If status = StatusCompleted Then
-                        Application.DoEvents()
+                        If Thread.CurrentThread.GetApartmentState() = ApartmentState.STA Then Application.DoEvents()
                         ThrowIfCancellationRequested(cancellationRequested)
                         ReadBasicStatusRegisters()
                         TraceMessage("EVENT STATUS COMPLETED 0x0006")
@@ -648,7 +661,7 @@ Public Class SerialMiddleMachineClient
                     End If
                 End If
             End If
-            Application.DoEvents()
+            If Thread.CurrentThread.GetApartmentState() = ApartmentState.STA Then Application.DoEvents()
             ThrowIfCancellationRequested(cancellationRequested)
         Loop While DateTime.Now < deadline
 

@@ -39,6 +39,7 @@ Public Class FrmNgRetest
     Private pendingSaveRequest As NgRetestSaveRequest
     Private lookupState As NgRetestLookupState = NgRetestLookupState.NotQueried
     Private isBusy As Boolean
+    Private applicationExitCleanupStarted As Boolean
 
     Public Sub New()
         Text = "NG复测"
@@ -265,13 +266,33 @@ Public Class FrmNgRetest
             MessageBox.Show("复测3562未连接，不能测量。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning)
             Return
         End If
+        If Not CalibrationService.TryBeginBarcodeRetest() Then
+            MessageBox.Show("测试或通道校准正在采集，请等待操作完成后再复测。", "设备采集忙", MessageBoxButtons.OK, MessageBoxIcon.Information)
+            Return
+        End If
 
         SetBusy(True)
         currentMeasurement = Nothing
         pendingSaveRequest = Nothing
         SetRetestValues("—", "—", "—", "—", "正在采集……")
         Try
+            Dim calibrationSnapshot As CalibrationSnapshot = Nothing
+            If lookupState = NgRetestLookupState.Found AndAlso currentSource IsNot Nothing Then
+                calibrationSnapshot = CalibrationService.SharedInstance.CurrentSnapshot
+            End If
             currentMeasurement = Await Task.Run(Function() meterService.Measure())
+            If calibrationSnapshot IsNot Nothing Then
+                Dim deviceChannel As Integer = TrayChannelMapping.ToDeviceChannel(currentSource.ChannelNo)
+                Dim corrected As CalibratedResistanceResult = calibrationSnapshot.ApplyResistance(
+                    currentMeasurement.RawResistanceMilliohm,
+                    deviceChannel)
+                currentMeasurement.CalibrationValueMilliohm = corrected.CompensationMilliohm
+                currentMeasurement.FinalResistanceMilliohm = corrected.FinalResistanceMilliohm
+                currentMeasurement.Resistance = CSng(corrected.FinalResistanceMilliohm)
+                currentMeasurement.CalibrationSnapshotFingerprint = calibrationSnapshot.Fingerprint
+                currentMeasurement.CalibrationSnapshotSource = calibrationSnapshot.SourceDescription
+                currentMeasurement.Result = If(IsNG(currentMeasurement.Voltage, currentMeasurement.Resistance) = 0, "OK", "NG")
+            End If
             DisplayMeasurement(currentMeasurement)
 
             If lookupState = NgRetestLookupState.NotFound AndAlso chkDebugMode.Checked Then
@@ -296,6 +317,7 @@ Public Class FrmNgRetest
             End If
             MessageBox.Show(ex.Message, "NG复测采集失败", MessageBoxButtons.OK, MessageBoxIcon.Error)
         Finally
+            CalibrationService.EndBarcodeRetest()
             SetBusy(False)
         End Try
     End Sub
@@ -319,9 +341,12 @@ Public Class FrmNgRetest
             pendingSaveRequest = Nothing
             lblRetestStatus.Text = If(request.OverwriteOriginal, "已记录复测并覆盖历史", "已记录复测，历史未覆盖")
             WriteOperationLog("成功", "完成NG复测", request.Source.BatteryCode, "NG复测数据已保存。",
-                              String.Format(CultureInfo.InvariantCulture, "TestResultId={0}；复测判定={1}；电压={2:F2} mV；内阻={3:F2} mΩ；覆盖原数据={4}；仪表端口={5}。",
+                              String.Format(CultureInfo.InvariantCulture, "TestResultId={0}；复测判定={1}；电压={2:F2} mV；原始内阻={3:F6} mΩ；校准补偿={4:F6} mΩ；最终内阻={5:F6} mΩ；校准快照={6}（{7}）；覆盖原数据={8}；仪表端口={9}。",
                                             request.Source.SourceTestResultId, request.Measurement.Result,
-                                            request.Measurement.Voltage * 1000.0F, request.Measurement.Resistance,
+                                            request.Measurement.Voltage * 1000.0F, request.Measurement.RawResistanceMilliohm,
+                                            request.Measurement.CalibrationValueMilliohm, request.Measurement.FinalResistanceMilliohm,
+                                            If(request.Measurement.CalibrationSnapshotFingerprint, "未应用"),
+                                            If(request.Measurement.CalibrationSnapshotSource, "调试模式"),
                                             request.OverwriteOriginal, request.MeterPort))
         Catch ex As Exception
             lblRetestStatus.Text = "保存失败，测量值已保留；请重试保存。"
@@ -388,7 +413,8 @@ Public Class FrmNgRetest
     End Function
 
     Private Function CanMeasure() As Boolean
-        Return meterService.IsConnected AndAlso pendingSaveRequest Is Nothing AndAlso
+        Return meterService.IsConnected AndAlso Not CalibrationService.IsCalibrationAcquisitionInProgress AndAlso
+            Not CalibrationService.IsBarcodeRetestInProgress AndAlso pendingSaveRequest Is Nothing AndAlso
             (lookupState = NgRetestLookupState.Found OrElse (lookupState = NgRetestLookupState.NotFound AndAlso chkDebugMode.Checked))
     End Function
 
@@ -403,7 +429,7 @@ Public Class FrmNgRetest
     Private Sub UpdateActionState()
         If chkOverwrite Is Nothing OrElse chkDebugMode Is Nothing OrElse btnRetest Is Nothing OrElse btnRetrySave Is Nothing Then Return
         chkOverwrite.Enabled = Not isBusy AndAlso pendingSaveRequest Is Nothing
-        chkDebugMode.Enabled = Not isBusy AndAlso pendingSaveRequest Is Nothing AndAlso lookupState = NgRetestLookupState.NotFound
+        chkDebugMode.Enabled = Not isBusy AndAlso pendingSaveRequest Is Nothing
         btnRetest.Enabled = Not isBusy AndAlso CanMeasure()
         btnRetrySave.Enabled = Not isBusy AndAlso pendingSaveRequest IsNot Nothing
     End Sub
@@ -417,7 +443,17 @@ Public Class FrmNgRetest
         End Try
     End Sub
 
+    Public Sub PrepareForApplicationExitUi()
+        applicationExitCleanupStarted = True
+        Enabled = False
+    End Sub
+
+    Public Sub ShutdownForApplicationExit()
+        meterService.Dispose()
+    End Sub
+
     Private Sub FormClosingHandler(ByVal sender As Object, ByVal e As FormClosingEventArgs)
+        If applicationExitCleanupStarted Then Return
         meterService.Dispose()
     End Sub
 End Class

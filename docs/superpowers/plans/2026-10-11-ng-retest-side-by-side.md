@@ -91,7 +91,7 @@ command.Parameters.Add("@RetestOperationId", SqlDbType.UniqueIdentifier).Value =
 
 新增窗体级查询状态 `NotQueried / Found / NotFound / Failed`。每次 Enter 或点击查询开始时，清空上一条的来源、测量值、待保存请求；取消覆盖与调试勾选；清空左右卡片；暂时禁用复测、调试和重试。
 
-查询返回来源时设 `Found` 并显示条码、托盘/通道/位置及历史指标。返回 `Nothing` 时设 `NotFound`，左卡片显示无 NG 历史，允许勾选调试但仍禁用复测。数据库异常设 `Failed`、显示查询错误并禁用调试和复测。仅在 `NotFound` 状态勾选调试后启用复测。
+查询返回来源时设 `Found` 并显示条码、托盘/通道/位置及历史指标。返回 `Nothing` 时设 `NotFound`，左卡片显示无 NG 历史。调试与覆盖复选框在所有非忙碌查询状态都可选择；仅在 `NotFound` 状态勾选调试后启用复测。数据库异常设 `Failed` 并显示查询错误，保持复测禁用；调试选项不能绕过查询错误。
 
 - [x] **Step 3：实现正式复测、自动覆盖和调试只显示**
 

@@ -43,6 +43,35 @@ if ([string]$formatReading.Invoke($null, [object[]]@($faultReading)) -ne '探头
     throw 'The LES30 sensor-fault marker must display as 探头故障.'
 }
 
+$testForm = [Activator]::CreateInstance($formType)
+try {
+    $updateReadings = $formType.GetMethod('UpdateTemperatureReadings', [Reflection.BindingFlags]'NonPublic,Instance')
+    if ($null -eq $updateReadings) { throw 'frmTest.UpdateTemperatureReadings was not found.' }
+    $channelOneField = $formType.GetField('_t1', [Reflection.BindingFlags]'NonPublic,Instance')
+    $channelTwoField = $formType.GetField('_t2', [Reflection.BindingFlags]'NonPublic,Instance')
+    if ($null -eq $channelOneField -or $null -eq $channelTwoField) { throw 'Main temperature controls t1/t2 were not found.' }
+    $channelOne = $channelOneField.GetValue($testForm)
+    $channelTwo = $channelTwoField.GetValue($testForm)
+    $readings = [Array]::CreateInstance($readingType, 2)
+    $readings.SetValue($positiveReading, 0)
+    $readings.SetValue($decode.Invoke($null, [object[]]@([UInt16]0xFFF6)), 1)
+    $readingArguments = [Array]::CreateInstance([object], 1)
+    $readingArguments.SetValue($readings, 0)
+    $updateReadings.Invoke($testForm, $readingArguments)
+    if ($channelOne.Text -ne '25.0' -or $channelTwo.Text -ne '-1.0') {
+        throw "Two-channel polling did not write both values to the main controls: t1=$($channelOne.Text), t2=$($channelTwo.Text)."
+    }
+
+    $readings.SetValue($faultReading, 0)
+    $updateReadings.Invoke($testForm, $readingArguments)
+    if ($channelOne.Text -ne '探头故障' -or $channelTwo.Text -ne '-1.0') {
+        throw 'A sensor fault must update only its corresponding main-page temperature control.'
+    }
+}
+finally {
+    $testForm.Dispose()
+}
+
 $validateUnit.Invoke($null, [object[]]@([UInt16]0))
 foreach ($unitValue in @([UInt16]1, [UInt16]2)) {
     try {
@@ -59,12 +88,17 @@ $clientSource = [System.IO.File]::ReadAllText((Join-Path $repoRoot 'NtcTemperatu
 $formSource = [System.IO.File]::ReadAllText((Join-Path $repoRoot 'frmTest.vb'), [System.Text.Encoding]::UTF8)
 $designerSource = [System.IO.File]::ReadAllText((Join-Path $repoRoot 'frmTest.Designer.vb'), [System.Text.Encoding]::UTF8)
 $initSource = [System.IO.File]::ReadAllText((Join-Path $repoRoot 'frmInit.vb'), [System.Text.Encoding]::UTF8)
+$loadBlock = [Regex]::Match($formSource, '(?s)Private Sub frmTest_Load\(.*?End Sub').Value
+$deferredStartupBlock = [Regex]::Match($formSource, '(?s)Private Sub StartDeferredStartupWork\(\).*?End Sub').Value
+$temperatureStartBlock = [Regex]::Match($formSource, '(?s)Private Sub StartTemperaturePolling\(\).*?End Sub').Value
 $updateBlock = [Regex]::Match($formSource, '(?s)Private Sub UpdateTemperatureReadings\(.*?End Sub').Value
 $communicationErrorBlock = [Regex]::Match($formSource, '(?s)Private Sub UpdateTemperatureCommunicationError\(\).*?End Sub').Value
 $unitErrorBlock = [Regex]::Match($formSource, '(?s)Private Sub UpdateTemperatureUnitError\(\).*?End Sub').Value
 if ([string]::IsNullOrWhiteSpace($updateBlock) -or
     [string]::IsNullOrWhiteSpace($communicationErrorBlock) -or
-    [string]::IsNullOrWhiteSpace($unitErrorBlock)) {
+    [string]::IsNullOrWhiteSpace($unitErrorBlock) -or
+    [string]::IsNullOrWhiteSpace($loadBlock) -or
+    [string]::IsNullOrWhiteSpace($deferredStartupBlock)) {
     throw 'Temperature UI update/error methods were not found.'
 }
 
@@ -101,6 +135,11 @@ if ($formSource -notmatch 'Catch ex As NtcTemperatureUnitException') {
 }
 if ($formSource -notmatch 'temperatureTimer\.Interval\s*=\s*5000') {
     throw 'Temperature polling interval must remain 5 seconds.'
+}
+if ($loadBlock -notmatch 'StartTemperaturePolling\(\)' -or
+    $temperatureStartBlock -notmatch 'temperatureTimer\.Start\(\)' -or
+    $deferredStartupBlock -match 'temperatureTimer\.Start\(\)') {
+    throw 'Temperature polling must start from frmTest_Load, independently of the first Paint/deferred-start path.'
 }
 if ($formSource -notmatch 't1\.Text\s*,\s*t2\.Text\s*,\s*String\.Empty\s*,\s*String\.Empty') {
     throw 'Local result CSV must serialize active temperatures and two blank inactive columns.'

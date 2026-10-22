@@ -14,6 +14,14 @@ Public NotInheritable Class TrayTestPlan
     End Sub
 End Class
 
+Public NotInheritable Class NoTestableTrayChannelsException
+    Inherits InvalidOperationException
+
+    Public Sub New(ByVal message As String)
+        MyBase.New(message)
+    End Sub
+End Class
+
 Public NotInheritable Class TrayTestPreparation
     Private Sub New()
     End Sub
@@ -35,20 +43,26 @@ Public NotInheritable Class TrayTestPreparation
             If Not seenCodes.Add(code) Then Throw New InvalidOperationException("托盘数据包含重复电芯码：" & code)
             codes.Add(channel, code)
         Next
-        If codes.Count = 0 Then Throw New InvalidOperationException("本托盘没有有效电芯码。")
+        If codes.Count = 0 Then Throw New NoTestableTrayChannelsException("本托盘没有有效电芯码。")
 
-        Dim measurement As List(Of Integer)
+        Dim requested As List(Of Integer)
         If automaticMode Then
-            measurement = Enumerable.Range(1, 256).ToList()
+            requested = codes.Keys.OrderBy(Function(channel) channel).ToList()
         Else
-            measurement = If(selectedChannels, Enumerable.Empty(Of Integer)()).Distinct().OrderBy(Function(channel) channel).ToList()
-            If measurement.Count = 0 Then Throw New InvalidOperationException("请先选择至少一个待测试通道。")
-            For Each channel As Integer In measurement
+            requested = If(selectedChannels, Enumerable.Empty(Of Integer)()).Distinct().OrderBy(Function(channel) channel).ToList()
+            If requested.Count = 0 Then Throw New InvalidOperationException("请先选择至少一个待测试通道。")
+            For Each channel As Integer In requested
                 If channel < 1 OrElse channel > 256 Then Throw New InvalidOperationException("所选通道超出范围：CH" & channel)
-                If Not codes.ContainsKey(channel) Then Throw New InvalidOperationException("所选通道缺少电芯码：CH" & channel)
             Next
         End If
-        Dim occupied As List(Of Integer) = measurement.Where(Function(channel) codes.ContainsKey(channel)).ToList()
+
+        Dim measurement As List(Of Integer) = requested.Where(Function(channel) codes.ContainsKey(channel)).ToList()
+        If measurement.Count = 0 Then
+            Dim unavailableChannels As String = String.Join(",", requested.Select(Function(channel) "CH" & channel.ToString()))
+            Throw New NoTestableTrayChannelsException("所选通道没有有效电芯码：" & unavailableChannels)
+        End If
+
+        Dim occupied As List(Of Integer) = measurement.ToList()
         Return New TrayTestPlan(measurement, occupied, codes)
     End Function
 End Class

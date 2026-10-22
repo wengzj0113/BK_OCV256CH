@@ -15,6 +15,11 @@ Public Class RetestMeasurement
     Public Property Voltage As Single
     Public Property VoltageMeasured As Boolean
     Public Property Resistance As Single
+    Public Property RawResistanceMilliohm As Double
+    Public Property CalibrationValueMilliohm As Double
+    Public Property FinalResistanceMilliohm As Double
+    Public Property CalibrationSnapshotFingerprint As String
+    Public Property CalibrationSnapshotSource As String
     Public Property Result As String
     Public Property MeasuredAt As DateTime
 End Class

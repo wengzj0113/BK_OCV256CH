@@ -201,6 +201,9 @@ Module Module1
         Dim BatCode As String '电池编码
         Dim Voltage As Single
         Dim Resistance As Single
+        Dim RawResistanceMilliohm As Double
+        Dim CalibrationValueMilliohm As Double
+        Dim FinalResistanceMilliohm As Double
         Dim TestTime As Date
         Dim Result As String '测试结果
     End Structure
@@ -226,7 +229,9 @@ Module Module1
             IsNG = 1
             'frmTest.VolNgTxt = "电压超出合格范围。"
         End If
-        If Resistance > Initsetting.upResistance Or Resistance < Initsetting.downResistance Then
+        If Single.IsNaN(Resistance) OrElse Single.IsInfinity(Resistance) OrElse
+           Resistance >= InstrumentCacheParser.InvalidResistanceMilliohm OrElse
+           Resistance > Initsetting.upResistance OrElse Resistance < Initsetting.downResistance Then
             IsNG = 2
             'frmTest.ResNgTxt = "内阻超出合格范围。"
         End If
@@ -1571,12 +1576,17 @@ Loop_No:
         Com_3561.DiscardOutBuffer()
         Com_3561.Write(":FETC?" & vbLf)
 
-        Do While Right(RecvStr, 1) <> Chr(10)
+        Do While Not ApplicationShuttingDown AndAlso Right(RecvStr, 1) <> Chr(10)
             Timer = Now.TimeOfDay.Hours * 3600 + Now.TimeOfDay.Minutes * 60 + Now.TimeOfDay.Seconds
             RecvStr = RecvStr + Com_3561.ReadExisting
             System.Windows.Forms.Application.DoEvents()
             'System.Windows.Forms.Application.DoEvents()
         Loop
+
+        If ApplicationShuttingDown Then
+            Trans_ReadData_3562 = -1
+            Return -1
+        End If
 
         If RecvStr <> "" Then
             strDataArr = Split(RecvStr, ",")
@@ -1634,7 +1644,12 @@ Loop_No:
             resistances = parseResult.Resistances
             SerialMiddleMachineClient.LogMessage("3562 cache parse summary: expected=" & expectedCount.ToString() &
                                                  ", valid=" & parseResult.ValidRecordCount.ToString() &
-                                                 ", invalid=" & parseResult.InvalidRecordCount.ToString())
+                                                 ", invalid=" & parseResult.InvalidRecordCount.ToString() &
+                                                 ", fallback10000=" & parseResult.FallbackRecordCount.ToString())
+            If parseResult.FallbackRecordCount > 0 Then
+                SerialMiddleMachineClient.LogMessage("3562内阻异常，" & parseResult.FallbackRecordCount.ToString() &
+                                                     "条内阻使用替代值10000 mΩ；" & parseResult.BatchFallbackReason)
+            End If
             If Not parseResult.Success Then
                 If parseResult.InvalidRecordCount > 0 Then
                     SerialMiddleMachineClient.LogMessage("3562 cache read failed: invalid record format detected.")
@@ -1652,7 +1667,11 @@ Loop_No:
             Return 0
         Catch ex As Exception
             SerialMiddleMachineClient.LogMessage("3562 cache read exception: " & ex.Message)
-            Return -1
+            Dim fallback As InstrumentCacheParseResult = InstrumentCacheParser.Parse3562MemoryData(String.Empty, expectedCount, True)
+            voltages = fallback.Voltages
+            resistances = fallback.Resistances
+            SerialMiddleMachineClient.LogMessage("3562内阻读取失败，本批" & expectedCount.ToString() & "条内阻使用替代值10000 mΩ")
+            Return 0
         End Try
     End Function
 
@@ -1702,10 +1721,17 @@ Loop_No:
     End Sub
 
     Public Sub ResetCachedData_3562(Optional timeoutMs As Integer = 3000)
+        Dim resetError As String = ResetCachedData_3562ForReset(timeoutMs)
+        If Not String.IsNullOrWhiteSpace(resetError) Then
+            SerialMiddleMachineClient.LogMessage("3562 reset failed: " & resetError)
+        End If
+    End Sub
+
+    Public Function ResetCachedData_3562ForReset(timeoutMs As Integer) As String
         Try
             If Com_3561 Is Nothing OrElse Not Com_3561.IsOpen Then
                 SerialMiddleMachineClient.LogMessage("3562 reset skipped: port is not open")
-                Return
+                Return "串口未打开"
             End If
             SerialMiddleMachineClient.LogMessage("3562 reset start")
             Com_3561.DiscardInBuffer()
@@ -1717,10 +1743,12 @@ Loop_No:
             Com_3561.DiscardInBuffer()
             Com_3561.DiscardOutBuffer()
             SerialMiddleMachineClient.LogMessage("3562 reset completed")
+            Return Nothing
         Catch ex As Exception
             SerialMiddleMachineClient.LogMessage("3562 reset exception: " & ex.Message)
+            Return ex.Message
         End Try
-    End Sub
+    End Function
 
     Private Function ExtractNumericValues(text As String) As List(Of Double)
         Dim values As New List(Of Double)()
@@ -1876,10 +1904,19 @@ Loop_No:
     End Sub
 
     Public Sub ResetCachedData_34461(Optional timeoutMs As Integer = VisaInstrumentIoTimeoutMs)
+        Dim resetErrors As List(Of String) = ResetCachedData_34461ForReset(timeoutMs)
+        If resetErrors.Count > 0 Then
+            SerialMiddleMachineClient.LogMessage("34461 reset failed: " & String.Join("；", resetErrors.ToArray()))
+        End If
+    End Sub
+
+    Public Function ResetCachedData_34461ForReset(timeoutMs As Integer) As List(Of String)
+        Dim failures As New List(Of String)()
         Try
             If visaSession Is Nothing Then
                 SerialMiddleMachineClient.LogMessage("34461 reset skipped: session is not open")
-                Return
+                failures.Add("VISA会话未打开")
+                Return failures
             End If
             SerialMiddleMachineClient.LogMessage("34461 reset start")
             '退出清理不能继承 FETC? 的长超时；否则仪表无响应时会阻塞整个 FormClosing。
@@ -1893,22 +1930,27 @@ Loop_No:
                 visaSession.IO.Clear()
             Catch ex As Exception
                 SerialMiddleMachineClient.LogMessage("34461 pre-clear failed: " & ex.Message)
+                failures.Add("清除挂起I/O失败：" & ex.Message)
             End Try
             Try
                 visaSession.WriteString("ABOR", True)
             Catch ex As Exception
                 SerialMiddleMachineClient.LogMessage("34461 abort failed: " & ex.Message)
+                failures.Add("发送ABOR失败：" & ex.Message)
             End Try
             Try
                 visaSession.WriteString("*CLS", True)
             Catch ex As Exception
                 SerialMiddleMachineClient.LogMessage("34461 clear status failed: " & ex.Message)
+                failures.Add("发送*CLS失败：" & ex.Message)
             End Try
             SerialMiddleMachineClient.LogMessage("34461 reset completed")
         Catch ex As Exception
             SerialMiddleMachineClient.LogMessage("34461 reset exception: " & ex.Message)
+            failures.Add(ex.Message)
         End Try
-    End Sub
+        Return failures
+    End Function
 
     Public Function Reset34461ForNewTest() As Integer
         Try
@@ -2556,6 +2598,7 @@ Err:
                 Return Nothing
                 '不为空，如果字符串数组的长度==总通道数+2
             ElseIf strDataArr.Length = (testNum + 2) Then
+                Dim runCalibrationSnapshot As CalibrationSnapshot = CalibrationService.SharedInstance.CurrentSnapshot
                 '启动循环，遍历字符串数组0->length-1
                 For i = 0 To strDataArr.Length - 1
                     Dim tmp As String = strDataArr(i)
@@ -2568,7 +2611,7 @@ Err:
                         '定义ch ==元素素组数组（0）-1
                         Dim ch As Integer
                         If (testType = 1) Then
-                            ch = Val(arr(0) - 1) + （firstCellNum - 1）
+                            ch = Val(arr(0) - 1) + (firstCellNum - 1)
                         End If
                         If (testType = 0) Then
                             ch = 0
@@ -2582,13 +2625,16 @@ Err:
                             Next
                         End If
                         '如果通道号小于总的通道数，存储通道对应的值
-                        If ch < (testNum + firstCellNum) Then
+                        If ch >= 0 AndAlso ch < CalibrationService.ChannelCount AndAlso ch < (testNum + firstCellNum) Then
                             '如果元素数组长度>=3,才是正确数据
                             If arr.Length >= 3 Then
-                                RecieveData(ch).Resistance = Val(arr(1)) * 1000 + calibrateValueArray(ch) '+ Val(Initsetting.sngR_B)
-                                If RecieveData(ch).Resistance > 10000 Then
-                                    RecieveData(ch).Resistance = 10000
-                                End If
+                                Dim rawResistanceMilliohm As Double = CDbl(Val(arr(1))) * 1000.0R
+                                Dim correctedResistance As CalibratedResistanceResult =
+                                    runCalibrationSnapshot.ApplyResistance(rawResistanceMilliohm, TrayChannelMapping.ToDeviceChannel(ch + 1))
+                                RecieveData(ch).RawResistanceMilliohm = correctedResistance.RawResistanceMilliohm
+                                RecieveData(ch).CalibrationValueMilliohm = correctedResistance.CompensationMilliohm
+                                RecieveData(ch).FinalResistanceMilliohm = correctedResistance.FinalResistanceMilliohm
+                                RecieveData(ch).Resistance = CSng(correctedResistance.FinalResistanceMilliohm)
                                 RecieveData(ch).Voltage = Val(arr(2)) '+ Val(Initsetting.sngV_B)
                                 If RecieveData(ch).Voltage > 10000 Then
                                     RecieveData(ch).Voltage = 10000
@@ -2906,6 +2952,7 @@ Err:
                 Return Nothing
                 '不为空，如果字符串数组的长度==总通道数+2
             ElseIf strDataArr.Length = (testNum + 2) Then
+                Dim runCalibrationSnapshot As CalibrationSnapshot = CalibrationService.SharedInstance.CurrentSnapshot
                 '启动循环，遍历字符串数组0->length-1
                 For i = 0 To strDataArr.Length - 1
                     Dim tmp As String = strDataArr(i)
@@ -2918,13 +2965,16 @@ Err:
                         '定义ch ==元素素组数组（0）-1
                         Dim ch As Integer = Val(arr(0) - 1) + （firstCellNum - 1）
                         '如果通道号小于总的通道数，存储通道对应的值
-                        If ch < (testNum + firstCellNum) Then
+                        If ch >= 0 AndAlso ch < CalibrationService.ChannelCount AndAlso ch < (testNum + firstCellNum) Then
                             '如果元素数组长度>=3,才是正确数据
                             If arr.Length >= 3 Then
-                                RecieveData(ch).Resistance = Val(arr(1)) * 1000 + Val(Initsetting.sngR_B)
-                                If RecieveData(ch).Resistance > 10000 Then
-                                    RecieveData(ch).Resistance = 10000
-                                End If
+                                Dim rawResistanceMilliohm As Double = CDbl(Val(arr(1))) * 1000.0R
+                                Dim correctedResistance As CalibratedResistanceResult =
+                                    runCalibrationSnapshot.ApplyResistance(rawResistanceMilliohm, TrayChannelMapping.ToDeviceChannel(ch + 1))
+                                RecieveData(ch).RawResistanceMilliohm = correctedResistance.RawResistanceMilliohm
+                                RecieveData(ch).CalibrationValueMilliohm = correctedResistance.CompensationMilliohm
+                                RecieveData(ch).FinalResistanceMilliohm = correctedResistance.FinalResistanceMilliohm
+                                RecieveData(ch).Resistance = CSng(correctedResistance.FinalResistanceMilliohm)
                                 RecieveData(ch).Voltage = Val(arr(2)) + Val(Initsetting.sngV_B)
                                 If RecieveData(ch).Voltage > 10000 Then
                                     RecieveData(ch).Voltage = 10000
